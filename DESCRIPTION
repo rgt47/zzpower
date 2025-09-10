@@ -1,0 +1,32 @@
+Package: zzpower
+Type: Package
+Title: Power Analysis Calculator for Two-Group Parallel Designs
+Version: 0.1.0
+Author: Ronald "Ryy" G. Thomas
+Maintainer: Ronald "Ryy" G. Thomas <rythomas@email.com>
+Description: A comprehensive 'Shiny' application for conducting power analysis 
+    and sample size calculations for two-group parallel clinical trial designs.
+    Supports multiple effect size specifications including standardized differences,
+    percentage reductions, difference in change scores, and treatment group changes.
+    Accounts for dropout rates, unequal group allocation ratios, and provides
+    interactive visualizations and downloadable reports. Designed for clinical
+    researchers and statisticians planning randomized controlled trials.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.3.2
+Depends: 
+    R (>= 4.0.0)
+Imports:
+    shiny (>= 1.7.0),
+    bslib (>= 0.4.0),
+    bsicons (>= 0.1.0),
+    pwr (>= 1.3.0),
+    ggplot2 (>= 3.4.0),
+    DT (>= 0.20),
+    magrittr,
+    rlang
+Suggests:
+    testthat (>= 3.0.0)
+URL: https://github.com/rythomas/zzpower
+BugReports: https://github.com/rythomas/zzpower/issues
