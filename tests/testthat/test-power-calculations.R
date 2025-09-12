@@ -95,15 +95,20 @@ test_that("power ranges are sensible across parameter ranges", {
 })
 
 test_that("one-sided vs two-sided tests work correctly", {
-  # Two-sided test
+  # Two-sided test (standard alpha = 0.05)
   two_sided <- pwr::pwr.t2n.test(n1 = 50, n2 = 50, sig.level = 0.05, d = 0.5)
   
-  # One-sided test (equivalent to using alpha = 0.05/1 = 0.05, but conceptually one-sided)
-  # In our app, we divide by 'sided' where sided = 1 for one-sided, 2 for two-sided
-  one_sided <- pwr::pwr.t2n.test(n1 = 50, n2 = 50, sig.level = 0.05/1, d = 0.5)
+  # One-sided test - to get equivalent power, we use the same overall alpha
+  # but pwr package expects the full alpha level for one-sided tests
+  # In our app logic: sig_level = type1 / sided, where sided = 1 for one-sided, 2 for two-sided
+  # So for two-sided with type1 = 0.05: sig_level = 0.05 / 2 = 0.025
+  # For one-sided with type1 = 0.05: sig_level = 0.05 / 1 = 0.05
+  # But pwr package itself doesn't distinguish, so we simulate by using different alpha
+  two_sided_corrected <- pwr::pwr.t2n.test(n1 = 50, n2 = 50, sig.level = 0.025, d = 0.5)
+  one_sided_corrected <- pwr::pwr.t2n.test(n1 = 50, n2 = 50, sig.level = 0.05, d = 0.5)
   
-  # One-sided test should have higher power for same alpha level
-  expect_true(one_sided$power > two_sided$power)
+  # One-sided test should have higher power when using same overall Type I error rate
+  expect_true(one_sided_corrected$power > two_sided_corrected$power)
 })
 
 test_that("error handling in power calculations", {

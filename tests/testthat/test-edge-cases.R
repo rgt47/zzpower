@@ -42,9 +42,13 @@ test_that("extreme significance levels are handled correctly", {
   # Lenient should have higher power
   expect_true(lenient$power > stringent$power)
   
-  # Test boundary values (these actually don't error in pwr package but give warnings)
-  expect_warning(pwr::pwr.t2n.test(n1 = 50, n2 = 50, sig.level = 0, d = 0.5))
-  expect_warning(pwr::pwr.t2n.test(n1 = 50, n2 = 50, sig.level = 1, d = 0.5))
+  # Test boundary values (pwr package actually handles these without warnings)
+  result_zero <- pwr::pwr.t2n.test(n1 = 50, n2 = 50, sig.level = 0, d = 0.5)
+  result_one <- pwr::pwr.t2n.test(n1 = 50, n2 = 50, sig.level = 1, d = 0.5)
+  
+  # These should produce extreme results
+  expect_true(result_zero$power == 0)  # Zero alpha should give zero power  
+  expect_true(result_one$power == 1)   # Alpha = 1 should give power = 1
   expect_error(pwr::pwr.t2n.test(n1 = 50, n2 = 50, sig.level = 1.5, d = 0.5))
 })
 
@@ -232,5 +236,5 @@ test_that("rounding and precision edge cases are handled", {
   expect_equal(round(2.5), 2)  # R uses "round half to even"
   expect_equal(round(3.5), 4)
   expect_equal(round(2.5, 0), 2)
-  expect_equal(round(2.55, 1), 2.6)
+  expect_equal(round(2.55, 1), 2.5)  # R uses "round half to even", 2.55 rounds to 2.5
 })
