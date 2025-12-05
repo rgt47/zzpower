@@ -79,5 +79,34 @@ ZZPOWER_CONSTANTS <- list(
 
   # Table formatting
   TABLE_PAGE_LENGTH = 10,
-  TABLE_DECIMAL_PLACES = 3
+  TABLE_DECIMAL_PLACES = 3,
+
+  # Two Proportions (pwr.2p2n.test) - Continuous proportion parameters
+  PROPORTION_MIN = 0.01,
+  PROPORTION_MAX = 0.99,
+  PROPORTION_DEFAULT_1 = 0.5,
+  PROPORTION_DEFAULT_2 = 0.3,
+
+  # Proportion difference parameters
+  PROP_DIFF_MIN = -0.5,
+  PROP_DIFF_MAX = 0.5,
+  PROP_DIFF_DEFAULT_MIN = -0.3,
+  PROP_DIFF_DEFAULT_MAX = -0.05,
+
+  # Odds ratio parameters
+  ODDS_RATIO_MIN = 0.1,
+  ODDS_RATIO_MAX = 10,
+  ODDS_RATIO_DEFAULT_MIN = 1.2,
+  ODDS_RATIO_DEFAULT_MAX = 3,
+
+  # Relative risk parameters
+  RELATIVE_RISK_MIN = 0.1,
+  RELATIVE_RISK_MAX = 10,
+  RELATIVE_RISK_DEFAULT_MIN = 1.2,
+  RELATIVE_RISK_DEFAULT_MAX = 3,
+
+  # Two proportions specific parameters
+  BASELINE_PROPORTION_DEFAULT = 0.5,
+  SAMPLE_SIZE_MAX_PROP = 1000,  # Larger max for proportion studies
+  SAMPLE_SIZE_DEFAULT_PROP = 200  # Larger default for binary outcomes
 )
