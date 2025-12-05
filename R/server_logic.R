@@ -12,88 +12,141 @@
 #' @importFrom shiny reactive req observe updateNumericInput updateSliderInput renderUI renderPlot renderText downloadHandler
 create_server <- function() {
   function(input, output, session) {
-    
-    # Initialize default values
-    shiny::observe({
-      # Set default values for conditional inputs
-      if (is.null(input$sd0)) {
-        shiny::updateNumericInput(session, "sd0", value = 10)
+
+    # Validate input parameters
+    parameter_validation <- shiny::reactive({
+      issues <- character()
+
+      # Validate sample size
+      if ((input$N %||% 100) <= 0) {
+        issues <- c(issues, "Sample size must be positive")
       }
-      if (is.null(input$d0)) {
-        shiny::updateNumericInput(session, "d0", value = 10)
+
+      # Validate dropout and drop-in don't exceed 100%
+      total_loss <- (input$dropout %||% 0.1) + (input$dropin %||% 0)
+      if (total_loss > 1) {
+        issues <- c(issues, "Dropout + Drop-in rates cannot exceed 100%")
       }
-      if (is.null(input$ratio)) {
-        shiny::updateNumericInput(session, "ratio", value = 1)
+
+      # Validate allocation ratio
+      if ((input$ratio %||% 1) <= 0) {
+        issues <- c(issues, "Allocation ratio must be positive")
       }
-      if (is.null(input$type1)) {
-        shiny::updateNumericInput(session, "type1", value = 0.05)
+
+      # Validate type I error
+      type1 <- input$type1 %||% 0.05
+      if (type1 <= 0 || type1 >= 1) {
+        issues <- c(issues, "Type I error must be between 0 and 1")
       }
-      if (is.null(input$dropin)) {
-        shiny::updateSliderInput(session, "dropin", value = 0)
+
+      # Validate standard deviations when needed
+      if (input$dmeth %in% c("diff", "pct", "active")) {
+        if ((input$sd0 %||% 10) <= 0) {
+          issues <- c(issues, "Standard deviation must be positive")
+        }
+      }
+
+      # Validate effect size ranges (where applicable)
+      if (input$dmeth == "std" && !is.null(input$del)) {
+        if (length(input$del) == 2 && input$del[1] > input$del[2]) {
+          issues <- c(issues, "Min effect size must be ≤ max effect size")
+        }
+      }
+      if (input$dmeth == "diff" && !is.null(input$dff)) {
+        if (length(input$dff) == 2 && input$dff[1] > input$dff[2]) {
+          issues <- c(issues, "Min difference must be ≤ max difference")
+        }
+      }
+      if (input$dmeth == "pct" && !is.null(input$pct)) {
+        if (length(input$pct) == 2 && input$pct[1] > input$pct[2]) {
+          issues <- c(issues, "Min percent must be ≤ max percent")
+        }
+      }
+      if (input$dmeth == "active" && !is.null(input$active)) {
+        if (length(input$active) == 2 && input$active[1] > input$active[2]) {
+          issues <- c(issues, "Min treatment change must be ≤ max treatment change")
+        }
+      }
+
+      issues
+    })
+
+    # Display validation messages
+    output$validation_messages <- shiny::renderUI({
+      messages <- parameter_validation()
+
+      if (length(messages) > 0) {
+        shiny::div(
+          class = "alert alert-warning",
+          role = "alert",
+          shiny::h5("Input Issues:"),
+          shiny::tagList(
+            lapply(messages, function(msg) shiny::p(msg))
+          )
+        )
       }
     })
-    
-    # Centralized effect size calculation
-    effect_sizes <- shiny::reactive({
+
+    # Granular reactive for effect size range - only depends on method and its specific inputs
+    effect_size_range <- shiny::reactive({
       shiny::req(input$dmeth)
-      
-      range_vec <- switch(input$dmeth,
-        "std" = if (!is.null(input$del)) input$del else c(0.2, 1.0),
-        "diff" = if (!is.null(input$dff)) input$dff else c(1, 5),  
-        "pct" = if (!is.null(input$pct)) input$pct else c(0.1, 0.5),
-        "active" = if (!is.null(input$active)) input$active else c(0, 6)
+
+      switch(input$dmeth,
+        "std" = input$del %||% c(0.2, 1.0),
+        "diff" = input$dff %||% c(1, 5),
+        "pct" = input$pct %||% c(0.1, 0.5),
+        "active" = input$active %||% c(0, 6)
       )
-      
-      if (length(range_vec) != 2) return(seq(0.2, 1.0, length.out = 16))
-      
-      seq(range_vec[1], range_vec[2], length.out = 16)
     })
-    
+
+    # Centralized effect size calculation - only depends on range
+    effect_sizes <- shiny::reactive({
+      shiny::req(effect_size_range())
+      consts <- ZZPOWER_CONSTANTS
+      range_vec <- effect_size_range()
+
+      if (length(range_vec) != 2) {
+        return(seq(consts$COHENS_D_DEFAULT_MIN, consts$COHENS_D_DEFAULT_MAX,
+                   length.out = consts$EFFECT_SIZE_SEQ_LENGTH))
+      }
+
+      seq(range_vec[1], range_vec[2], length.out = consts$EFFECT_SIZE_SEQ_LENGTH)
+    })
+
     # Convert effect sizes to Cohen's d scale
     cohens_d <- shiny::reactive({
       shiny::req(input$dmeth, effect_sizes())
-      
+
       es <- effect_sizes()
-      
+
       switch(input$dmeth,
         "std" = es,
-        "diff" = {
-          sd_val <- if (!is.null(input$sd0)) input$sd0 else 10
-          es / sd_val
-        },
-        "pct" = {
-          d0_val <- if (!is.null(input$d0)) input$d0 else 10
-          sd_val <- if (!is.null(input$sd0)) input$sd0 else 10
-          (es * d0_val) / sd_val
-        },
-        "active" = {
-          d0_val <- if (!is.null(input$d0)) input$d0 else 10
-          sd_val <- if (!is.null(input$sd0)) input$sd0 else 10
-          (d0_val - es) / sd_val
-        }
+        "diff" = es / (input$sd0 %||% 10),
+        "pct" = (es * (input$d0 %||% 10)) / (input$sd0 %||% 10),
+        "active" = ((input$d0 %||% 10) - es) / (input$sd0 %||% 10)
       )
     })
     
     # Calculate sample sizes accounting for dropout and group ratio
     study_parameters <- shiny::reactive({
       shiny::req(input$N)
-      
-      ratio_val <- if (!is.null(input$ratio)) input$ratio else 1
-      dropout_val <- if (!is.null(input$dropout)) input$dropout else 0.1
-      dropin_val <- if (!is.null(input$dropin)) input$dropin else 0
-      
-      n1_comp <- ratio_val * input$N / (ratio_val + 1) * 
+
+      ratio_val <- input$ratio %||% 1
+      dropout_val <- input$dropout %||% 0.1
+      dropin_val <- input$dropin %||% 0
+
+      n1_comp <- ratio_val * input$N / (ratio_val + 1) *
                  (1 - (dropin_val + dropout_val))
-      n2_comp <- input$N / (ratio_val + 1) * 
+      n2_comp <- input$N / (ratio_val + 1) *
                  (1 - (dropin_val + dropout_val))
-      
+
       n1_itt <- ratio_val * input$N / (ratio_val + 1)
       n2_itt <- input$N / (ratio_val + 1)
-      
-      type1_val <- if (!is.null(input$type1)) input$type1 else 0.05
-      onesided_val <- if (!is.null(input$onesided)) input$onesided else FALSE
+
+      type1_val <- input$type1 %||% 0.05
+      onesided_val <- input$onesided %||% FALSE
       sided <- if (onesided_val) 1 else 2
-      
+
       list(
         n1_comp = n1_comp,
         n2_comp = n2_comp,
@@ -158,29 +211,36 @@ create_server <- function() {
     # Power plot
     output$power_plot <- shiny::renderPlot({
       shiny::req(power_results())
-      
+      consts <- ZZPOWER_CONSTANTS
+
       results <- power_results()
-      
+
       if (all(is.na(results$power))) {
         plot.new()
         text(0.5, 0.5, "Invalid parameters for power calculation", cex = 1.2)
         return()
       }
-      
+
       x_label <- switch(input$dmeth,
         "std" = "Effect Size (Standard Deviations)",
-        "diff" = "Difference in Scores", 
+        "diff" = "Difference in Scores",
         "pct" = "Percent Reduction",
         "active" = "Treatment Group Change"
       )
-      
-      # Find effect size for 80% power
-      power_80_idx <- which.min(abs(results$power - 0.8))
-      power_80_es <- if (length(power_80_idx) > 0) results$effect_size[power_80_idx] else NA
-      
+
+      # Find effect size for target power
+      power_target_idx <- which.min(abs(results$power - consts$POWER_TARGET))
+      power_target_es <- if (length(power_target_idx) > 0) {
+        results$effect_size[power_target_idx]
+      } else {
+        NA
+      }
+
       p <- ggplot2::ggplot(results, ggplot2::aes(x = .data$effect_size, y = .data$power)) +
-        ggplot2::geom_line(color = "blue", size = 1) +
-        ggplot2::geom_hline(yintercept = 0.8, color = "red", linetype = "dashed") +
+        ggplot2::geom_line(color = consts$POWER_CURVE_COLOR, linewidth = 1) +
+        ggplot2::geom_hline(yintercept = consts$POWER_TARGET,
+                            color = consts$POWER_REFERENCE_COLOR,
+                            linetype = consts$POWER_HLINE_STYLE) +
         ggplot2::labs(
           title = "Power Curve Analysis",
           x = x_label,
@@ -188,50 +248,58 @@ create_server <- function() {
         ) +
         ggplot2::scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.1)) +
         ggplot2::theme_minimal()
-      
-      if (!is.na(power_80_es)) {
-        p <- p + ggplot2::geom_vline(xintercept = power_80_es, color = "red", linetype = "dotted")
+
+      if (!is.na(power_target_es)) {
+        p <- p + ggplot2::geom_vline(xintercept = power_target_es,
+                                     color = consts$POWER_REFERENCE_COLOR,
+                                     linetype = consts$POWER_VLINE_STYLE)
       }
-      
+
       p
     })
     
     # Results table
     output$results_table <- DT::renderDataTable({
       shiny::req(power_results())
-      
+      consts <- ZZPOWER_CONSTANTS
+
       results <- power_results()
       display_df <- results[, c("effect_size", "power")]
       colnames(display_df) <- c("Effect Size", "Power")
-      
+
       DT::datatable(
         display_df,
         options = list(
-          pageLength = 10,
-          scrollY = "300px",
+          pageLength = consts$TABLE_PAGE_LENGTH,
+          scrollY = consts$POWER_CURVE_HEIGHT,
           scrollCollapse = TRUE
         ),
         rownames = FALSE
       ) %>%
-        DT::formatRound(columns = 1:2, digits = 3)
+        DT::formatRound(columns = 1:2, digits = consts$TABLE_DECIMAL_PLACES)
     })
     
     # Summary text
     output$summary_text <- shiny::renderText({
       shiny::req(power_results(), study_parameters())
-      
+      consts <- ZZPOWER_CONSTANTS
+
       results <- power_results()
       params <- study_parameters()
-      
-      # Find effect size for 80% power
-      power_80_idx <- which.min(abs(results$power - 0.8))
-      power_80_es <- if (length(power_80_idx) > 0) results$effect_size[power_80_idx] else NA
+
+      # Find effect size for target power
+      power_target_idx <- which.min(abs(results$power - consts$POWER_TARGET))
+      power_target_es <- if (length(power_target_idx) > 0) {
+        results$effect_size[power_target_idx]
+      } else {
+        NA
+      }
       max_power <- max(results$power, na.rm = TRUE)
-      
-      type1_val <- if (!is.null(input$type1)) input$type1 else 0.05
-      dropout_val <- if (!is.null(input$dropout)) input$dropout else 0.1
-      onesided_val <- if (!is.null(input$onesided)) input$onesided else FALSE
-      
+
+      type1_val <- input$type1 %||% consts$TYPE1_DEFAULT
+      dropout_val <- input$dropout %||% consts$DROPOUT_DEFAULT
+      onesided_val <- input$onesided %||% FALSE
+
       paste0(
         "Study Design Summary:\n",
         "====================\n",
@@ -242,11 +310,12 @@ create_server <- function() {
         "Test Type: ", ifelse(onesided_val, "One-sided", "Two-sided"), "\n\n",
         "Power Analysis Results:\n",
         "====================\n",
-        "Maximum Power: ", round(max_power, 3), "\n",
-        if (!is.na(power_80_es)) {
-          paste0("Effect Size for 80% Power: ", round(power_80_es, 3))
+        "Maximum Power: ", round(max_power, consts$TABLE_DECIMAL_PLACES), "\n",
+        if (!is.na(power_target_es)) {
+          paste0("Effect Size for ", round(consts$POWER_TARGET * 100), "% Power: ",
+                 round(power_target_es, consts$TABLE_DECIMAL_PLACES))
         } else {
-          "Effect Size for 80% Power: Not achievable in tested range"
+          paste0("Effect Size for ", round(consts$POWER_TARGET * 100), "% Power: Not achievable in tested range")
         }
       )
     })
@@ -254,33 +323,34 @@ create_server <- function() {
     # Report download
     output$download_report <- shiny::downloadHandler(
       filename = function() {
-        paste0("power_analysis_report_", Sys.Date(), ".", 
-               tolower(input$report_format))
+        format_ext <- tolower(input$report_format)
+        # Map format names to extensions
+        ext <- switch(format_ext,
+          "pdf" = "html",  # PDF uses HTML (save-as-PDF in browser)
+          "word" = "docx",
+          "html" = "html",
+          "text" = "txt"
+        )
+        paste0("power_analysis_report_", Sys.Date(), ".", ext)
       },
       content = function(file) {
-        # Simple text report
-        results <- power_results()
-        params <- study_parameters()
-        
-        report_lines <- c(
-          "Power Analysis Report",
-          "Generated: ", as.character(Sys.time()),
-          "",
-          "Study Parameters:",
-          paste("Total Sample Size:", input$N),
-          paste("Dropout Rate:", round((if (!is.null(input$dropout)) input$dropout else 0.1) * 100, 1), "%"),
-          paste("Effect Size Method:", input$dmeth),
-          "",
-          "Results:",
-          paste("Effect Size Range:", 
-                round(min(results$effect_size), 3), "to", 
-                round(max(results$effect_size), 3)),
-          paste("Power Range:", 
-                round(min(results$power, na.rm = TRUE), 3), "to",
-                round(max(results$power, na.rm = TRUE), 3))
+        report_format <- tolower(input$report_format)
+        # Map format names to report generation formats
+        format_map <- switch(report_format,
+          "pdf" = "html",
+          "word" = "html",  # Generate HTML, user can save as DOCX if needed
+          "html" = "html",
+          "text" = "text"
         )
-        
-        writeLines(report_lines, file)
+
+        report_content <- generate_power_report(
+          input = input,
+          power_results = power_results,
+          study_parameters = study_parameters,
+          format = format_map
+        )
+
+        writeLines(report_content, file)
       }
     )
   }
