@@ -49,22 +49,22 @@ create_server <- function() {
       # Validate effect size ranges (where applicable)
       if (input$dmeth == "std" && !is.null(input$del)) {
         if (length(input$del) == 2 && input$del[1] > input$del[2]) {
-          issues <- c(issues, "Min effect size must be ≤ max effect size")
+          issues <- c(issues, "Min effect size must be <= max effect size")
         }
       }
       if (input$dmeth == "diff" && !is.null(input$dff)) {
         if (length(input$dff) == 2 && input$dff[1] > input$dff[2]) {
-          issues <- c(issues, "Min difference must be ≤ max difference")
+          issues <- c(issues, "Min difference must be <= max difference")
         }
       }
       if (input$dmeth == "pct" && !is.null(input$pct)) {
         if (length(input$pct) == 2 && input$pct[1] > input$pct[2]) {
-          issues <- c(issues, "Min percent must be ≤ max percent")
+          issues <- c(issues, "Min percent must be <= max percent")
         }
       }
       if (input$dmeth == "active" && !is.null(input$active)) {
         if (length(input$active) == 2 && input$active[1] > input$active[2]) {
-          issues <- c(issues, "Min treatment change must be ≤ max treatment change")
+          issues <- c(issues, "Min treatment change must be <= max treatment change")
         }
       }
 
