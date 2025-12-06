@@ -5,6 +5,7 @@
 #' on test specifications.
 #'
 #' @keywords internal
+#' @importFrom rlang .data
 
 #' Create Server for a Power Analysis Test
 #'
@@ -231,7 +232,6 @@ create_generic_test_server <- function(id, test_spec, registry_func = get_power_
         "difference" = "Difference",
         "active_change" = "Treatment Change",
         "proportions" = "Proportion (p1)",
-        "difference" = "Proportion Difference",
         "odds_ratio" = "Odds Ratio",
         "relative_risk" = "Relative Risk",
         "correlation" = "Correlation Coefficient (r)",
@@ -327,7 +327,7 @@ create_generic_test_server <- function(id, test_spec, registry_func = get_power_
         "\n\nTYPE I ERROR:",
         sprintf("%.4f", input[[paste0(id, "_type1")]] %||% consts$TYPE1_DEFAULT),
         "\nTEST DIRECTION:",
-        if_else(input[[paste0(id, "_onesided")]], "One-sided", "Two-sided")
+        ifelse(input[[paste0(id, "_onesided")]], "One-sided", "Two-sided")
       )
 
       summary_text
@@ -449,7 +449,7 @@ create_generic_test_server <- function(id, test_spec, registry_func = get_power_
     "STATISTICAL PARAMETERS",
     "--------------------------------------------",
     paste("Type I Error Rate (alpha):", sprintf("%.4f", report_data$type1_error)),
-    paste("Test Direction:", if_else(report_data$one_sided, "One-sided", "Two-sided")),
+    paste("Test Direction:", ifelse(report_data$one_sided, "One-sided", "Two-sided")),
     "",
     "POWER ANALYSIS RESULTS",
     "--------------------------------------------",
@@ -654,7 +654,7 @@ create_generic_test_server <- function(id, test_spec, registry_func = get_power_
       <div class="parameter-row">
         <span class="parameter-label">Test Direction:</span>
         <span class="parameter-value">',
-        if_else(report_data$one_sided, "One-sided", "Two-sided"), '</span>
+        ifelse(report_data$one_sided, "One-sided", "Two-sided"), '</span>
       </div>
     </div>
 

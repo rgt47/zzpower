@@ -240,7 +240,9 @@ test_that("generic report formatter produces valid output", {
 
   expect_true(is.character(report_text))
   expect_true(length(report_text) > 0)
-  expect_true(any(grepl("Two-Group t-test", report_text)))
+  # Flatten the list to check content
+  report_content <- paste(report_text, collapse = "\n")
+  expect_true(grepl("Two-Group t-test", report_content))
 })
 
 test_that("generic HTML report formatter produces valid HTML", {
@@ -272,8 +274,12 @@ test_that("generic HTML report formatter produces valid HTML", {
   report_html <- .generate_generic_report(report_data, spec)
 
   expect_true(is.character(report_html))
-  expect_true(any(grepl("<!DOCTYPE html>", report_html)))
-  expect_true(any(grepl("</html>", report_html)))
+  # Flatten if it's a list
+  if (is.list(report_html)) {
+    report_html <- paste(report_html, collapse = "\n")
+  }
+  expect_true(grepl("<!DOCTYPE html>", report_html))
+  expect_true(grepl("</html>", report_html))
 })
 
 test_that("framework properly handles all effect size methods", {
