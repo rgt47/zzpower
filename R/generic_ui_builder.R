@@ -130,7 +130,8 @@ render_sample_size_inputs <- function(test_id, input) {
       condition_value <- gsub(".*== '", "", param_spec$condition)
       condition_value <- gsub("'.*", "", condition_value)
 
-      if (input[[condition_id]] != condition_value) {
+      actual_value <- input[[condition_id]]
+      if (is.null(actual_value) || actual_value != condition_value) {
         return(NULL)
       }
     }
