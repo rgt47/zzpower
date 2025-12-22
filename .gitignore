@@ -44,3 +44,13 @@ docs/
 
 # translation temp files
 po/*~
+
+# zzcollab
+.zzcollab/
+docker-build.log
+.zzcollab.log
+
+# renv
+renv/library/
+renv/staging/
+renv/sandbox/
