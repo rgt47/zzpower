@@ -13,7 +13,7 @@ ARG BASE_IMAGE=rocker/r-ver
 ARG R_VERSION=4.4.2
 ARG USERNAME=analyst
 
-FROM rocker/tidyverse:latest
+FROM rocker/r-ver:4.5.2
 
 ARG USERNAME=analyst
 ARG DEBIAN_FRONTEND=noninteractive
@@ -50,6 +50,9 @@ COPY renv.lock renv.lock
 RUN R -e "renv::restore()"
 
 # Development tools (pandoc, tinytex, languageserver as needed for base image)
+# Install pandoc for document rendering
+RUN apt-get update && apt-get install -y --no-install-recommends pandoc && rm -rf /var/lib/apt/lists/*
+
 # Install tinytex for PDF output
 RUN R -e "install.packages('tinytex')" && R -e "tinytex::install_tinytex()"
 
