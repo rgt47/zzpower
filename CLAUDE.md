@@ -357,8 +357,8 @@ To add a 6th test, only requires:
 4. Framework automatically handles UI, server, reports, and testing
 
 ## Repository Information
-- **URL:** https://github.com/rythomas/zzpower
-- **Bug Reports:** https://github.com/rythomas/zzpower/issues
+- **URL:** https://github.com/rgt47/zzpower
+- **Bug Reports:** https://github.com/rgt47/zzpower/issues
 
 ## Version History
 

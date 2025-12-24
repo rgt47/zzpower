@@ -2,8 +2,9 @@ Package: zzpower
 Type: Package
 Title: Power Analysis Calculator for Two-Group Parallel Designs
 Version: 0.1.0
-Author: Ronald "Ryy" G. Thomas
-Maintainer: Ronald "Ryy" G. Thomas <rythomas@email.com>
+Authors@R:
+    person("Ronald (Ryy) G", "Thomas", , "rgthomas@ucsd.edu", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0003-1686-4965"))
 Description: A comprehensive 'Shiny' application for conducting power analysis 
     and sample size calculations for two-group parallel clinical trial designs.
     Supports multiple effect size specifications including standardized differences,
@@ -28,5 +29,5 @@ Imports:
     rlang
 Suggests:
     testthat (>= 3.0.0)
-URL: https://github.com/rythomas/zzpower
-BugReports: https://github.com/rythomas/zzpower/issues
+URL: https://github.com/rgt47/zzpower
+BugReports: https://github.com/rgt47/zzpower/issues
