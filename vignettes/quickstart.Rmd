@@ -1,0 +1,167 @@
+---
+title: "Quickstart Guide: zzpower"
+author: "Ronald (Ryy) G. Thomas"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Quickstart Guide: zzpower}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+## Overview
+
+**zzpower** is an interactive Shiny application for power analysis and sample
+size calculations in clinical trials. The package supports multiple statistical
+tests through a scalable plugin architecture.
+
+## Installation
+
+```{r install}
+# Install from GitHub
+devtools::install_github("rgt47/zzpower")
+```
+
+```{r load}
+library(zzpower)
+```
+
+## Basic Usage
+
+Launch the interactive application:
+
+```{r launch}
+launch_zzpower()
+```
+
+The application opens in your web browser with a tabbed interface for different
+statistical tests.
+
+## Supported Statistical Tests
+
+### Two-Group t-test (Independent Samples)
+
+For parallel-group clinical trial designs:
+
+- Effect size methods: Cohen's d, percent reduction, difference in scores
+- Design features: dropout rates, unequal allocation ratios
+- Output: power curves, sample size tables, downloadable reports
+
+### Paired t-test
+
+For before-after or crossover designs:
+
+- Effect size: Standardized mean difference
+- Sample size calculation for matched pairs
+
+### One-Sample t-test
+
+For comparison against a fixed reference value:
+
+- Effect size: Cohen's d
+- Single-group sample size determination
+
+### Two Proportions
+
+For binomial outcome comparisons:
+
+- Effect size methods: two proportions, difference, odds ratio, relative risk
+- Sample size calculation for binary endpoints
+
+### Correlation Test
+
+For bivariate relationship testing:
+
+- Effect size: correlation coefficient (r)
+- Sample size for detecting correlations
+
+## Workflow Example
+
+### 1. Launch Application
+
+```{r workflow-launch}
+launch_zzpower()
+```
+
+### 2. Select Test Type
+
+Choose the appropriate tab for your study design (e.g., "Two-Group t-test").
+
+### 3. Set Sample Size
+
+Use the slider to set your planned total sample size.
+
+### 4. Specify Effect Size
+
+Choose an effect size method and set the range to evaluate:
+
+- **Cohen's d**: Direct standardized effect (0.2 = small, 0.5 = medium, 0.8 = large)
+- **Percent Reduction**: Effect as percentage reduction from control
+- **Difference in Scores**: Absolute difference in outcome units
+
+### 5. Configure Design
+
+Adjust advanced settings:
+
+- Dropout/drop-in rates
+- Allocation ratio (1:1, 2:1, etc.)
+- Alpha level (0.05, 0.01, etc.)
+- One-sided vs two-sided testing
+
+### 6. Review Results
+
+Examine the interactive outputs:
+
+- Power curve showing power vs effect size
+- Results table with exact values
+- Study design summary
+
+### 7. Download Report
+
+Generate a report documenting your power analysis in text or HTML format.
+
+## Function Reference
+
+| Function | Purpose |
+|:---------|:--------|
+| `launch_zzpower()` | Launch interactive Shiny app |
+
+## Key Parameters for launch_zzpower()
+
+| Parameter | Description | Default |
+|:----------|:------------|:--------|
+| `port` | Port number | NULL (random) |
+| `host` | IP address | "127.0.0.1" |
+| `launch.browser` | Open browser | TRUE |
+
+## Architecture
+
+zzpower uses a scalable plugin/registry architecture:
+
+- **Registry**: Central specification of all test definitions
+- **Generic UI Builder**: Dynamic UI generation from specifications
+- **Generic Server Factory**: Dynamic server logic from specifications
+
+This architecture enables support for 20+ statistical tests with minimal code
+duplication.
+
+## Dependencies
+
+- shiny: Web application framework
+- bslib: Bootstrap 5 theming
+- pwr: Power analysis calculations
+- ggplot2: Visualization
+- DT: Interactive tables
+
+## Next Steps
+
+For detailed information on the framework architecture, see the package
+documentation and CLAUDE.md.

@@ -70,10 +70,37 @@ This package builds on several excellent R packages:
 - `DT` - Interactive tables
 - `rmarkdown` - Report generation
 
+## Supported Statistical Tests
+
+The application includes 5 statistical tests via a scalable plugin architecture:
+
+| Test | Use Case | Effect Size |
+|:-----|:---------|:------------|
+| Two-Group t-test | Parallel RCT designs | Cohen's d, % reduction |
+| Paired t-test | Before-after designs | Standardized difference |
+| One-Sample t-test | Single-group vs reference | Cohen's d |
+| Two Proportions | Binary outcomes | Proportions, OR, RR |
+| Correlation | Bivariate relationships | Correlation r |
+
+## Documentation
+
+- `vignette("quickstart")` - Quick start guide
+
+## Reproducibility
+
+This package is developed using the zzcollab framework for reproducible
+research. To reproduce the development environment:
+
+```bash
+git clone https://github.com/rgt47/zzpower.git
+cd zzpower
+make r  # Enter Docker container with all dependencies
+```
+
 ## License
 
 GPL-3
 
 ## Author
 
-Ronald "Ryy" G. Thomas
+Ronald (Ryy) G. Thomas (rgthomas@ucsd.edu)
