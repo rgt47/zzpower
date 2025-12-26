@@ -1,5 +1,7 @@
-# renv activation
-source("renv/activate.R")
+# renv activation (conditional)
+if (file.exists("renv/activate.R")) {
+  source("renv/activate.R")
+}
 
 # Critical reproducibility options
 options(
