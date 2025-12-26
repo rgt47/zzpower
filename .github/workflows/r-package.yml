@@ -1,4 +1,4 @@
-name: R Package Check (Container)
+name: R Package Check
 
 on:
   push:
@@ -9,51 +9,42 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    container: rocker/r-ver:latest  # Smaller image (800 MB vs 2.5 GB)
+    container: rocker/r-ver:latest
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install system dependencies
         run: |
-          apt-get update && apt-get install -y jq libcurl4-openssl-dev libssl-dev libxml2-dev
+          apt-get update && apt-get install -y \
+            jq \
+            libcurl4-openssl-dev \
+            libssl-dev \
+            libxml2-dev \
+            pandoc
 
-      - name: Validate package dependencies
+      - name: Validate DESCRIPTION exists
         run: |
-          # Check DESCRIPTION exists
           test -f DESCRIPTION || { echo "Missing DESCRIPTION"; exit 1; }
-          echo "Package files validated"
 
       - name: Cache renv packages
         uses: actions/cache@v3
         with:
           path: ~/.cache/R/renv
           key: renv-${{ hashFiles('renv.lock') }}
-          restore-keys: |
-            renv-
-          # Cache speeds up subsequent runs by ~2-3 minutes
+          restore-keys: renv-
 
       - name: Install renv and restore packages
         run: |
           Rscript -e "install.packages('renv', repos = 'https://cloud.r-project.org')"
           Rscript -e "if (file.exists('renv.lock')) renv::restore() else renv::init()"
-          Rscript -e "install.packages(c('rcmdcheck', 'testthat'), repos = 'https://cloud.r-project.org')"
+          Rscript -e "install.packages(c('rcmdcheck', 'testthat', 'knitr', 'rmarkdown'), repos = 'https://cloud.r-project.org')"
 
       - name: Run R CMD check
         run: |
-          Rscript -e "rcmdcheck::rcmdcheck(args = '--no-manual', error_on = 'never')"
-        # Using error_on = 'never' for development flexibility
-        # Change to 'warning' for production/CRAN submission
+          Rscript -e "rcmdcheck::rcmdcheck(args = '--no-manual', error_on = 'warning')"
 
       - name: Run tests
         continue-on-error: true
         run: |
-          Rscript -e "testthat::test_dir('tests/testthat')"
-        # Tests may fail in CI environment - won't block workflow
-
-      - name: Validate project structure
-        run: |
-          Rscript -e "if (file.exists('DESCRIPTION')) cat('✅ DESCRIPTION found\n')"
-          Rscript -e "if (dir.exists('R')) cat('✅ R/ directory found\n')"
-          Rscript -e "if (file.exists('renv.lock')) cat('✅ renv.lock found\n')"
-          Rscript -e "cat('✅ Project structure validated\n')"
+          Rscript -e "testthat::test_local()"
