@@ -43,18 +43,17 @@ jobs:
         run: |
           test -f DESCRIPTION || { echo "Missing DESCRIPTION"; exit 1; }
 
-      - name: Cache renv packages
+      - name: Cache R packages
         uses: actions/cache@v3
         with:
-          path: ~/.cache/R/renv
-          key: renv-${{ hashFiles('renv.lock') }}
-          restore-keys: renv-
+          path: /usr/local/lib/R/site-library
+          key: r-pkgs-${{ hashFiles('DESCRIPTION') }}
+          restore-keys: r-pkgs-
 
-      - name: Install renv and restore packages
+      - name: Install dependencies
         run: |
-          Rscript -e "install.packages('renv', repos = 'https://cloud.r-project.org')"
-          Rscript -e "if (file.exists('renv.lock')) renv::restore() else renv::init()"
-          Rscript -e "install.packages(c('rcmdcheck', 'testthat', 'knitr', 'rmarkdown'), repos = 'https://cloud.r-project.org')"
+          Rscript -e "install.packages(c('remotes', 'rcmdcheck', 'testthat', 'knitr', 'rmarkdown'), repos = 'https://cloud.r-project.org')"
+          Rscript -e "remotes::install_deps(dependencies = TRUE)"
 
       - name: Run R CMD check
         env:
@@ -79,17 +78,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache renv packages
+      - name: Cache R packages
         uses: actions/cache@v3
         with:
-          path: ~/.cache/R/renv
-          key: renv-${{ hashFiles('renv.lock') }}
-          restore-keys: renv-
+          path: /usr/local/lib/R/site-library
+          key: r-pkgs-${{ hashFiles('DESCRIPTION') }}
+          restore-keys: r-pkgs-
 
-      - name: Install renv and restore packages
+      - name: Install dependencies
         run: |
-          Rscript -e "install.packages('renv', repos = 'https://cloud.r-project.org')"
-          Rscript -e "if (file.exists('renv.lock')) renv::restore() else renv::init()"
+          Rscript -e "install.packages('remotes', repos = 'https://cloud.r-project.org')"
+          Rscript -e "remotes::install_deps(dependencies = TRUE)"
 
       - name: Render report
         run: |
@@ -147,8 +146,8 @@ jobs:
 
       - name: Install R dependencies
         run: |
-          Rscript -e "install.packages('renv', repos = 'https://cloud.r-project.org')"
-          Rscript -e "if (file.exists('renv.lock')) renv::restore() else renv::init()"
+          Rscript -e "install.packages('remotes', repos = 'https://cloud.r-project.org')"
+          Rscript -e "remotes::install_deps(dependencies = TRUE)"
 
       - name: Render blog
         run: quarto render
