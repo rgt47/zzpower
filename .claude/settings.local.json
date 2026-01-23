@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(R CMD check:*)",
+      "Bash(R --no-save --quiet -e \"tools::showNonASCIIfile('/Users/zenn/Dropbox/prj/d04/zzpower/R/report_generation.R')\":*)",
+      "Bash(R --no-save --quiet -e:*)",
+      "Bash(git add:*)",
+      "WebSearch"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
