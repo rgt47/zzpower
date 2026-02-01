@@ -8,3 +8,8 @@
 ^Makefile$
 ^Dockerfile$
 ^\.dockerignore$
+^CLAUDE\.md$
+^\.Rprofile$
+^\.Rprofile\.local$
+^\.claude$
+^\.gitignore$
