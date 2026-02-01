@@ -53,4 +53,4 @@ docker-build.log
 # renv
 renv/library/
 renv/staging/
-renv/sandbox/
+renv/sandbox/CLAUDE.md
