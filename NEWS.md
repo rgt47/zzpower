@@ -6,4 +6,4 @@
 * Accounts for dropout rates, drop-in rates, and unequal group allocation
 * Interactive power curves and detailed results tables
 * Downloadable reports in PDF, HTML, and Word formats
-* Comprehensive documentation and examples
+* Documentation and examples included
