@@ -1,17 +1,17 @@
 Package: zzpower
 Type: Package
-Title: Power Analysis Calculator for Two-Group Parallel Designs
-Version: 0.1.0
+Title: Interactive Power Analysis Calculator for Clinical Trial Designs
+Version: 0.2.0
 Authors@R:
     person("Ronald (Ryy) G", "Thomas", , "rgthomas@ucsd.edu", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0003-1686-4965"))
-Description: A comprehensive 'Shiny' application for conducting power analysis 
-    and sample size calculations for two-group parallel clinical trial designs.
-    Supports multiple effect size specifications including standardized differences,
-    percentage reductions, difference in change scores, and treatment group changes.
-    Accounts for dropout rates, unequal group allocation ratios, and provides
-    interactive visualizations and downloadable reports. Designed for clinical
-    researchers and statisticians planning randomized controlled trials.
+Description: An interactive 'Shiny' application for power analysis and sample
+    size calculations across multiple statistical tests. Supports two-group,
+    paired, and one-sample t-tests, two-proportion comparisons, and correlation
+    tests via a scalable plugin/registry architecture. Provides multiple effect
+    size specifications per test, interactive power curves, detailed results
+    tables, and downloadable reports. Designed for clinical researchers and
+    statisticians planning studies.
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
