@@ -1,25 +1,31 @@
 #' Launch the zzpower Shiny Application
 #'
-#' This function launches the interactive 'Shiny' application for power analysis
-#' and sample size calculations using a registry of statistical tests.
+#' This function launches the interactive 'Shiny' application for power
+#' analysis and sample size calculations using a registry of statistical
+#' tests.
 #'
 #' @param ... Additional arguments passed to \code{\link[shiny]{runApp}}
 #' @param launch.browser Logical, whether to launch the app in browser.
 #'   Default is \code{TRUE}.
-#' @param host Character string of IP address to listen on. Default is "127.0.0.1".
-#' @param port Integer specifying the port to listen on. Default is \code{NULL}
-#'   (random port).
+#' @param host Character string of IP address to listen on.
+#'   Default is "127.0.0.1".
+#' @param port Integer specifying the port to listen on.
+#'   Default is \code{NULL} (random port).
 #'
 #' @return No return value, launches the Shiny application
 #'
 #' @details
-#' The application provides interactive power analysis for multiple statistical tests:
+#' The application provides interactive power analysis for multiple
+#' statistical tests:
 #' \itemize{
 #'   \item Two-group t-tests (independent samples)
 #'   \item Paired t-tests
 #'   \item One-sample t-tests
 #'   \item Two proportions (binomial comparison)
 #'   \item Correlation tests
+#'   \item Survival log-rank test
+#'   \item Fisher's exact test
+#'   \item Cochran-Armitage trend in proportions
 #'   \item Multiple effect size specifications per test
 #'   \item Interactive power curves and detailed results tables
 #'   \item Downloadable reports in text or HTML formats
@@ -35,24 +41,24 @@
 #' }
 #'
 #' @export
-#' @importFrom shiny shinyApp navset_tab nav_panel
+#' @importFrom shiny shinyApp req
 #' @importFrom bslib bs_theme page_fillable
-launch_zzpower <- function(..., launch.browser = TRUE, host = "127.0.0.1", port = NULL) {
+launch_zzpower <- function(..., launch.browser = TRUE,
+                           host = "127.0.0.1", port = NULL) {
 
-  # Get the registry of all available tests
   registry <- get_power_test_registry()
   test_ids <- names(registry)
 
-  # Create UI with tabbed interface
+  app_theme <- bslib::bs_theme(
+    version = 5,
+    bootswatch = "flatly",
+    primary = "#2c3e50"
+  )
+
   ui <- bslib::page_fillable(
-    theme = bslib::bs_theme(
-      version = 5,
-      bootswatch = "flatly",
-      primary = "#2c3e50"
-    ),
+    theme = app_theme,
     title = "zzpower - Statistical Power Analysis Calculator",
 
-    # Create tabbed navigation
     shiny::navset_tab(
       !!!lapply(test_ids, function(test_id) {
         test_spec <- registry[[test_id]]
@@ -65,16 +71,19 @@ launch_zzpower <- function(..., launch.browser = TRUE, host = "127.0.0.1", port 
     )
   )
 
-  # Create server function that handles all tests
   server <- function(input, output, session) {
-    # Create server logic for each test in the registry
     for (test_id in test_ids) {
-      test_spec <- registry[[test_id]]
-      create_generic_test_server(test_id, test_spec, get_power_test_registry)
+      local({
+        tid <- test_id
+        tspec <- registry[[tid]]
+        create_generic_test_server(
+          tid, tspec, input, output, session,
+          get_power_test_registry
+        )
+      })
     }
   }
 
-  # Run the app
   shiny::shinyApp(
     ui = ui,
     server = server,

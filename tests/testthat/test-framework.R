@@ -217,16 +217,14 @@ test_that("get_effect_size_range generates correct sequences", {
   expect_equal(length(result$standardized), ZZPOWER_CONSTANTS$EFFECT_SIZE_SEQ_LENGTH)
 })
 
-test_that("generic server factory can be created for each test", {
-  registry <- get_power_test_registry()
-
-  for (test_id in names(registry)) {
-    spec <- registry[[test_id]]
-
-    server_fn <- create_generic_test_server(test_id, spec)
-
-    expect_true(is.function(server_fn))
-  }
+test_that("generic server factory has correct signature", {
+  expect_true(is.function(create_generic_test_server))
+  args <- names(formals(create_generic_test_server))
+  expect_true("id" %in% args)
+  expect_true("test_spec" %in% args)
+  expect_true("input" %in% args)
+  expect_true("output" %in% args)
+  expect_true("session" %in% args)
 })
 
 test_that("launch_zzpower function exists and is exported", {
