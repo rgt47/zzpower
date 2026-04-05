@@ -119,7 +119,7 @@ render_sample_size_inputs <- function(test_id, input) {
   params <- test_spec$parameters
 
   # Filter to sample size related parameters
-  sample_params <- params[grepl("sample|allocation|ratio|dropout|pairs", names(params))]
+  sample_params <- params[grepl("sample|allocation|ratio|dropout|pairs|event|groups", names(params))]
 
   controls <- lapply(names(sample_params), function(param_name) {
     param_spec <- sample_params[[param_name]]

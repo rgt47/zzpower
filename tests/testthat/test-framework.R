@@ -1,15 +1,18 @@
-test_that("power test registry exists and contains 5 tests", {
+test_that("power test registry exists and contains 8 tests", {
   registry <- get_power_test_registry()
 
   expect_true(is.list(registry))
-  expect_equal(length(registry), 5)
+  expect_equal(length(registry), 8)
 
   expected_tests <- c(
     "ttest_2groups",
     "ttest_paired",
     "ttest_one_sample",
     "prop_2groups",
-    "correlation"
+    "correlation",
+    "logrank",
+    "fisher_exact",
+    "trend_prop"
   )
 
   expect_equal(sort(names(registry)), sort(expected_tests))
@@ -343,5 +346,167 @@ test_that("framework validates inputs for each test type", {
   )
 
   issues <- spec$validation(invalid_inputs)
+  expect_true(length(issues) > 0)
+})
+
+test_that("logrank specification is correct", {
+  registry <- get_power_test_registry()
+  spec <- registry$logrank
+
+  expect_equal(spec$id, "logrank")
+  expect_equal(spec$name, "Survival Log-rank")
+  expect_true("hazard_ratio" %in% spec$effect_size_methods)
+  expect_true("sample_size" %in% names(spec$parameters))
+  expect_true("event_prob" %in% names(spec$parameters))
+  expect_true("allocation" %in% names(spec$parameters))
+})
+
+test_that("logrank standardize converts HR to log(HR)", {
+  registry <- get_power_test_registry()
+  spec <- registry$logrank
+
+  hrs <- c(1.5, 2.0, 3.0)
+  result <- spec$standardize(hrs, "hazard_ratio", list())
+  expect_equal(result, log(hrs))
+})
+
+test_that("logrank sample_size_calc applies event probability", {
+  registry <- get_power_test_registry()
+  spec <- registry$logrank
+
+  params <- spec$sample_size_calc(list(
+    sample_size = 200,
+    event_prob = 0.5,
+    allocation = "equal"
+  ))
+
+  expect_equal(params$n1, 50)
+  expect_equal(params$n2, 50)
+})
+
+test_that("logrank power function returns valid power", {
+  result <- logrank_power(
+    h = log(2), n1 = 50, n2 = 50,
+    sig.level = 0.05, alternative = "two.sided"
+  )
+
+  expect_true(!is.null(result$power))
+  expect_true(result$power > 0 && result$power < 1)
+})
+
+test_that("logrank power increases with more events", {
+  power_small <- logrank_power(
+    h = log(2), n1 = 25, n2 = 25,
+    sig.level = 0.05, alternative = "two.sided"
+  )$power
+
+  power_large <- logrank_power(
+    h = log(2), n1 = 100, n2 = 100,
+    sig.level = 0.05, alternative = "two.sided"
+  )$power
+
+  expect_true(power_large > power_small)
+})
+
+test_that("logrank validation catches invalid inputs", {
+  registry <- get_power_test_registry()
+  spec <- registry$logrank
+
+  issues <- spec$validation(list(sample_size = 200, event_prob = 0.7))
+  expect_equal(length(issues), 0)
+
+  issues <- spec$validation(list(sample_size = -10, event_prob = 0.7))
+  expect_true(length(issues) > 0)
+
+  issues <- spec$validation(list(sample_size = 200, event_prob = 1.5))
+  expect_true(length(issues) > 0)
+})
+
+test_that("fisher_exact specification is correct", {
+  registry <- get_power_test_registry()
+  spec <- registry$fisher_exact
+
+  expect_equal(spec$id, "fisher_exact")
+  expect_equal(spec$name, "Fisher's Exact Test")
+  expect_true("proportions" %in% spec$effect_size_methods)
+  expect_true("odds_ratio" %in% spec$effect_size_methods)
+  expect_true("sample_size" %in% names(spec$parameters))
+})
+
+test_that("fisher_exact standardize uses Cohen's h", {
+  registry <- get_power_test_registry()
+  spec <- registry$fisher_exact
+
+  result <- spec$standardize(c(0.3, 0.5), "proportions", list(p2 = 0.1))
+  expect_true(all(result > 0))
+
+  result_or <- spec$standardize(c(2, 4), "odds_ratio", list(baseline = 0.1))
+  expect_true(all(result_or > 0))
+})
+
+test_that("fisher_exact sample_size_calc handles equal allocation", {
+  registry <- get_power_test_registry()
+  spec <- registry$fisher_exact
+
+  params <- spec$sample_size_calc(list(
+    sample_size = 60, allocation = "equal"
+  ))
+
+  expect_equal(params$n1, 30)
+  expect_equal(params$n2, 30)
+})
+
+test_that("trend_prop specification is correct", {
+  registry <- get_power_test_registry()
+  spec <- registry$trend_prop
+
+  expect_equal(spec$id, "trend_prop")
+  expect_equal(spec$name, "Trend in Proportions")
+  expect_true("prop_range" %in% spec$effect_size_methods)
+  expect_true("sample_size" %in% names(spec$parameters))
+  expect_true("n_groups" %in% names(spec$parameters))
+})
+
+test_that("trend_prop standardize computes valid effect size", {
+  registry <- get_power_test_registry()
+  spec <- registry$trend_prop
+
+  result <- spec$standardize(
+    c(0.3, 0.5, 0.7), "prop_range",
+    list(p_low = 0.1, n_groups = 3)
+  )
+
+  expect_equal(length(result), 3)
+  expect_true(all(result >= 0))
+  expect_true(result[3] > result[1])
+})
+
+test_that("trend_prop power function returns valid power", {
+  d <- 0.15
+  result <- trend_power(n = 150, d = d, sig.level = 0.05,
+                        alternative = "two.sided")
+
+  expect_true(!is.null(result$power))
+  expect_true(result$power > 0 && result$power < 1)
+})
+
+test_that("trend_prop power increases with sample size", {
+  d <- 0.15
+  power_small <- trend_power(n = 50, d = d, sig.level = 0.05,
+                             alternative = "two.sided")$power
+  power_large <- trend_power(n = 300, d = d, sig.level = 0.05,
+                             alternative = "two.sided")$power
+
+  expect_true(power_large > power_small)
+})
+
+test_that("trend_prop validation catches too few groups", {
+  registry <- get_power_test_registry()
+  spec <- registry$trend_prop
+
+  issues <- spec$validation(list(sample_size = 150, n_groups = 3))
+  expect_equal(length(issues), 0)
+
+  issues <- spec$validation(list(sample_size = 150, n_groups = 2))
   expect_true(length(issues) > 0)
 })

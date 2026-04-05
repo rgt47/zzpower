@@ -18,7 +18,10 @@ get_power_test_registry <- function() {
     ttest_paired = create_ttest_paired_spec(),
     ttest_one_sample = create_ttest_one_sample_spec(),
     prop_2groups = create_prop_2groups_spec(),
-    correlation = create_correlation_spec()
+    correlation = create_correlation_spec(),
+    logrank = create_logrank_spec(),
+    fisher_exact = create_fisher_exact_spec(),
+    trend_prop = create_trend_prop_spec()
   )
 }
 
@@ -361,7 +364,7 @@ create_correlation_spec <- function() {
     ),
 
     standardize = function(effect_sizes, method, params) {
-      effect_sizes  # Already standardized
+      effect_sizes
     },
 
     sample_size_calc = function(input) {
@@ -373,6 +376,269 @@ create_correlation_spec <- function() {
       issues <- character()
       if ((input$sample_size %||% 100) <= 0) {
         issues <- c(issues, "Sample size must be positive")
+      }
+      issues
+    }
+  )
+}
+
+#' Survival Log-rank Test Specification
+#'
+#' Power analysis for comparing two survival curves using the log-rank
+#' test. Uses the Schoenfeld (1981) formula. The event probability
+#' parameter converts total sample sizes to expected event counts
+#' before power calculation.
+#'
+#' @keywords internal
+create_logrank_spec <- function() {
+  list(
+    id = "logrank",
+    name = "Survival Log-rank",
+    description = "Log-rank test comparing two survival curves",
+    icon = "hourglass-split",
+    power_function = logrank_power,
+    effect_size_methods = c("hazard_ratio"),
+
+    parameters = list(
+      sample_size = list(
+        type = "slider",
+        label = "Total Sample Size",
+        min = 20, max = 1000, default = 200, step = 10,
+        description = "Total participants across both groups"
+      ),
+      event_prob = list(
+        type = "slider",
+        label = "Event Probability",
+        min = 0.1, max = 1, default = 0.7, step = 0.05,
+        description = "Probability of observing the event"
+      ),
+      allocation = list(
+        type = "radio",
+        label = "Sample Size Allocation",
+        options = c("equal", "unequal"),
+        default = "equal"
+      ),
+      ratio = list(
+        type = "numeric",
+        label = "Group Ratio (n1/n2)",
+        min = 0.5, max = 5, default = 1, step = 0.1,
+        condition = "allocation == 'unequal'"
+      )
+    ),
+
+    effect_size_params = list(
+      hazard_ratio = list(
+        min = 0.1, max = 5, default_min = 1.2, default_max = 3.0,
+        label = "Hazard Ratio (HR)"
+      )
+    ),
+
+    standardize = function(effect_sizes, method, params) {
+      log(effect_sizes)
+    },
+
+    sample_size_calc = function(input) {
+      total_n <- input$sample_size %||% 200
+      event_prob <- input$event_prob %||% 0.7
+      allocation <- input$allocation %||% "equal"
+
+      if (allocation == "equal") {
+        n1 <- total_n / 2
+        n2 <- total_n / 2
+      } else {
+        ratio <- input$ratio %||% 1
+        n1 <- ratio * total_n / (ratio + 1)
+        n2 <- total_n / (ratio + 1)
+      }
+
+      list(
+        n1 = n1 * event_prob,
+        n2 = n2 * event_prob
+      )
+    },
+
+    validation = function(input) {
+      issues <- character()
+      if ((input$sample_size %||% 200) <= 0) {
+        issues <- c(issues, "Sample size must be positive")
+      }
+      ep <- input$event_prob %||% 0.7
+      if (ep <= 0 || ep > 1) {
+        issues <- c(issues, "Event probability must be between 0 and 1")
+      }
+      issues
+    }
+  )
+}
+
+#' Fisher's Exact Test Specification
+#'
+#' Power analysis for Fisher's exact test on 2x2 contingency tables.
+#' Uses the normal approximation to the exact test (equivalent to
+#' pwr.2p2n.test with Cohen's h). Appropriate for small-sample
+#' studies with binary outcomes.
+#'
+#' @keywords internal
+create_fisher_exact_spec <- function() {
+  list(
+    id = "fisher_exact",
+    name = "Fisher's Exact Test",
+    description = "Exact test for 2x2 contingency tables",
+    icon = "grid-3x2",
+    power_function = pwr::pwr.2p2n.test,
+    effect_size_methods = c("proportions", "odds_ratio"),
+
+    parameters = list(
+      sample_size = list(
+        type = "slider",
+        label = "Total Sample Size",
+        min = 10, max = 200, default = 60, step = 2,
+        description = "Total participants in both groups"
+      ),
+      allocation = list(
+        type = "radio",
+        label = "Allocation",
+        options = c("equal", "unequal"),
+        default = "equal"
+      ),
+      ratio = list(
+        type = "numeric",
+        label = "Group Ratio",
+        min = 0.5, max = 5, default = 1,
+        condition = "allocation == 'unequal'"
+      )
+    ),
+
+    effect_size_params = list(
+      proportions = list(
+        min = 0.01, max = 0.99, default_min = 0.1, default_max = 0.5,
+        label = "Treatment Proportion (p1)",
+        requires = list(p2 = list(
+          type = "numeric", label = "Control Proportion (p2)", default = 0.1
+        ))
+      ),
+      odds_ratio = list(
+        min = 0.1, max = 20, default_min = 2, default_max = 8,
+        label = "Odds Ratio (OR)",
+        requires = list(baseline = list(
+          type = "numeric", label = "Baseline Proportion", default = 0.1
+        ))
+      )
+    ),
+
+    standardize = function(effect_sizes, method, params) {
+      switch(method,
+        "proportions" = sapply(effect_sizes, function(p1) {
+          prop_to_cohens_h(p1, params$p2 %||% 0.1)
+        }),
+        "odds_ratio" = sapply(effect_sizes, function(or) {
+          or_to_cohens_h(or, params$baseline %||% 0.1)
+        }),
+        effect_sizes
+      )
+    },
+
+    sample_size_calc = function(input) {
+      total_n <- input$sample_size %||% 60
+      allocation <- input$allocation %||% "equal"
+
+      if (allocation == "equal") {
+        n1 <- total_n / 2
+        n2 <- total_n / 2
+      } else {
+        ratio <- input$ratio %||% 1
+        n1 <- ratio * total_n / (ratio + 1)
+        n2 <- total_n / (ratio + 1)
+      }
+
+      list(n1 = n1, n2 = n2)
+    },
+
+    validation = function(input) {
+      issues <- character()
+      if ((input$sample_size %||% 60) <= 0) {
+        issues <- c(issues, "Sample size must be positive")
+      }
+      issues
+    }
+  )
+}
+
+#' Trend in Proportions Specification (Cochran-Armitage)
+#'
+#' Power analysis for the Cochran-Armitage test for linear trend in
+#' proportions across ordered dose groups. The standardized effect
+#' size is derived from the expected proportions at the lowest and
+#' highest dose levels assuming a linear dose-response relationship.
+#'
+#' @keywords internal
+create_trend_prop_spec <- function() {
+  list(
+    id = "trend_prop",
+    name = "Trend in Proportions",
+    description = "Cochran-Armitage test for dose-response trend",
+    icon = "graph-up-arrow",
+    power_function = trend_power,
+    effect_size_methods = c("prop_range"),
+
+    parameters = list(
+      sample_size = list(
+        type = "slider",
+        label = "Total Sample Size",
+        min = 30, max = 1000, default = 150, step = 10,
+        description = "Total participants across all dose groups"
+      ),
+      n_groups = list(
+        type = "slider",
+        label = "Number of Dose Groups",
+        min = 3, max = 8, default = 3, step = 1,
+        description = "Number of ordered dose levels"
+      )
+    ),
+
+    effect_size_params = list(
+      prop_range = list(
+        min = 0.01, max = 0.99, default_min = 0.2, default_max = 0.6,
+        label = "Proportion at Highest Dose",
+        requires = list(p_low = list(
+          type = "numeric",
+          label = "Proportion at Lowest Dose",
+          default = 0.1
+        ))
+      )
+    ),
+
+    standardize = function(effect_sizes, method, params) {
+      p_low <- params$p_low %||% 0.1
+      k <- params$n_groups %||% 3
+
+      sapply(effect_sizes, function(p_high) {
+        if (k < 2) return(0)
+        doses <- seq_len(k) - (k + 1) / 2
+        props <- p_low + (seq_len(k) - 1) / (k - 1) * (p_high - p_low)
+        p_bar <- mean(props)
+        if (p_bar <= 0 || p_bar >= 1) return(0)
+
+        num <- sum(doses * props)
+        denom <- p_bar * (1 - p_bar) * sum(doses^2)
+        if (denom <= 0) return(0)
+
+        sqrt(num^2 / (k * denom))
+      })
+    },
+
+    sample_size_calc = function(input) {
+      n <- input$sample_size %||% 150
+      list(n = n)
+    },
+
+    validation = function(input) {
+      issues <- character()
+      if ((input$sample_size %||% 150) <= 0) {
+        issues <- c(issues, "Sample size must be positive")
+      }
+      if ((input$n_groups %||% 3) < 3) {
+        issues <- c(issues, "At least 3 dose groups required")
       }
       issues
     }

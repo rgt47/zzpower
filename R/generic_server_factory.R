@@ -235,6 +235,8 @@ create_generic_test_server <- function(id, test_spec, registry_func = get_power_
         "odds_ratio" = "Odds Ratio",
         "relative_risk" = "Relative Risk",
         "correlation" = "Correlation Coefficient (r)",
+        "hazard_ratio" = "Hazard Ratio (HR)",
+        "prop_range" = "Proportion at Highest Dose",
         "Effect Size"
       )
 
