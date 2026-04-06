@@ -21,7 +21,10 @@ get_power_test_registry <- function() {
     correlation = create_correlation_spec(),
     logrank = create_logrank_spec(),
     fisher_exact = create_fisher_exact_spec(),
-    trend_prop = create_trend_prop_spec()
+    trend_prop = create_trend_prop_spec(),
+    anova_oneway = create_anova_oneway_spec(),
+    mcnemar = create_mcnemar_spec(),
+    mixed_model = create_mixed_model_spec()
   )
 }
 
@@ -641,6 +644,209 @@ create_trend_prop_spec <- function() {
       }
       if ((input$n_groups %||% 3) < 3) {
         issues <- c(issues, "At least 3 dose groups required")
+      }
+      issues
+    }
+  )
+}
+
+#' One-Way ANOVA Specification
+#'
+#' Power analysis for one-way analysis of variance comparing means
+#' across k independent groups. Uses Cohen's f as the effect size.
+#'
+#' @keywords internal
+create_anova_oneway_spec <- function() {
+  list(
+    id = "anova_oneway",
+    name = "One-Way ANOVA",
+    description = "Compare means across multiple independent groups",
+    icon = "bar-chart-steps",
+    power_function = pwr::pwr.anova.test,
+    power_args = list(k = "k"),
+    effect_size_methods = c("cohens_f"),
+
+    parameters = list(
+      sample_size = list(
+        type = "slider",
+        label = "Total Sample Size",
+        min = 20, max = 1000, default = 120, step = 10,
+        description = "Total participants across all groups"
+      ),
+      n_groups = list(
+        type = "slider",
+        label = "Number of Groups",
+        min = 2, max = 10, default = 3, step = 1,
+        description = "Number of independent groups"
+      )
+    ),
+
+    effect_size_params = list(
+      cohens_f = list(
+        min = 0.01, max = 1, default_min = 0.1, default_max = 0.5,
+        label = "Effect Size (Cohen's f)"
+      )
+    ),
+
+    standardize = function(effect_sizes, method, params) {
+      effect_sizes
+    },
+
+    sample_size_calc = function(input) {
+      total_n <- input$sample_size %||% 120
+      k <- input$n_groups %||% 3
+      list(n = total_n / k, k = k)
+    },
+
+    validation = function(input) {
+      issues <- character()
+      if ((input$sample_size %||% 120) <= 0) {
+        issues <- c(issues, "Sample size must be positive")
+      }
+      if ((input$n_groups %||% 3) < 2) {
+        issues <- c(issues, "At least 2 groups required")
+      }
+      issues
+    }
+  )
+}
+
+#' McNemar Test Specification (Paired Proportions)
+#'
+#' Power analysis for McNemar's test comparing paired binary outcomes.
+#' Uses the normal approximation from Connor (1987). The user specifies
+#' the two discordant cell probabilities (p10 and p01).
+#'
+#' @keywords internal
+create_mcnemar_spec <- function() {
+  list(
+    id = "mcnemar",
+    name = "McNemar Test",
+    description = "Paired proportions (before-after binary outcomes)",
+    icon = "arrow-left-right",
+    power_function = mcnemar_power,
+    effect_size_methods = c("discordant"),
+
+    parameters = list(
+      sample_size = list(
+        type = "slider",
+        label = "Number of Pairs",
+        min = 10, max = 1000, default = 100, step = 10,
+        description = "Number of matched pairs"
+      )
+    ),
+
+    effect_size_params = list(
+      discordant = list(
+        min = 0.01, max = 0.5, default_min = 0.05, default_max = 0.25,
+        label = "P(+Treatment, -Control): p10",
+        requires = list(p01 = list(
+          type = "numeric",
+          label = "P(-Treatment, +Control): p01",
+          default = 0.05
+        ))
+      )
+    ),
+
+    standardize = function(effect_sizes, method, params) {
+      p01 <- params$p01 %||% 0.05
+
+      sapply(effect_sizes, function(p10) {
+        p_disc <- p10 + p01
+        p_diff <- p10 - p01
+        denom <- p_disc - p_diff^2
+        if (denom <= 0 || p_disc <= 0) return(0)
+        abs(p_diff) / sqrt(denom)
+      })
+    },
+
+    sample_size_calc = function(input) {
+      n <- input$sample_size %||% 100
+      list(n = n)
+    },
+
+    validation = function(input) {
+      issues <- character()
+      if ((input$sample_size %||% 100) <= 0) {
+        issues <- c(issues, "Number of pairs must be positive")
+      }
+      issues
+    }
+  )
+}
+
+#' Longitudinal Mixed Model Specification
+#'
+#' Power analysis for a two-group comparison of slopes in a linear
+#' mixed model with equally spaced time points and compound symmetry
+#' correlation structure. Based on Diggle et al. (2002, p. 29).
+#'
+#' @keywords internal
+create_mixed_model_spec <- function() {
+  list(
+    id = "mixed_model",
+    name = "Mixed Model (Slopes)",
+    description = "Longitudinal two-group comparison of rates of change",
+    icon = "graph-up",
+    power_function = mixed_model_power,
+    effect_size_methods = c("slope_diff"),
+
+    parameters = list(
+      sample_size = list(
+        type = "slider",
+        label = "Total Sample Size",
+        min = 10, max = 1000, default = 100, step = 10,
+        description = "Total participants across both groups"
+      ),
+      n_timepoints = list(
+        type = "slider",
+        label = "Number of Time Points",
+        min = 3, max = 20, default = 5, step = 1,
+        description = "Measurement occasions per subject"
+      ),
+      correlation = list(
+        type = "slider",
+        label = "Within-Subject Correlation",
+        min = 0.05, max = 0.95, default = 0.5, step = 0.05,
+        description = "Compound symmetry correlation (rho)"
+      )
+    ),
+
+    effect_size_params = list(
+      slope_diff = list(
+        min = 0.01, max = 5, default_min = 0.1, default_max = 1.0,
+        label = "Slope Difference (delta)",
+        requires = list(sigma = list(
+          type = "numeric",
+          label = "Residual SD (sigma)",
+          default = 1
+        ))
+      )
+    ),
+
+    standardize = function(effect_sizes, method, params) {
+      sigma <- params$sigma %||% 1
+      rho <- params$correlation %||% 0.5
+      m <- params$n_timepoints %||% 5
+
+      t_vals <- seq(0, 1, length.out = m)
+      s_tt <- sum((t_vals - mean(t_vals))^2)
+
+      effect_sizes * sqrt(s_tt / (2 * sigma^2 * (1 - rho)))
+    },
+
+    sample_size_calc = function(input) {
+      total_n <- input$sample_size %||% 100
+      list(n = total_n / 2)
+    },
+
+    validation = function(input) {
+      issues <- character()
+      if ((input$sample_size %||% 100) <= 0) {
+        issues <- c(issues, "Sample size must be positive")
+      }
+      if ((input$n_timepoints %||% 5) < 3) {
+        issues <- c(issues, "At least 3 time points required")
       }
       issues
     }

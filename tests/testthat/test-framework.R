@@ -1,8 +1,8 @@
-test_that("power test registry exists and contains 8 tests", {
+test_that("power test registry exists and contains 11 tests", {
   registry <- get_power_test_registry()
 
   expect_true(is.list(registry))
-  expect_equal(length(registry), 8)
+  expect_equal(length(registry), 11)
 
   expected_tests <- c(
     "ttest_2groups",
@@ -12,7 +12,10 @@ test_that("power test registry exists and contains 8 tests", {
     "correlation",
     "logrank",
     "fisher_exact",
-    "trend_prop"
+    "trend_prop",
+    "anova_oneway",
+    "mcnemar",
+    "mixed_model"
   )
 
   expect_equal(sort(names(registry)), sort(expected_tests))

@@ -48,7 +48,8 @@ create_generic_test_server <- function(id, test_spec,
       params_in <- c(list(sample_size = total_n), design_params)
       params <- test_spec$sample_size_calc(params_in)
 
-      call_args <- list(sig.level = type1, alternative = alternative)
+      call_args <- list(sig.level = type1)
+          if ("alternative" %in% fn_formals) call_args$alternative <- alternative
       call_args[[es_param]] <- es
 
       if (!is.null(params$n1) && "n1" %in% fn_formals) {
@@ -60,6 +61,19 @@ create_generic_test_server <- function(id, test_spec,
 
       if ("type" %in% fn_formals && !is.null(test_spec$test_type)) {
         call_args$type <- test_spec$test_type
+      }
+
+      if (!is.null(test_spec$power_args)) {
+        for (nm in names(test_spec$power_args)) {
+          if (nm %in% fn_formals) {
+            val <- test_spec$power_args[[nm]]
+            if (is.character(val) && val %in% names(params)) {
+              call_args[[nm]] <- params[[val]]
+            } else {
+              call_args[[nm]] <- val
+            }
+          }
+        }
       }
 
       tryCatch({
@@ -208,7 +222,8 @@ create_generic_test_server <- function(id, test_spec,
 
       power_vec <- vapply(standardized_es, function(es) {
         tryCatch({
-          call_args <- list(sig.level = type1, alternative = alternative)
+          call_args <- list(sig.level = type1)
+          if ("alternative" %in% fn_formals) call_args$alternative <- alternative
           call_args[[es_param]] <- es
 
           if (!is.null(n2) && "n1" %in% fn_formals) {
@@ -220,6 +235,19 @@ create_generic_test_server <- function(id, test_spec,
 
           if ("type" %in% fn_formals && !is.null(test_spec$test_type)) {
             call_args$type <- test_spec$test_type
+          }
+
+          if (!is.null(test_spec$power_args)) {
+            for (nm in names(test_spec$power_args)) {
+              if (nm %in% fn_formals) {
+                val <- test_spec$power_args[[nm]]
+                if (is.character(val) && val %in% names(params)) {
+                  call_args[[nm]] <- params[[val]]
+                } else {
+                  call_args[[nm]] <- val
+                }
+              }
+            }
           }
 
           result <- do.call(fn, call_args)

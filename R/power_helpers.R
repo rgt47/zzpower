@@ -82,3 +82,74 @@ trend_power <- function(n, d, sig.level, alternative = "two.sided") {
 
   list(power = power)
 }
+
+#' McNemar Test Power (Connor 1987)
+#'
+#' Computes power for McNemar's test comparing paired binary outcomes
+#' using the normal approximation from Connor (1987). The effect size
+#' h represents the difference in discordant proportions (p10 - p01),
+#' and n is the total number of pairs. The overall discordant rate
+#' (p10 + p01) is folded into the standardized effect size by the
+#' spec's standardize function.
+#'
+#' @param n Number of pairs
+#' @param d Standardized effect size: |p10 - p01| / sqrt(p_disc - (p10-p01)^2)
+#' @param sig.level Significance level
+#' @param alternative "two.sided" or "one.sided"
+#'
+#' @return List with \code{power} element
+#'
+#' @references
+#' Connor RJ (1987). Sample size for testing differences in
+#' proportions for the paired-sample design. Biometrics, 43(1),
+#' 207-211.
+#'
+#' @keywords internal
+mcnemar_power <- function(n, d, sig.level, alternative = "two.sided") {
+  if (n <= 0 || d <= 0) return(list(power = NA))
+
+  z_alpha <- if (alternative == "two.sided") {
+    stats::qnorm(1 - sig.level / 2)
+  } else {
+    stats::qnorm(1 - sig.level)
+  }
+
+  z_power <- abs(d) * sqrt(n) - z_alpha
+  list(power = stats::pnorm(z_power))
+}
+
+#' Longitudinal Mixed Model Power (Diggle et al. 2002)
+#'
+#' Computes power for a two-group comparison of slopes in a linear
+#' mixed model with equally spaced time points and compound symmetry
+#' correlation. Based on the formula from Diggle et al. (2002, p. 29).
+#'
+#' The standardized effect size d incorporates the slope difference,
+#' residual variance, within-subject correlation, and number of time
+#' points. The parameter n represents the per-group sample size.
+#'
+#' @param n Per-group sample size
+#' @param d Standardized slope effect size:
+#'   delta * sqrt(S_tt / (2 * sigma^2 * (1 - rho)))
+#' @param sig.level Significance level
+#' @param alternative "two.sided" or "one.sided"
+#'
+#' @return List with \code{power} element
+#'
+#' @references
+#' Diggle PJ, Heagerty P, Liang K-Y, Zeger SL (2002). Analysis of
+#' Longitudinal Data, 2nd ed. Oxford University Press, p. 29.
+#'
+#' @keywords internal
+mixed_model_power <- function(n, d, sig.level, alternative = "two.sided") {
+  if (n <= 0 || d <= 0) return(list(power = NA))
+
+  z_alpha <- if (alternative == "two.sided") {
+    stats::qnorm(1 - sig.level / 2)
+  } else {
+    stats::qnorm(1 - sig.level)
+  }
+
+  z_power <- abs(d) * sqrt(n) - z_alpha
+  list(power = stats::pnorm(z_power))
+}

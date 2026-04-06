@@ -58,18 +58,24 @@ launch_zzpower <- function(..., launch.browser = TRUE,
     fisher_exact   = "#c0392b",
     trend_prop     = "#d35400",
     correlation    = "#27ae60",
-    logrank        = "#e67e22"
+    logrank        = "#e67e22",
+    anova_oneway   = "#1abc9c",
+    mcnemar        = "#9b59b6",
+    mixed_model    = "#34495e"
   )
 
   test_categories <- list(
     "Continuous Outcomes" = c(
-      "ttest_2groups", "ttest_paired", "ttest_one_sample"
+      "ttest_2groups", "ttest_paired", "ttest_one_sample", "anova_oneway"
     ),
     "Binary Outcomes" = c(
-      "prop_2groups", "fisher_exact", "trend_prop"
+      "prop_2groups", "fisher_exact", "mcnemar", "trend_prop"
     ),
-    "Other Designs" = c(
-      "correlation", "logrank"
+    "Longitudinal & Survival" = c(
+      "mixed_model", "logrank"
+    ),
+    "Association" = c(
+      "correlation"
     )
   )
 
