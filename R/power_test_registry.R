@@ -153,7 +153,8 @@ create_ttest_paired_spec <- function() {
     name = "Paired t-test",
     description = "Paired samples t-test for before-after designs",
     icon = "arrow-repeat",
-    power_function = pwr::pwr.t.test,  # Uses t.test with paired=TRUE
+    power_function = pwr::pwr.t.test,
+    test_type = "paired",
     effect_size_methods = c("cohens_d"),
 
     parameters = list(
@@ -173,7 +174,7 @@ create_ttest_paired_spec <- function() {
     ),
 
     standardize = function(effect_sizes, method, params) {
-      effect_sizes  # Already in Cohen's d
+      effect_sizes
     },
 
     sample_size_calc = function(input) {
@@ -201,6 +202,7 @@ create_ttest_one_sample_spec <- function() {
     description = "One-sample t-test comparing to a fixed value",
     icon = "bullseye",
     power_function = pwr::pwr.t.test,
+    test_type = "one.sample",
     effect_size_methods = c("cohens_d"),
 
     parameters = list(

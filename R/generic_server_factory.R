@@ -25,10 +25,17 @@ create_generic_test_server <- function(id, test_spec,
                                        registry_func = get_power_test_registry) {
   shiny::moduleServer(id, function(input, output, session) {
     consts <- ZZPOWER_CONSTANTS
+    param_names <- names(test_spec$parameters)
+
+    .collect_params <- function() {
+      vals <- lapply(param_names, function(p) input[[p]])
+      names(vals) <- param_names
+      vals
+    }
 
     # ===== VALIDATION =====
     validation <- shiny::reactive({
-      test_spec$validation(reactiveValuesToList(input))
+      test_spec$validation(.collect_params())
     })
 
     is_valid <- shiny::reactive({
@@ -56,7 +63,7 @@ create_generic_test_server <- function(id, test_spec,
     # ===== STUDY PARAMETERS =====
     study_parameters <- shiny::reactive({
       shiny::req(is_valid())
-      test_spec$sample_size_calc(reactiveValuesToList(input))
+      test_spec$sample_size_calc(.collect_params())
     })
 
     output$sample_size_display <- shiny::renderUI({
@@ -80,7 +87,7 @@ create_generic_test_server <- function(id, test_spec,
     effect_size_range <- shiny::reactive({
       shiny::req(is_valid())
 
-      spec <- registry_func()[[id]]
+      spec <- test_spec
       method <- input$effect_method %||% spec$effect_size_methods[1]
       method_params <- spec$effect_size_params[[method]]
 
@@ -99,9 +106,8 @@ create_generic_test_server <- function(id, test_spec,
         }
       }
 
-      standardized <- spec$standardize(
-        effect_sizes, method, c(reactiveValuesToList(input), additional_params)
-      )
+      std_params <- c(.collect_params(), additional_params)
+      standardized <- spec$standardize(effect_sizes, method, std_params)
 
       list(
         effect_sizes = effect_sizes,
@@ -130,22 +136,28 @@ create_generic_test_server <- function(id, test_spec,
       type1 <- input$type1 %||% consts$TYPE1_DEFAULT
       alternative <- if (isTRUE(input$onesided)) "one.sided" else "two.sided"
 
+      fn <- test_spec$power_function
+      fn_args <- names(formals(fn))
+      es_name <- intersect(c("d", "h", "r"), fn_args)[1]
+
       power_vec <- vapply(standardized_es, function(es) {
         tryCatch({
-          if (!is.null(n2)) {
-            result <- test_spec$power_function(
-              h = es, n1 = n1, n2 = n2,
-              sig.level = type1, alternative = alternative
-            )
-          } else {
-            result <- test_spec$power_function(
-              n = n1, d = es,
-              sig.level = type1, alternative = alternative
-            )
+          call_args <- list(sig.level = type1, alternative = alternative)
+          call_args[[es_name]] <- es
+
+          if (!is.null(n2) && "n1" %in% fn_args) {
+            call_args$n1 <- n1
+            call_args$n2 <- n2
+          } else if ("n" %in% fn_args) {
+            call_args$n <- n1
           }
-          if (!is.null(result$power)) result$power
-          else if (!is.null(result$estimate)) result$estimate
-          else NA_real_
+
+          if ("type" %in% fn_args && !is.null(test_spec$test_type)) {
+            call_args$type <- test_spec$test_type
+          }
+
+          result <- do.call(fn, call_args)
+          result$power %||% NA_real_
         }, warning = function(w) NA_real_,
            error = function(e) NA_real_)
       }, FUN.VALUE = numeric(1))
@@ -163,7 +175,7 @@ create_generic_test_server <- function(id, test_spec,
       results <- results[!is.na(results$power), , drop = FALSE]
       shiny::req(nrow(results) > 0)
       es_range <- effect_size_range()
-      spec <- registry_func()[[id]]
+      spec <- test_spec
       method <- es_range$method
 
       x_label <- switch(method,
@@ -224,7 +236,7 @@ create_generic_test_server <- function(id, test_spec,
       shiny::req(is_valid())
       params <- shiny::req(study_parameters())
       es_range <- shiny::req(effect_size_range())
-      spec <- registry_func()[[id]]
+      spec <- test_spec
 
       summary_text <- paste(
         "TEST:", spec$name,
