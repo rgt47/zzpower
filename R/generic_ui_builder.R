@@ -1,7 +1,8 @@
 #' Generic UI Builder
 #'
 #' Dynamically generates UI for any power analysis test based on
-#' registry definition. Uses shiny NS() for proper module namespacing.
+#' registry definition. All inputs are built statically at UI
+#' construction time to avoid renderUI invalidation loops.
 #'
 #' @keywords internal
 #' @importFrom bslib layout_sidebar layout_columns sidebar card
@@ -13,9 +14,9 @@
 
 #' Create Module UI for a Power Analysis Test
 #'
-#' Module UI function following the Shiny module convention. Uses
-#' NS(id) for all input/output IDs so the server can access them
-#' without manual prefixing.
+#' Module UI function. Uses NS(id) for all input/output IDs. Inputs
+#' are generated statically from the registry spec (no renderUI) to
+#' prevent reactive invalidation loops.
 #'
 #' @param test_id Module ID (must match a registry entry)
 #'
@@ -36,19 +37,19 @@ create_generic_test_ui <- function(test_id) {
       shiny::uiOutput(ns("validation")),
 
       shiny::h6("Sample Size & Design"),
-      shiny::uiOutput(ns("sample_inputs")),
+      build_sample_size_inputs(test_spec, ns),
 
       shiny::hr(),
 
       shiny::h6("Effect Size Specification"),
-      shiny::uiOutput(ns("effect_inputs")),
+      build_effect_size_inputs(test_spec, ns),
 
       shiny::hr(),
 
       shiny::checkboxInput(ns("show_advanced"), "Show Advanced Settings"),
       shiny::conditionalPanel(
         condition = sprintf("input['%s']", ns("show_advanced")),
-        shiny::uiOutput(ns("advanced"))
+        build_advanced_settings(ns)
       )
     ),
 
@@ -95,22 +96,19 @@ create_generic_test_ui <- function(test_id) {
   )
 }
 
-#' Render Sample Size Input Controls
+#' Build Sample Size Input Controls (Static)
 #'
-#' Dynamically generates input controls based on test specification.
-#' Called from renderUI inside a module server, so ns (session$ns) is
-#' required to namespace the dynamically created inputs.
+#' Generates input controls at UI build time from test specification.
+#' Conditional inputs use conditionalPanel (client-side JS) to avoid
+#' server-side renderUI loops.
 #'
-#' @param test_id Test identifier (for registry lookup)
-#' @param input Module-scoped Shiny input object
-#' @param ns Namespace function (session$ns from moduleServer)
+#' @param test_spec Test specification from registry
+#' @param ns Namespace function from NS(test_id)
 #'
 #' @return Shiny tagList with input controls
 #'
 #' @keywords internal
-render_sample_size_inputs <- function(test_id, input, ns) {
-  registry <- get_power_test_registry()
-  test_spec <- registry[[test_id]]
+build_sample_size_inputs <- function(test_spec, ns) {
   params <- test_spec$parameters
 
   sample_params <- params[grepl(
@@ -121,16 +119,7 @@ render_sample_size_inputs <- function(test_id, input, ns) {
   controls <- lapply(names(sample_params), function(param_name) {
     param_spec <- sample_params[[param_name]]
 
-    if (!is.null(param_spec$condition)) {
-      param_ref <- trimws(gsub("==.*", "", param_spec$condition))
-      condition_value <- gsub(".*'([^']+)'.*", "\\1", param_spec$condition)
-      actual_value <- input[[param_ref]]
-      if (is.null(actual_value) || actual_value != condition_value) {
-        return(NULL)
-      }
-    }
-
-    switch(param_spec$type,
+    widget <- switch(param_spec$type,
       "slider" = shiny::sliderInput(
         ns(param_name),
         label = param_spec$label,
@@ -154,43 +143,54 @@ render_sample_size_inputs <- function(test_id, input, ns) {
       ),
       NULL
     )
+
+    if (!is.null(param_spec$condition)) {
+      param_ref <- trimws(gsub("==.*", "", param_spec$condition))
+      condition_value <- gsub(".*'([^']+)'.*", "\\1", param_spec$condition)
+      shiny::conditionalPanel(
+        condition = sprintf(
+          "input['%s'] == '%s'", ns(param_ref), condition_value
+        ),
+        widget
+      )
+    } else {
+      widget
+    }
   })
 
   shiny::tagList(controls)
 }
 
-#' Render Effect Size Input Controls
+#' Build Effect Size Input Controls (Static)
 #'
-#' Dynamically generates effect size method selection and range inputs.
+#' Generates effect size method selection and range inputs at UI build
+#' time. Method switching is handled entirely client-side via
+#' conditionalPanel.
 #'
-#' @param test_id Test identifier (for registry lookup)
-#' @param input Module-scoped Shiny input object
-#' @param ns Namespace function (session$ns from moduleServer)
+#' @param test_spec Test specification from registry
+#' @param ns Namespace function from NS(test_id)
 #'
 #' @return Shiny tagList with effect size controls
 #'
 #' @keywords internal
-render_effect_size_inputs <- function(test_id, input, ns) {
-  registry <- get_power_test_registry()
-  test_spec <- registry[[test_id]]
-
+build_effect_size_inputs <- function(test_spec, ns) {
   methods <- test_spec$effect_size_methods
   effect_params <- test_spec$effect_size_params
-
-  selected_method <- input$effect_method %||% methods[1]
 
   method_selector <- shiny::radioButtons(
     ns("effect_method"),
     "Effect Size Method",
     choices = setNames(methods, methods),
-    selected = selected_method
+    selected = methods[1]
   )
 
   method_panels <- lapply(methods, function(method) {
     method_params <- effect_params[[method]]
 
     shiny::conditionalPanel(
-      condition = sprintf("input['%s'] == '%s'", ns("effect_method"), method),
+      condition = sprintf(
+        "input['%s'] == '%s'", ns("effect_method"), method
+      ),
       shiny::sliderInput(
         ns(paste0(method, "_es")),
         label = method_params$label,
@@ -218,16 +218,16 @@ render_effect_size_inputs <- function(test_id, input, ns) {
   shiny::tagList(method_selector, method_panels)
 }
 
-#' Render Advanced Settings
+#' Build Advanced Settings (Static)
 #'
 #' Generates advanced parameter controls (alpha, test direction).
 #'
-#' @param ns Namespace function (session$ns from moduleServer)
+#' @param ns Namespace function from NS(test_id)
 #'
 #' @return Shiny tagList with advanced controls
 #'
 #' @keywords internal
-render_advanced_settings <- function(ns) {
+build_advanced_settings <- function(ns) {
   consts <- ZZPOWER_CONSTANTS
 
   shiny::tagList(

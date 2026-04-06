@@ -141,54 +141,43 @@ test_that("generic UI builder creates valid UI for all tests", {
   }
 })
 
-test_that("render_sample_size_inputs generates correct controls", {
-  test_id <- "ttest_2groups"
-  ns <- shiny::NS(test_id)
-
-  input <- list(
-    allocation = "equal",
-    sample_size = 100,
-    dropout = 0.1,
-    ratio = 1
-  )
-
-  controls <- render_sample_size_inputs(test_id, input, ns)
-
-  expect_true(
-    inherits(controls, "shiny.tag.list") ||
-    inherits(controls, "shiny.tag") ||
-    is.null(controls)
-  )
-})
-
-test_that("render_effect_size_inputs generates correct controls", {
-  test_id <- "ttest_2groups"
-  ns <- shiny::NS(test_id)
-
-  input <- list(
-    effect_method = "cohens_d",
-    cohens_d_es = c(0.2, 0.8),
-    sd0 = 10
-  )
-
-  controls <- render_effect_size_inputs(test_id, input, ns)
-
-  expect_true(
-    inherits(controls, "shiny.tag.list") ||
-    inherits(controls, "shiny.tag") ||
-    is.null(controls)
-  )
-})
-
-test_that("render_advanced_settings generates control panel", {
+test_that("build_sample_size_inputs generates correct controls", {
+  registry <- get_power_test_registry()
+  test_spec <- registry$ttest_2groups
   ns <- shiny::NS("ttest_2groups")
 
-  settings <- render_advanced_settings(ns)
+  controls <- build_sample_size_inputs(test_spec, ns)
+
+  expect_true(
+    inherits(controls, "shiny.tag.list") ||
+    inherits(controls, "shiny.tag") ||
+    is.list(controls)
+  )
+})
+
+test_that("build_effect_size_inputs generates correct controls", {
+  registry <- get_power_test_registry()
+  test_spec <- registry$ttest_2groups
+  ns <- shiny::NS("ttest_2groups")
+
+  controls <- build_effect_size_inputs(test_spec, ns)
+
+  expect_true(
+    inherits(controls, "shiny.tag.list") ||
+    inherits(controls, "shiny.tag") ||
+    is.list(controls)
+  )
+})
+
+test_that("build_advanced_settings generates control panel", {
+  ns <- shiny::NS("ttest_2groups")
+
+  settings <- build_advanced_settings(ns)
 
   expect_true(
     inherits(settings, "shiny.tag.list") ||
     inherits(settings, "shiny.tag") ||
-    is.null(settings)
+    is.list(settings)
   )
 })
 

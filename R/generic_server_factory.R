@@ -6,6 +6,7 @@
 #'
 #' @keywords internal
 #' @importFrom rlang .data
+#' @importFrom shiny reactiveValuesToList
 
 #' Create Module Server for a Power Analysis Test
 #'
@@ -23,25 +24,11 @@
 create_generic_test_server <- function(id, test_spec,
                                        registry_func = get_power_test_registry) {
   shiny::moduleServer(id, function(input, output, session) {
-    ns <- session$ns
     consts <- ZZPOWER_CONSTANTS
-
-    # ===== DYNAMIC INPUT RENDERING =====
-    output$sample_inputs <- shiny::renderUI({
-      render_sample_size_inputs(id, input, ns)
-    })
-
-    output$effect_inputs <- shiny::renderUI({
-      render_effect_size_inputs(id, input, ns)
-    })
-
-    output$advanced <- shiny::renderUI({
-      render_advanced_settings(ns)
-    })
 
     # ===== VALIDATION =====
     validation <- shiny::reactive({
-      test_spec$validation(as.list(input))
+      test_spec$validation(reactiveValuesToList(input))
     })
 
     is_valid <- shiny::reactive({
@@ -69,7 +56,7 @@ create_generic_test_server <- function(id, test_spec,
     # ===== STUDY PARAMETERS =====
     study_parameters <- shiny::reactive({
       shiny::req(is_valid())
-      test_spec$sample_size_calc(as.list(input))
+      test_spec$sample_size_calc(reactiveValuesToList(input))
     })
 
     output$sample_size_display <- shiny::renderUI({
@@ -113,7 +100,7 @@ create_generic_test_server <- function(id, test_spec,
       }
 
       standardized <- spec$standardize(
-        effect_sizes, method, c(as.list(input), additional_params)
+        effect_sizes, method, c(reactiveValuesToList(input), additional_params)
       )
 
       list(
@@ -159,7 +146,8 @@ create_generic_test_server <- function(id, test_spec,
           if (!is.null(result$power)) result$power
           else if (!is.null(result$estimate)) result$estimate
           else NA_real_
-        }, error = function(e) NA_real_)
+        }, warning = function(w) NA_real_,
+           error = function(e) NA_real_)
       }, FUN.VALUE = numeric(1))
 
       data.frame(
@@ -172,6 +160,8 @@ create_generic_test_server <- function(id, test_spec,
     # ===== POWER PLOT =====
     output$power_plot <- shiny::renderPlot({
       results <- shiny::req(power_results())
+      results <- results[!is.na(results$power), , drop = FALSE]
+      shiny::req(nrow(results) > 0)
       es_range <- effect_size_range()
       spec <- registry_func()[[id]]
       method <- es_range$method
@@ -291,7 +281,7 @@ create_generic_test_server <- function(id, test_spec,
           format = fmt,
           timestamp = Sys.time(),
           r_version = paste(R.version$major, R.version$minor, sep = "."),
-          parameters = as.list(input),
+          parameters = reactiveValuesToList(input),
           sample_sizes = params,
           effect_size_range = es_range,
           power_results = results,
