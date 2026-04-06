@@ -36,8 +36,30 @@ create_generic_test_ui <- function(test_id) {
     sidebar = bslib::sidebar(
       shiny::uiOutput(ns("validation")),
 
-      shiny::h6("Sample Size & Design"),
-      build_sample_size_inputs(test_spec, ns),
+      shiny::radioButtons(
+        ns("solve_for"), "Solve for",
+        choices = c("Power" = "power", "Sample Size" = "sample_size"),
+        selected = "power", inline = TRUE
+      ),
+
+      shiny::hr(),
+
+      shiny::conditionalPanel(
+        condition = sprintf("input['%s'] == 'power'", ns("solve_for")),
+        shiny::h6("Sample Size & Design"),
+        build_sample_size_inputs(test_spec, ns)
+      ),
+
+      shiny::conditionalPanel(
+        condition = sprintf("input['%s'] == 'sample_size'", ns("solve_for")),
+        shiny::h6("Target Power"),
+        shiny::sliderInput(
+          ns("target_power"), "Desired Power",
+          min = 0.5, max = 0.99, value = 0.80, step = 0.01
+        ),
+        shiny::h6("Design Parameters"),
+        build_design_inputs(test_spec, ns)
+      ),
 
       shiny::hr(),
 
@@ -150,6 +172,75 @@ build_sample_size_inputs <- function(test_spec, ns) {
       shiny::conditionalPanel(
         condition = sprintf(
           "input['%s'] == '%s'", ns(param_ref), condition_value
+        ),
+        widget
+      )
+    } else {
+      widget
+    }
+  })
+
+  shiny::tagList(controls)
+}
+
+#' Build Design Parameter Inputs (for Sample Size Mode)
+#'
+#' Shows design parameters (allocation, dropout, event probability,
+#' etc.) but excludes sample_size since that is the solve target.
+#' Input IDs use a "ss_" prefix to avoid collisions with the power
+#' mode inputs.
+#'
+#' @param test_spec Test specification from registry
+#' @param ns Namespace function from NS(test_id)
+#'
+#' @return Shiny tagList with design controls
+#'
+#' @keywords internal
+build_design_inputs <- function(test_spec, ns) {
+  params <- test_spec$parameters
+
+  design_params <- params[grepl(
+    "allocation|ratio|dropout|event|groups",
+    names(params)
+  )]
+
+  if (length(design_params) == 0) return(NULL)
+
+  controls <- lapply(names(design_params), function(param_name) {
+    param_spec <- design_params[[param_name]]
+    input_id <- paste0("ss_", param_name)
+
+    widget <- switch(param_spec$type,
+      "slider" = shiny::sliderInput(
+        ns(input_id),
+        label = param_spec$label,
+        min = param_spec$min,
+        max = param_spec$max,
+        value = param_spec$default,
+        step = param_spec$step
+      ),
+      "numeric" = shiny::numericInput(
+        ns(input_id),
+        label = param_spec$label,
+        value = param_spec$default,
+        min = param_spec$min %||% 0,
+        max = param_spec$max %||% Inf
+      ),
+      "radio" = shiny::radioButtons(
+        ns(input_id),
+        label = param_spec$label,
+        choices = param_spec$options,
+        selected = param_spec$default
+      ),
+      NULL
+    )
+
+    if (!is.null(param_spec$condition)) {
+      param_ref <- trimws(gsub("==.*", "", param_spec$condition))
+      condition_value <- gsub(".*'([^']+)'.*", "\\1", param_spec$condition)
+      shiny::conditionalPanel(
+        condition = sprintf(
+          "input['%s'] == '%s'", ns(paste0("ss_", param_ref)), condition_value
         ),
         widget
       )

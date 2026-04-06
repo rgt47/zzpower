@@ -26,12 +26,77 @@ create_generic_test_server <- function(id, test_spec,
   shiny::moduleServer(id, function(input, output, session) {
     consts <- ZZPOWER_CONSTANTS
     param_names <- names(test_spec$parameters)
+    design_names <- setdiff(param_names, "sample_size")
+
+    fn <- test_spec$power_function
+    fn_formals <- names(formals(fn))
+    es_param <- intersect(c("d", "h", "r"), fn_formals)[1]
 
     .collect_params <- function() {
       vals <- lapply(param_names, function(p) input[[p]])
       names(vals) <- param_names
       vals
     }
+
+    .collect_design_params <- function() {
+      vals <- lapply(design_names, function(p) input[[paste0("ss_", p)]])
+      names(vals) <- design_names
+      vals
+    }
+
+    .power_at_n <- function(es, total_n, design_params, type1, alternative) {
+      params_in <- c(list(sample_size = total_n), design_params)
+      params <- test_spec$sample_size_calc(params_in)
+
+      call_args <- list(sig.level = type1, alternative = alternative)
+      call_args[[es_param]] <- es
+
+      if (!is.null(params$n1) && "n1" %in% fn_formals) {
+        call_args$n1 <- params$n1
+        call_args$n2 <- params$n2
+      } else if ("n" %in% fn_formals) {
+        call_args$n <- params$n
+      }
+
+      if ("type" %in% fn_formals && !is.null(test_spec$test_type)) {
+        call_args$type <- test_spec$test_type
+      }
+
+      tryCatch({
+        result <- do.call(fn, call_args)
+        result$power %||% NA_real_
+      }, warning = function(w) NA_real_,
+         error = function(e) NA_real_)
+    }
+
+    .find_required_n <- function(es, target_power, design_params,
+                                  type1, alternative) {
+      n_lo <- 4
+      n_hi <- 10000
+
+      p_lo <- .power_at_n(es, n_lo, design_params, type1, alternative)
+      if (is.na(p_lo)) return(NA_real_)
+
+      p_hi <- .power_at_n(es, n_hi, design_params, type1, alternative)
+      if (is.na(p_hi)) return(NA_real_)
+      if (p_hi < target_power) return(NA_real_)
+      if (p_lo >= target_power) return(n_lo)
+
+      for (iter in seq_len(30)) {
+        n_mid <- ceiling((n_lo + n_hi) / 2)
+        p_mid <- .power_at_n(es, n_mid, design_params, type1, alternative)
+        if (is.na(p_mid)) return(NA_real_)
+
+        if (p_mid < target_power) n_lo <- n_mid else n_hi <- n_mid
+        if (n_hi - n_lo <= 1) break
+      }
+
+      n_hi
+    }
+
+    solve_mode <- shiny::reactive({
+      input$solve_for %||% "power"
+    })
 
     # ===== VALIDATION =====
     validation <- shiny::reactive({
@@ -85,7 +150,7 @@ create_generic_test_server <- function(id, test_spec,
 
     # ===== EFFECT SIZE RANGE =====
     effect_size_range <- shiny::reactive({
-      shiny::req(is_valid())
+      if (solve_mode() == "power") shiny::req(is_valid())
 
       spec <- test_spec
       method <- input$effect_method %||% spec$effect_size_methods[1]
@@ -116,8 +181,9 @@ create_generic_test_server <- function(id, test_spec,
       )
     })
 
-    # ===== POWER RESULTS =====
+    # ===== POWER RESULTS (power mode) =====
     power_results <- shiny::reactive({
+      shiny::req(solve_mode() == "power")
       es_range <- shiny::req(effect_size_range())
       params <- shiny::req(study_parameters())
 
@@ -136,23 +202,19 @@ create_generic_test_server <- function(id, test_spec,
       type1 <- input$type1 %||% consts$TYPE1_DEFAULT
       alternative <- if (isTRUE(input$onesided)) "one.sided" else "two.sided"
 
-      fn <- test_spec$power_function
-      fn_args <- names(formals(fn))
-      es_name <- intersect(c("d", "h", "r"), fn_args)[1]
-
       power_vec <- vapply(standardized_es, function(es) {
         tryCatch({
           call_args <- list(sig.level = type1, alternative = alternative)
-          call_args[[es_name]] <- es
+          call_args[[es_param]] <- es
 
-          if (!is.null(n2) && "n1" %in% fn_args) {
+          if (!is.null(n2) && "n1" %in% fn_formals) {
             call_args$n1 <- n1
             call_args$n2 <- n2
-          } else if ("n" %in% fn_args) {
+          } else if ("n" %in% fn_formals) {
             call_args$n <- n1
           }
 
-          if ("type" %in% fn_args && !is.null(test_spec$test_type)) {
+          if ("type" %in% fn_formals && !is.null(test_spec$test_type)) {
             call_args$type <- test_spec$test_type
           }
 
@@ -169,16 +231,30 @@ create_generic_test_server <- function(id, test_spec,
       )
     })
 
-    # ===== POWER PLOT =====
-    output$power_plot <- shiny::renderPlot({
-      results <- shiny::req(power_results())
-      results <- results[!is.na(results$power), , drop = FALSE]
-      shiny::req(nrow(results) > 0)
-      es_range <- effect_size_range()
-      spec <- test_spec
-      method <- es_range$method
+    # ===== SAMPLE SIZE RESULTS (sample size mode) =====
+    sample_size_results <- shiny::reactive({
+      shiny::req(solve_mode() == "sample_size")
+      es_range <- shiny::req(effect_size_range())
 
-      x_label <- switch(method,
+      target_power <- input$target_power %||% 0.80
+      type1 <- input$type1 %||% consts$TYPE1_DEFAULT
+      alternative <- if (isTRUE(input$onesided)) "one.sided" else "two.sided"
+      design <- .collect_design_params()
+
+      required_n <- vapply(es_range$standardized, function(es) {
+        .find_required_n(es, target_power, design, type1, alternative)
+      }, FUN.VALUE = numeric(1))
+
+      data.frame(
+        effect_size = es_range$effect_sizes,
+        standardized_es = es_range$standardized,
+        required_n = required_n
+      )
+    })
+
+    # ===== X-AXIS LABEL HELPER =====
+    .es_x_label <- function(method) {
+      switch(method,
         "cohens_d" = "Effect Size (Cohen's d)",
         "percent_reduction" = "Percent Reduction",
         "difference" = "Difference",
@@ -191,85 +267,146 @@ create_generic_test_server <- function(id, test_spec,
         "prop_range" = "Proportion at Highest Dose",
         "Effect Size"
       )
+    }
 
-      ggplot2::ggplot(
-        results,
-        ggplot2::aes(x = .data$effect_size, y = .data$power)
-      ) +
-        ggplot2::geom_line(linewidth = 1, color = "#2c3e50") +
-        ggplot2::geom_point(size = 2, color = "#2c3e50") +
-        ggplot2::geom_hline(
-          yintercept = 0.8, linetype = "dashed",
-          color = "#e74c3c", linewidth = 0.5
+    # ===== PLOT OUTPUT =====
+    output$power_plot <- shiny::renderPlot({
+      mode <- solve_mode()
+      es_range <- shiny::req(effect_size_range())
+      x_label <- .es_x_label(es_range$method)
+
+      if (mode == "power") {
+        results <- shiny::req(power_results())
+        results <- results[!is.na(results$power), , drop = FALSE]
+        shiny::req(nrow(results) > 0)
+
+        ggplot2::ggplot(
+          results,
+          ggplot2::aes(x = .data$effect_size, y = .data$power)
         ) +
-        ggplot2::labs(
-          title = paste("Power Curve -", spec$name),
-          x = x_label,
-          y = "Statistical Power",
-          caption = "Dashed line indicates 80% power threshold"
+          ggplot2::geom_line(linewidth = 1, color = "#2c3e50") +
+          ggplot2::geom_point(size = 2, color = "#2c3e50") +
+          ggplot2::geom_hline(
+            yintercept = 0.8, linetype = "dashed",
+            color = "#e74c3c", linewidth = 0.5
+          ) +
+          ggplot2::labs(
+            title = paste("Power Curve -", test_spec$name),
+            x = x_label,
+            y = "Statistical Power",
+            caption = "Dashed line indicates 80% power threshold"
+          ) +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(
+            plot.title = ggplot2::element_text(size = 14, face = "bold"),
+            axis.title = ggplot2::element_text(size = 12),
+            panel.grid.minor = ggplot2::element_blank()
+          ) +
+          ggplot2::ylim(0, 1)
+
+      } else {
+        results <- shiny::req(sample_size_results())
+        results <- results[!is.na(results$required_n), , drop = FALSE]
+        shiny::req(nrow(results) > 0)
+        target <- input$target_power %||% 0.80
+
+        ggplot2::ggplot(
+          results,
+          ggplot2::aes(x = .data$effect_size, y = .data$required_n)
         ) +
-        ggplot2::theme_minimal() +
-        ggplot2::theme(
-          plot.title = ggplot2::element_text(size = 14, face = "bold"),
-          axis.title = ggplot2::element_text(size = 12),
-          panel.grid.minor = ggplot2::element_blank()
-        ) +
-        ggplot2::ylim(0, 1)
+          ggplot2::geom_line(linewidth = 1, color = "#2c3e50") +
+          ggplot2::geom_point(size = 2, color = "#2c3e50") +
+          ggplot2::labs(
+            title = paste("Required Sample Size -", test_spec$name),
+            x = x_label,
+            y = "Total Sample Size (N)",
+            caption = sprintf("Target power = %.0f%%", target * 100)
+          ) +
+          ggplot2::theme_minimal() +
+          ggplot2::theme(
+            plot.title = ggplot2::element_text(size = 14, face = "bold"),
+            axis.title = ggplot2::element_text(size = 12),
+            panel.grid.minor = ggplot2::element_blank()
+          )
+      }
     })
 
     # ===== RESULTS TABLE =====
     output$results_table <- DT::renderDataTable({
-      results <- shiny::req(power_results())
+      mode <- solve_mode()
 
-      display_df <- data.frame(
-        `Effect Size` = format(results$effect_size, digits = 3),
-        `Standardized` = format(results$standardized_es, digits = 3),
-        `Power` = format(results$power, digits = 3),
-        check.names = FALSE
-      )
+      if (mode == "power") {
+        results <- shiny::req(power_results())
+        display_df <- data.frame(
+          `Effect Size` = format(results$effect_size, digits = 3),
+          `Standardized` = format(results$standardized_es, digits = 3),
+          `Power` = format(results$power, digits = 3),
+          check.names = FALSE
+        )
+      } else {
+        results <- shiny::req(sample_size_results())
+        display_df <- data.frame(
+          `Effect Size` = format(results$effect_size, digits = 3),
+          `Standardized` = format(results$standardized_es, digits = 3),
+          `Required N` = ifelse(
+            is.na(results$required_n), "---",
+            sprintf("%.0f", results$required_n)
+          ),
+          check.names = FALSE
+        )
+      }
 
       DT::datatable(display_df, options = list(pageLength = 10, dom = "lftip"))
     })
 
     # ===== STUDY SUMMARY =====
     output$summary <- shiny::renderText({
-      shiny::req(is_valid())
-      params <- shiny::req(study_parameters())
+      mode <- solve_mode()
       es_range <- shiny::req(effect_size_range())
-      spec <- test_spec
-
-      summary_text <- paste(
-        "TEST:", spec$name,
-        "\n\nDESCRIPTION:", spec$description,
-        "\n\nEFFECT SIZE METHOD:", es_range$method,
-        "\nEffect Size Range:",
-        sprintf("%.3f to %.3f",
-          min(es_range$effect_sizes), max(es_range$effect_sizes)),
-        "\n\nSAMPLE SIZE:"
-      )
-
-      if (!is.null(params$n1) && !is.null(params$n2)) {
-        summary_text <- paste(
-          summary_text,
-          "\nGroup 1 (n):", sprintf("%.0f", params$n1),
-          "\nGroup 2 (n):", sprintf("%.0f", params$n2),
-          "\nTotal (n):", sprintf("%.0f", params$n1 + params$n2)
-        )
-      } else if (!is.null(params$n)) {
-        summary_text <- paste(
-          summary_text,
-          "\nSample Size (n):", sprintf("%.0f", params$n)
-        )
-      }
 
       type1 <- input$type1 %||% consts$TYPE1_DEFAULT
       one_sided <- isTRUE(input$onesided)
 
-      paste(
-        summary_text,
-        "\n\nTYPE I ERROR:", sprintf("%.4f", type1),
-        "\nTEST DIRECTION:", ifelse(one_sided, "One-sided", "Two-sided")
+      header <- paste(
+        "TEST:", test_spec$name,
+        "\nMODE:", ifelse(mode == "power", "Solve for Power",
+          "Solve for Sample Size"),
+        "\n\nEFFECT SIZE METHOD:", es_range$method,
+        "\nEffect Size Range:",
+        sprintf("%.3f to %.3f",
+          min(es_range$effect_sizes), max(es_range$effect_sizes))
       )
+
+      if (mode == "power") {
+        shiny::req(is_valid())
+        params <- shiny::req(study_parameters())
+
+        size_text <- ""
+        if (!is.null(params$n1) && !is.null(params$n2)) {
+          size_text <- paste(
+            "\n\nSAMPLE SIZE:",
+            "\nGroup 1 (n):", sprintf("%.0f", params$n1),
+            "\nGroup 2 (n):", sprintf("%.0f", params$n2),
+            "\nTotal (n):", sprintf("%.0f", params$n1 + params$n2)
+          )
+        } else if (!is.null(params$n)) {
+          size_text <- paste(
+            "\n\nSAMPLE SIZE:",
+            "\nSample Size (n):", sprintf("%.0f", params$n)
+          )
+        }
+
+        paste(header, size_text,
+          "\n\nTYPE I ERROR:", sprintf("%.4f", type1),
+          "\nTEST DIRECTION:", ifelse(one_sided, "One-sided", "Two-sided"))
+
+      } else {
+        target <- input$target_power %||% 0.80
+        paste(header,
+          "\n\nTARGET POWER:", sprintf("%.0f%%", target * 100),
+          "\nTYPE I ERROR:", sprintf("%.4f", type1),
+          "\nTEST DIRECTION:", ifelse(one_sided, "One-sided", "Two-sided"))
+      }
     })
 
     # ===== REPORT DOWNLOAD =====
@@ -280,23 +417,31 @@ create_generic_test_server <- function(id, test_spec,
         paste0("power_report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".", ext)
       },
       content = function(file) {
-        shiny::req(is_valid())
-
+        mode <- solve_mode()
         fmt <- input$report_format %||% "text"
-        results <- power_results()
-        params <- study_parameters()
+
+        if (mode == "power") {
+          results <- shiny::req(power_results())
+          params <- study_parameters()
+        } else {
+          results <- shiny::req(sample_size_results())
+          params <- NULL
+        }
+
         es_range <- effect_size_range()
 
         report_data <- list(
           test_id = id,
           test_name = test_spec$name,
           format = fmt,
+          solve_mode = mode,
           timestamp = Sys.time(),
           r_version = paste(R.version$major, R.version$minor, sep = "."),
-          parameters = reactiveValuesToList(input),
+          parameters = .collect_params(),
           sample_sizes = params,
           effect_size_range = es_range,
           power_results = results,
+          target_power = input$target_power %||% 0.80,
           type1_error = input$type1 %||% consts$TYPE1_DEFAULT,
           one_sided = isTRUE(input$onesided)
         )

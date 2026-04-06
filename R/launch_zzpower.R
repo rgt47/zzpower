@@ -42,13 +42,24 @@
 #'
 #' @export
 #' @importFrom shiny shinyApp req actionLink observeEvent tags
-#' @importFrom bslib bs_theme page_fillable navset_tab nav_panel
-#'   nav_panel_hidden value_box layout_column_wrap nav_select
+#' @importFrom bslib bs_theme page_fillable navset_hidden nav_panel
+#'   nav_panel_hidden layout_column_wrap nav_select
 launch_zzpower <- function(..., launch.browser = TRUE,
                            host = "127.0.0.1", port = NULL) {
 
   registry <- get_power_test_registry()
   test_ids <- names(registry)
+
+  card_colors <- c(
+    ttest_2groups  = "#2c3e50",
+    ttest_paired   = "#2980b9",
+    ttest_one_sample = "#16a085",
+    prop_2groups   = "#8e44ad",
+    fisher_exact   = "#c0392b",
+    trend_prop     = "#d35400",
+    correlation    = "#27ae60",
+    logrank        = "#e67e22"
+  )
 
   test_categories <- list(
     "Continuous Outcomes" = c(
@@ -63,13 +74,13 @@ launch_zzpower <- function(..., launch.browser = TRUE,
   )
 
   hero_panel <- bslib::nav_panel(
-    title = "Home",
-    icon = bsicons::bs_icon("house"),
+    value = "home",
+    title = NULL,
     shiny::div(
       class = "container-fluid py-4",
       shiny::div(
-        class = "text-center mb-4",
-        shiny::h2("zzpower"),
+        class = "text-center mb-5",
+        shiny::h1(class = "fw-bold", "zzpower"),
         shiny::p(
           class = "lead text-muted",
           "Interactive power analysis and sample size",
@@ -82,19 +93,36 @@ launch_zzpower <- function(..., launch.browser = TRUE,
         if (length(cat_ids) == 0) return(NULL)
 
         shiny::tagList(
-          shiny::h5(class = "mt-4 mb-3 text-muted", category),
+          shiny::h5(
+            class = "mt-4 mb-3",
+            style = "font-weight: 600; color: #555;",
+            category
+          ),
           bslib::layout_column_wrap(
             width = 1 / min(length(cat_ids), 3),
             heights_equal = "row",
             !!!lapply(cat_ids, function(tid) {
               spec <- registry[[tid]]
+              clr <- card_colors[[tid]] %||% "#2c3e50"
               bslib::card(
-                class = "border-0 shadow-sm",
-                style = "cursor: pointer;",
+                style = paste0(
+                  "cursor: pointer;",
+                  "border-left: 4px solid ", clr, ";",
+                  "transition: transform 0.15s, box-shadow 0.15s;"
+                ),
+                class = "shadow-sm",
                 id = paste0("card_", tid),
                 onclick = sprintf(
                   "Shiny.setInputValue('nav_to', '%s', {priority: 'event'})",
                   spec$name
+                ),
+                onmouseenter = paste0(
+                  "this.style.transform='translateY(-3px)';",
+                  "this.style.boxShadow='0 6px 20px rgba(0,0,0,.12)';"
+                ),
+                onmouseleave = paste0(
+                  "this.style.transform='';",
+                  "this.style.boxShadow='';"
                 ),
                 bslib::card_body(
                   class = "text-center py-4",
@@ -103,10 +131,10 @@ launch_zzpower <- function(..., launch.browser = TRUE,
                     bsicons::bs_icon(
                       spec$icon %||% "calculator",
                       size = "2em",
-                      class = "text-primary"
+                      style = paste0("color: ", clr, ";")
                     )
                   ),
-                  shiny::h6(class = "fw-bold", spec$name),
+                  shiny::h6(class = "fw-bold mb-2", spec$name),
                   shiny::p(
                     class = "text-muted small mb-0",
                     spec$description
@@ -129,11 +157,36 @@ launch_zzpower <- function(..., launch.browser = TRUE,
     )
   )
 
+  back_link <- function(clr) {
+    shiny::div(
+      class = "mb-3",
+      shiny::actionLink(
+        "back_home", NULL,
+        icon = bsicons::bs_icon("arrow-left"),
+        class = "text-decoration-none",
+        style = paste0("color: ", clr, "; font-weight: 600;"),
+        onclick = paste0(
+          "Shiny.setInputValue('nav_to', 'home', {priority: 'event'});",
+          "return false;"
+        ),
+        "Back to all tests"
+      )
+    )
+  }
+
   test_panels <- lapply(test_ids, function(test_id) {
     test_spec <- registry[[test_id]]
+    clr <- card_colors[[test_id]] %||% "#2c3e50"
     bslib::nav_panel(
-      title = test_spec$name,
-      icon = bsicons::bs_icon(test_spec$icon %||% "calculator"),
+      value = test_spec$name,
+      title = NULL,
+      back_link(clr),
+      shiny::h4(
+        class = "mb-3",
+        style = paste0("color: ", clr, "; font-weight: 700;"),
+        bsicons::bs_icon(test_spec$icon %||% "calculator"),
+        paste0(" ", test_spec$name)
+      ),
       create_generic_test_ui(test_id)
     )
   })
@@ -145,7 +198,7 @@ launch_zzpower <- function(..., launch.browser = TRUE,
       primary = "#2c3e50"
     ),
     title = "zzpower - Statistical Power Analysis Calculator",
-    bslib::navset_tab(
+    bslib::navset_hidden(
       id = "main_nav",
       hero_panel,
       !!!test_panels
