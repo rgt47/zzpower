@@ -71,10 +71,14 @@ create_generic_test_server <- function(id, test_spec,
 
     .find_required_n <- function(es, target_power, design_params,
                                   type1, alternative) {
-      n_lo <- 4
+      n_lo <- 10
       n_hi <- 10000
 
       p_lo <- .power_at_n(es, n_lo, design_params, type1, alternative)
+      while (is.na(p_lo) && n_lo < 100) {
+        n_lo <- n_lo + 10
+        p_lo <- .power_at_n(es, n_lo, design_params, type1, alternative)
+      }
       if (is.na(p_lo)) return(NA_real_)
 
       p_hi <- .power_at_n(es, n_hi, design_params, type1, alternative)
