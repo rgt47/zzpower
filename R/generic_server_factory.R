@@ -30,7 +30,7 @@ create_generic_test_server <- function(id, test_spec,
 
     fn <- test_spec$power_function
     fn_formals <- names(formals(fn))
-    es_param <- intersect(c("d", "h", "r"), fn_formals)[1]
+    es_param <- intersect(c("d", "h", "r", "f"), fn_formals)[1]
 
     .collect_params <- function() {
       vals <- lapply(param_names, function(p) input[[p]])
@@ -316,11 +316,11 @@ create_generic_test_server <- function(id, test_spec,
           results,
           ggplot2::aes(x = .data$effect_size, y = .data$power)
         ) +
-          ggplot2::geom_line(linewidth = 1, color = "#2c3e50") +
-          ggplot2::geom_point(size = 2, color = "#2c3e50") +
+          ggplot2::geom_line(linewidth = 1, color = "#00629B") +
+          ggplot2::geom_point(size = 2, color = "#00629B") +
           ggplot2::geom_hline(
             yintercept = 0.8, linetype = "dashed",
-            color = "#e74c3c", linewidth = 0.5
+            color = "#C69214", linewidth = 0.5
           ) +
           ggplot2::labs(
             title = paste("Power Curve -", test_spec$name),
@@ -346,8 +346,8 @@ create_generic_test_server <- function(id, test_spec,
           results,
           ggplot2::aes(x = .data$effect_size, y = .data$required_n)
         ) +
-          ggplot2::geom_line(linewidth = 1, color = "#2c3e50") +
-          ggplot2::geom_point(size = 2, color = "#2c3e50") +
+          ggplot2::geom_line(linewidth = 1, color = "#00629B") +
+          ggplot2::geom_point(size = 2, color = "#00629B") +
           ggplot2::labs(
             title = paste("Required Sample Size -", test_spec$name),
             x = x_label,
