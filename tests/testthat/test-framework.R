@@ -142,21 +142,18 @@ test_that("generic UI builder creates valid UI for all tests", {
 })
 
 test_that("render_sample_size_inputs generates correct controls", {
-  registry <- get_power_test_registry()
-  spec <- registry$ttest_2groups
   test_id <- "ttest_2groups"
+  ns <- shiny::NS(test_id)
 
-  # Create mock input object with all expected fields
   input <- list(
-    ttest_2groups_allocation = "equal",
-    ttest_2groups_sample_size = 100,
-    ttest_2groups_dropout = 0.1,
-    ttest_2groups_ratio = 1
+    allocation = "equal",
+    sample_size = 100,
+    dropout = 0.1,
+    ratio = 1
   )
 
-  controls <- render_sample_size_inputs(test_id, input)
+  controls <- render_sample_size_inputs(test_id, input, ns)
 
-  # Should return a tag list or single tag
   expect_true(
     inherits(controls, "shiny.tag.list") ||
     inherits(controls, "shiny.tag") ||
@@ -165,17 +162,16 @@ test_that("render_sample_size_inputs generates correct controls", {
 })
 
 test_that("render_effect_size_inputs generates correct controls", {
-  registry <- get_power_test_registry()
-  spec <- registry$ttest_2groups
   test_id <- "ttest_2groups"
+  ns <- shiny::NS(test_id)
 
   input <- list(
-    ttest_2groups_effect_method = "cohens_d",
-    ttest_2groups_cohens_d_es = c(0.2, 0.8),
-    ttest_2groups_sd0 = 10
+    effect_method = "cohens_d",
+    cohens_d_es = c(0.2, 0.8),
+    sd0 = 10
   )
 
-  controls <- render_effect_size_inputs(test_id, input)
+  controls <- render_effect_size_inputs(test_id, input, ns)
 
   expect_true(
     inherits(controls, "shiny.tag.list") ||
@@ -185,9 +181,9 @@ test_that("render_effect_size_inputs generates correct controls", {
 })
 
 test_that("render_advanced_settings generates control panel", {
-  test_id <- "ttest_2groups"
+  ns <- shiny::NS("ttest_2groups")
 
-  settings <- render_advanced_settings(test_id)
+  settings <- render_advanced_settings(ns)
 
   expect_true(
     inherits(settings, "shiny.tag.list") ||
@@ -217,14 +213,14 @@ test_that("get_effect_size_range generates correct sequences", {
   expect_equal(length(result$standardized), ZZPOWER_CONSTANTS$EFFECT_SIZE_SEQ_LENGTH)
 })
 
-test_that("generic server factory has correct signature", {
+test_that("generic server factory has correct moduleServer signature", {
   expect_true(is.function(create_generic_test_server))
   args <- names(formals(create_generic_test_server))
   expect_true("id" %in% args)
   expect_true("test_spec" %in% args)
-  expect_true("input" %in% args)
-  expect_true("output" %in% args)
-  expect_true("session" %in% args)
+  expect_true("registry_func" %in% args)
+  expect_false("input" %in% args)
+  expect_false("output" %in% args)
 })
 
 test_that("launch_zzpower function exists and is exported", {

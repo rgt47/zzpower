@@ -33,7 +33,7 @@ create_ttest_2groups_spec <- function() {
     id = "ttest_2groups",
     name = "Two-Group t-test",
     description = "Independent samples t-test for continuous outcomes",
-    icon = "chart-line",
+    icon = "bar-chart-line",
     power_function = pwr::pwr.t2n.test,
     effect_size_methods = c("cohens_d", "percent_reduction", "difference", "active_change"),
 
@@ -152,7 +152,7 @@ create_ttest_paired_spec <- function() {
     id = "ttest_paired",
     name = "Paired t-test",
     description = "Paired samples t-test for before-after designs",
-    icon = "arrows-repeat",
+    icon = "arrow-repeat",
     power_function = pwr::pwr.t.test,  # Uses t.test with paired=TRUE
     effect_size_methods = c("cohens_d"),
 
@@ -199,7 +199,7 @@ create_ttest_one_sample_spec <- function() {
     id = "ttest_one_sample",
     name = "One-Sample t-test",
     description = "One-sample t-test comparing to a fixed value",
-    icon = "target",
+    icon = "bullseye",
     power_function = pwr::pwr.t.test,
     effect_size_methods = c("cohens_d"),
 

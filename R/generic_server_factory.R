@@ -1,316 +1,309 @@
 #' Generic Server Factory for Power Analysis Tests
 #'
-#' Creates complete server logic for any power analysis test using the
-#' registry. Registers reactive expressions and output handlers directly
-#' in the calling Shiny session.
+#' Creates complete server logic for any power analysis test using
+#' shiny::moduleServer(). Each test tab runs as an independent module
+#' with auto-scoped input/output namespacing.
 #'
 #' @keywords internal
 #' @importFrom rlang .data
 
-#' Create Server for a Power Analysis Test
+#' Create Module Server for a Power Analysis Test
 #'
-#' Registers all reactive expressions and output renderers for a single
-#' test tab. Called once per test during server initialization.
+#' Registers all reactive expressions and output renderers for a
+#' single test tab via moduleServer(). Input IDs are automatically
+#' scoped by the module namespace.
 #'
-#' @param id Test identifier (must match a registry entry)
+#' @param id Module ID (must match the test_id used in the UI)
 #' @param test_spec Test specification from registry
-#' @param input Shiny input object from the server function
-#' @param output Shiny output object from the server function
-#' @param session Shiny session object from the server function
 #' @param registry_func Function returning the full test registry
 #'
-#' @return Called for side effects (output registration). No return value.
+#' @return The return value of moduleServer() (called for side effects)
 #'
 #' @keywords internal
-create_generic_test_server <- function(id, test_spec, input, output, session,
+create_generic_test_server <- function(id, test_spec,
                                        registry_func = get_power_test_registry) {
-  consts <- ZZPOWER_CONSTANTS
+  shiny::moduleServer(id, function(input, output, session) {
+    ns <- session$ns
+    consts <- ZZPOWER_CONSTANTS
 
-  # ===== DYNAMIC INPUT RENDERING =====
-  output[[paste0(id, "_sample_inputs")]] <- shiny::renderUI({
-    render_sample_size_inputs(id, input)
-  })
+    # ===== DYNAMIC INPUT RENDERING =====
+    output$sample_inputs <- shiny::renderUI({
+      render_sample_size_inputs(id, input, ns)
+    })
 
-  output[[paste0(id, "_effect_inputs")]] <- shiny::renderUI({
-    render_effect_size_inputs(id, input)
-  })
+    output$effect_inputs <- shiny::renderUI({
+      render_effect_size_inputs(id, input, ns)
+    })
 
-  output[[paste0(id, "_advanced")]] <- shiny::renderUI({
-    render_advanced_settings(id)
-  })
+    output$advanced <- shiny::renderUI({
+      render_advanced_settings(ns)
+    })
 
-  # ===== VALIDATION REACTIVE =====
-  validation <- shiny::reactive({
-    test_spec$validation(as.list(input))
-  })
+    # ===== VALIDATION =====
+    validation <- shiny::reactive({
+      test_spec$validation(as.list(input))
+    })
 
-  is_valid <- shiny::reactive({
-    length(validation()) == 0
-  })
+    is_valid <- shiny::reactive({
+      length(validation()) == 0
+    })
 
-  output[[paste0(id, "_validation")]] <- shiny::renderUI({
-    issues <- validation()
-    if (length(issues) > 0) {
-      shiny::div(
-        class = "alert alert-warning alert-dismissible fade show",
-        role = "alert",
-        shiny::HTML(paste(
-          "<strong>Input Issues:</strong><br/>",
-          paste("- ", issues, collapse = "<br/>")
-        )),
-        shiny::tags$button(
-          type = "button", class = "btn-close",
-          `data-bs-dismiss` = "alert", `aria-label` = "Close"
+    output$validation <- shiny::renderUI({
+      issues <- validation()
+      if (length(issues) > 0) {
+        shiny::div(
+          class = "alert alert-warning alert-dismissible fade show",
+          role = "alert",
+          shiny::HTML(paste(
+            "<strong>Input Issues:</strong><br/>",
+            paste("- ", issues, collapse = "<br/>")
+          )),
+          shiny::tags$button(
+            type = "button", class = "btn-close",
+            `data-bs-dismiss` = "alert", `aria-label` = "Close"
+          )
         )
-      )
-    }
-  })
-
-  # ===== STUDY PARAMETERS REACTIVE =====
-  study_parameters <- shiny::reactive({
-    shiny::req(is_valid())
-    test_spec$sample_size_calc(as.list(input))
-  })
-
-  output[[paste0(id, "_sample_size_display")]] <- shiny::renderUI({
-    params <- study_parameters()
-    shiny::req(params)
-
-    if (!is.null(params$n1) && !is.null(params$n2)) {
-      shiny::div(
-        shiny::p(shiny::strong("Group 1: "), sprintf("%.0f", params$n1)),
-        shiny::p(shiny::strong("Group 2: "), sprintf("%.0f", params$n2)),
-        shiny::p(shiny::strong("Total: "), sprintf("%.0f", params$n1 + params$n2))
-      )
-    } else if (!is.null(params$n)) {
-      shiny::div(
-        shiny::p(shiny::strong("Sample Size: "), sprintf("%.0f", params$n))
-      )
-    }
-  })
-
-  # ===== EFFECT SIZE RANGE REACTIVE =====
-  effect_size_range <- shiny::reactive({
-    shiny::req(is_valid())
-
-    registry <- registry_func()
-    spec <- registry[[id]]
-
-    method <- input[[paste0(id, "_effect_method")]] %||% spec$effect_size_methods[1]
-    method_params <- spec$effect_size_params[[method]]
-
-    es_min <- input[[paste0(id, "_", method, "_es")]][1] %||% method_params$default_min
-    es_max <- input[[paste0(id, "_", method, "_es")]][2] %||% method_params$default_max
-
-    effect_sizes <- seq(es_min, es_max, length.out = consts$EFFECT_SIZE_SEQ_LENGTH)
-
-    additional_params <- list()
-    if (!is.null(method_params$requires)) {
-      for (param_name in names(method_params$requires)) {
-        param_value <- input[[paste0(id, "_", method, "_", param_name)]]
-        if (!is.null(param_value)) {
-          additional_params[[param_name]] <- param_value
-        }
       }
-    }
+    })
 
-    standardized <- spec$standardize(
-      effect_sizes, method, c(as.list(input), additional_params)
-    )
+    # ===== STUDY PARAMETERS =====
+    study_parameters <- shiny::reactive({
+      shiny::req(is_valid())
+      test_spec$sample_size_calc(as.list(input))
+    })
 
-    list(
-      effect_sizes = effect_sizes,
-      standardized = standardized,
-      method = method
-    )
-  })
+    output$sample_size_display <- shiny::renderUI({
+      params <- shiny::req(study_parameters())
 
-  # ===== POWER RESULTS REACTIVE =====
-  power_results <- shiny::reactive({
-    es_range <- shiny::req(effect_size_range())
-    params <- shiny::req(study_parameters())
+      if (!is.null(params$n1) && !is.null(params$n2)) {
+        shiny::div(
+          shiny::p(shiny::strong("Group 1: "), sprintf("%.0f", params$n1)),
+          shiny::p(shiny::strong("Group 2: "), sprintf("%.0f", params$n2)),
+          shiny::p(shiny::strong("Total: "),
+            sprintf("%.0f", params$n1 + params$n2))
+        )
+      } else if (!is.null(params$n)) {
+        shiny::div(
+          shiny::p(shiny::strong("Sample Size: "), sprintf("%.0f", params$n))
+        )
+      }
+    })
 
-    standardized_es <- es_range$standardized
-
-    if (!is.null(params$n1) && !is.null(params$n2)) {
-      n1 <- params$n1
-      n2 <- params$n2
-    } else if (!is.null(params$n)) {
-      n1 <- params$n
-      n2 <- NULL
-    } else {
-      return(NULL)
-    }
-
-    type1 <- input[[paste0(id, "_type1")]] %||% consts$TYPE1_DEFAULT
-    alternative <- if (!is.null(input[[paste0(id, "_onesided")]]) &&
-                       input[[paste0(id, "_onesided")]]) {
-      "one.sided"
-    } else {
-      "two.sided"
-    }
-
-    power_vec <- vapply(standardized_es, function(es) {
-      tryCatch({
-        if (!is.null(n2)) {
-          result <- test_spec$power_function(
-            h = es, n1 = n1, n2 = n2,
-            sig.level = type1, alternative = alternative
-          )
-        } else {
-          result <- test_spec$power_function(
-            n = n1, d = es,
-            sig.level = type1, alternative = alternative
-          )
-        }
-
-        if (!is.null(result$power)) result$power
-        else if (!is.null(result$estimate)) result$estimate
-        else NA_real_
-      }, error = function(e) NA_real_)
-    }, FUN.VALUE = numeric(1))
-
-    data.frame(
-      effect_size = es_range$effect_sizes,
-      standardized_es = standardized_es,
-      power = power_vec
-    )
-  })
-
-  # ===== POWER PLOT OUTPUT =====
-  output[[paste0(id, "_power_plot")]] <- shiny::renderPlot({
-    results <- shiny::req(power_results())
-    es_range <- effect_size_range()
-
-    registry <- registry_func()
-    spec <- registry[[id]]
-    method <- es_range$method
-
-    x_label <- switch(method,
-      "cohens_d" = "Effect Size (Cohen's d)",
-      "percent_reduction" = "Percent Reduction",
-      "difference" = "Difference",
-      "active_change" = "Treatment Change",
-      "proportions" = "Proportion (p1)",
-      "odds_ratio" = "Odds Ratio",
-      "relative_risk" = "Relative Risk",
-      "correlation" = "Correlation Coefficient (r)",
-      "hazard_ratio" = "Hazard Ratio (HR)",
-      "prop_range" = "Proportion at Highest Dose",
-      "Effect Size"
-    )
-
-    ggplot2::ggplot(results, ggplot2::aes(x = .data$effect_size, y = .data$power)) +
-      ggplot2::geom_line(linewidth = 1, color = "#2c3e50") +
-      ggplot2::geom_point(size = 2, color = "#2c3e50") +
-      ggplot2::geom_hline(
-        yintercept = 0.8, linetype = "dashed",
-        color = "#e74c3c", linewidth = 0.5
-      ) +
-      ggplot2::labs(
-        title = paste("Power Curve -", spec$name),
-        x = x_label,
-        y = "Statistical Power",
-        caption = "Dashed line indicates 80% power threshold"
-      ) +
-      ggplot2::theme_minimal() +
-      ggplot2::theme(
-        plot.title = ggplot2::element_text(size = 14, face = "bold"),
-        axis.title = ggplot2::element_text(size = 12),
-        panel.grid.minor = ggplot2::element_blank()
-      ) +
-      ggplot2::ylim(0, 1)
-  })
-
-  # ===== RESULTS TABLE OUTPUT =====
-  output[[paste0(id, "_results_table")]] <- DT::renderDataTable({
-    results <- shiny::req(power_results())
-
-    display_df <- data.frame(
-      `Effect Size` = format(results$effect_size, digits = 3),
-      `Standardized` = format(results$standardized_es, digits = 3),
-      `Power` = format(results$power, digits = 3),
-      check.names = FALSE
-    )
-
-    DT::datatable(display_df, options = list(pageLength = 10, dom = "lftip"))
-  })
-
-  # ===== STUDY SUMMARY OUTPUT =====
-  output[[paste0(id, "_summary")]] <- shiny::renderText({
-    shiny::req(is_valid())
-    params <- shiny::req(study_parameters())
-    es_range <- shiny::req(effect_size_range())
-
-    registry <- registry_func()
-    spec <- registry[[id]]
-
-    summary_text <- paste(
-      "TEST:", spec$name,
-      "\n\nDESCRIPTION:", spec$description,
-      "\n\nEFFECT SIZE METHOD:", es_range$method,
-      "\nEffect Size Range:",
-      sprintf("%.3f to %.3f", min(es_range$effect_sizes), max(es_range$effect_sizes)),
-      "\n\nSAMPLE SIZE:"
-    )
-
-    if (!is.null(params$n1) && !is.null(params$n2)) {
-      summary_text <- paste(
-        summary_text,
-        "\nGroup 1 (n):", sprintf("%.0f", params$n1),
-        "\nGroup 2 (n):", sprintf("%.0f", params$n2),
-        "\nTotal (n):", sprintf("%.0f", params$n1 + params$n2)
-      )
-    } else if (!is.null(params$n)) {
-      summary_text <- paste(
-        summary_text,
-        "\nSample Size (n):", sprintf("%.0f", params$n)
-      )
-    }
-
-    type1 <- input[[paste0(id, "_type1")]] %||% consts$TYPE1_DEFAULT
-    one_sided <- input[[paste0(id, "_onesided")]] %||% FALSE
-
-    paste(
-      summary_text,
-      "\n\nTYPE I ERROR:", sprintf("%.4f", type1),
-      "\nTEST DIRECTION:", ifelse(one_sided, "One-sided", "Two-sided")
-    )
-  })
-
-  # ===== REPORT DOWNLOAD =====
-  output[[paste0(id, "_download_report")]] <- shiny::downloadHandler(
-    filename = function() {
-      fmt <- input[[paste0(id, "_report_format")]] %||% "text"
-      ext <- ifelse(fmt == "html", "html", "txt")
-      paste0("power_report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".", ext)
-    },
-    content = function(file) {
+    # ===== EFFECT SIZE RANGE =====
+    effect_size_range <- shiny::reactive({
       shiny::req(is_valid())
 
-      fmt <- input[[paste0(id, "_report_format")]] %||% "text"
-      results <- power_results()
-      params <- study_parameters()
-      es_range <- effect_size_range()
+      spec <- registry_func()[[id]]
+      method <- input$effect_method %||% spec$effect_size_methods[1]
+      method_params <- spec$effect_size_params[[method]]
 
-      report_data <- list(
-        test_id = id,
-        test_name = test_spec$name,
-        format = fmt,
-        timestamp = Sys.time(),
-        r_version = paste(R.version$major, R.version$minor, sep = "."),
-        parameters = as.list(input),
-        sample_sizes = params,
-        effect_size_range = es_range,
-        power_results = results,
-        type1_error = input[[paste0(id, "_type1")]] %||% consts$TYPE1_DEFAULT,
-        one_sided = input[[paste0(id, "_onesided")]] %||% FALSE
+      es_min <- input[[paste0(method, "_es")]][1] %||% method_params$default_min
+      es_max <- input[[paste0(method, "_es")]][2] %||% method_params$default_max
+
+      effect_sizes <- seq(es_min, es_max, length.out = consts$EFFECT_SIZE_SEQ_LENGTH)
+
+      additional_params <- list()
+      if (!is.null(method_params$requires)) {
+        for (param_name in names(method_params$requires)) {
+          param_value <- input[[paste0(method, "_", param_name)]]
+          if (!is.null(param_value)) {
+            additional_params[[param_name]] <- param_value
+          }
+        }
+      }
+
+      standardized <- spec$standardize(
+        effect_sizes, method, c(as.list(input), additional_params)
       )
 
-      report_content <- .generate_generic_report(report_data, test_spec)
-      writeLines(report_content, file)
-    }
-  )
+      list(
+        effect_sizes = effect_sizes,
+        standardized = standardized,
+        method = method
+      )
+    })
+
+    # ===== POWER RESULTS =====
+    power_results <- shiny::reactive({
+      es_range <- shiny::req(effect_size_range())
+      params <- shiny::req(study_parameters())
+
+      standardized_es <- es_range$standardized
+
+      if (!is.null(params$n1) && !is.null(params$n2)) {
+        n1 <- params$n1
+        n2 <- params$n2
+      } else if (!is.null(params$n)) {
+        n1 <- params$n
+        n2 <- NULL
+      } else {
+        return(NULL)
+      }
+
+      type1 <- input$type1 %||% consts$TYPE1_DEFAULT
+      alternative <- if (isTRUE(input$onesided)) "one.sided" else "two.sided"
+
+      power_vec <- vapply(standardized_es, function(es) {
+        tryCatch({
+          if (!is.null(n2)) {
+            result <- test_spec$power_function(
+              h = es, n1 = n1, n2 = n2,
+              sig.level = type1, alternative = alternative
+            )
+          } else {
+            result <- test_spec$power_function(
+              n = n1, d = es,
+              sig.level = type1, alternative = alternative
+            )
+          }
+          if (!is.null(result$power)) result$power
+          else if (!is.null(result$estimate)) result$estimate
+          else NA_real_
+        }, error = function(e) NA_real_)
+      }, FUN.VALUE = numeric(1))
+
+      data.frame(
+        effect_size = es_range$effect_sizes,
+        standardized_es = standardized_es,
+        power = power_vec
+      )
+    })
+
+    # ===== POWER PLOT =====
+    output$power_plot <- shiny::renderPlot({
+      results <- shiny::req(power_results())
+      es_range <- effect_size_range()
+      spec <- registry_func()[[id]]
+      method <- es_range$method
+
+      x_label <- switch(method,
+        "cohens_d" = "Effect Size (Cohen's d)",
+        "percent_reduction" = "Percent Reduction",
+        "difference" = "Difference",
+        "active_change" = "Treatment Change",
+        "proportions" = "Proportion (p1)",
+        "odds_ratio" = "Odds Ratio",
+        "relative_risk" = "Relative Risk",
+        "correlation" = "Correlation Coefficient (r)",
+        "hazard_ratio" = "Hazard Ratio (HR)",
+        "prop_range" = "Proportion at Highest Dose",
+        "Effect Size"
+      )
+
+      ggplot2::ggplot(
+        results,
+        ggplot2::aes(x = .data$effect_size, y = .data$power)
+      ) +
+        ggplot2::geom_line(linewidth = 1, color = "#2c3e50") +
+        ggplot2::geom_point(size = 2, color = "#2c3e50") +
+        ggplot2::geom_hline(
+          yintercept = 0.8, linetype = "dashed",
+          color = "#e74c3c", linewidth = 0.5
+        ) +
+        ggplot2::labs(
+          title = paste("Power Curve -", spec$name),
+          x = x_label,
+          y = "Statistical Power",
+          caption = "Dashed line indicates 80% power threshold"
+        ) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.title = ggplot2::element_text(size = 14, face = "bold"),
+          axis.title = ggplot2::element_text(size = 12),
+          panel.grid.minor = ggplot2::element_blank()
+        ) +
+        ggplot2::ylim(0, 1)
+    })
+
+    # ===== RESULTS TABLE =====
+    output$results_table <- DT::renderDataTable({
+      results <- shiny::req(power_results())
+
+      display_df <- data.frame(
+        `Effect Size` = format(results$effect_size, digits = 3),
+        `Standardized` = format(results$standardized_es, digits = 3),
+        `Power` = format(results$power, digits = 3),
+        check.names = FALSE
+      )
+
+      DT::datatable(display_df, options = list(pageLength = 10, dom = "lftip"))
+    })
+
+    # ===== STUDY SUMMARY =====
+    output$summary <- shiny::renderText({
+      shiny::req(is_valid())
+      params <- shiny::req(study_parameters())
+      es_range <- shiny::req(effect_size_range())
+      spec <- registry_func()[[id]]
+
+      summary_text <- paste(
+        "TEST:", spec$name,
+        "\n\nDESCRIPTION:", spec$description,
+        "\n\nEFFECT SIZE METHOD:", es_range$method,
+        "\nEffect Size Range:",
+        sprintf("%.3f to %.3f",
+          min(es_range$effect_sizes), max(es_range$effect_sizes)),
+        "\n\nSAMPLE SIZE:"
+      )
+
+      if (!is.null(params$n1) && !is.null(params$n2)) {
+        summary_text <- paste(
+          summary_text,
+          "\nGroup 1 (n):", sprintf("%.0f", params$n1),
+          "\nGroup 2 (n):", sprintf("%.0f", params$n2),
+          "\nTotal (n):", sprintf("%.0f", params$n1 + params$n2)
+        )
+      } else if (!is.null(params$n)) {
+        summary_text <- paste(
+          summary_text,
+          "\nSample Size (n):", sprintf("%.0f", params$n)
+        )
+      }
+
+      type1 <- input$type1 %||% consts$TYPE1_DEFAULT
+      one_sided <- isTRUE(input$onesided)
+
+      paste(
+        summary_text,
+        "\n\nTYPE I ERROR:", sprintf("%.4f", type1),
+        "\nTEST DIRECTION:", ifelse(one_sided, "One-sided", "Two-sided")
+      )
+    })
+
+    # ===== REPORT DOWNLOAD =====
+    output$download_report <- shiny::downloadHandler(
+      filename = function() {
+        fmt <- input$report_format %||% "text"
+        ext <- ifelse(fmt == "html", "html", "txt")
+        paste0("power_report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".", ext)
+      },
+      content = function(file) {
+        shiny::req(is_valid())
+
+        fmt <- input$report_format %||% "text"
+        results <- power_results()
+        params <- study_parameters()
+        es_range <- effect_size_range()
+
+        report_data <- list(
+          test_id = id,
+          test_name = test_spec$name,
+          format = fmt,
+          timestamp = Sys.time(),
+          r_version = paste(R.version$major, R.version$minor, sep = "."),
+          parameters = as.list(input),
+          sample_sizes = params,
+          effect_size_range = es_range,
+          power_results = results,
+          type1_error = input$type1 %||% consts$TYPE1_DEFAULT,
+          one_sided = isTRUE(input$onesided)
+        )
+
+        report_content <- .generate_generic_report(report_data, test_spec)
+        writeLines(report_content, file)
+      }
+    )
+  })
 }
 
 #' Generate Generic Report

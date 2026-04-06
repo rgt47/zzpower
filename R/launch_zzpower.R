@@ -2,7 +2,7 @@
 #'
 #' This function launches the interactive 'Shiny' application for power
 #' analysis and sample size calculations using a registry of statistical
-#' tests.
+#' tests. Each test runs as an independent Shiny module.
 #'
 #' @param ... Additional arguments passed to \code{\link[shiny]{runApp}}
 #' @param launch.browser Logical, whether to launch the app in browser.
@@ -42,27 +42,25 @@
 #'
 #' @export
 #' @importFrom shiny shinyApp req
-#' @importFrom bslib bs_theme page_fillable
+#' @importFrom bslib bs_theme page_fillable navset_tab nav_panel
 launch_zzpower <- function(..., launch.browser = TRUE,
                            host = "127.0.0.1", port = NULL) {
 
   registry <- get_power_test_registry()
   test_ids <- names(registry)
 
-  app_theme <- bslib::bs_theme(
-    version = 5,
-    bootswatch = "flatly",
-    primary = "#2c3e50"
-  )
-
   ui <- bslib::page_fillable(
-    theme = app_theme,
+    theme = bslib::bs_theme(
+      version = 5,
+      bootswatch = "flatly",
+      primary = "#2c3e50"
+    ),
     title = "zzpower - Statistical Power Analysis Calculator",
 
-    shiny::navset_tab(
+    bslib::navset_tab(
       !!!lapply(test_ids, function(test_id) {
         test_spec <- registry[[test_id]]
-        shiny::nav_panel(
+        bslib::nav_panel(
           title = test_spec$name,
           icon = bsicons::bs_icon(test_spec$icon %||% "calculator"),
           create_generic_test_ui(test_id)
@@ -72,16 +70,10 @@ launch_zzpower <- function(..., launch.browser = TRUE,
   )
 
   server <- function(input, output, session) {
-    for (test_id in test_ids) {
-      local({
-        tid <- test_id
-        tspec <- registry[[tid]]
-        create_generic_test_server(
-          tid, tspec, input, output, session,
-          get_power_test_registry
-        )
-      })
-    }
+    lapply(test_ids, function(test_id) {
+      test_spec <- registry[[test_id]]
+      create_generic_test_server(test_id, test_spec, get_power_test_registry)
+    })
   }
 
   shiny::shinyApp(
