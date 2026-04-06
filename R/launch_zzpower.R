@@ -80,10 +80,10 @@ launch_zzpower <- function(..., launch.browser = TRUE,
   )
 
   category_bg <- c(
-    "Continuous Outcomes"     = "#dce7f0",
-    "Binary Outcomes"         = "#f5ecd4",
-    "Longitudinal & Survival" = "#d4ece8",
-    "Association"             = "#e8e4f0"
+    "Continuous Outcomes"     = "#cdd8e8",
+    "Binary Outcomes"         = "#fef3c7",
+    "Longitudinal & Survival" = "#c0ddd6",
+    "Association"             = "#d8cce0"
   )
 
   hero_panel <- bslib::nav_panel(
@@ -92,7 +92,21 @@ launch_zzpower <- function(..., launch.browser = TRUE,
     shiny::div(
       style = paste0(
         "background: linear-gradient(135deg, #182B49 0%, #00629B 100%);",
-        "padding: 3rem 1rem; text-align: center; margin: -1rem -1rem 0 -1rem;"
+        "padding: 2rem 1rem 2.5rem 1rem; text-align: center;",
+        "margin: -1rem -1rem 0 -1rem; position: relative;"
+      ),
+      shiny::img(
+        src = "zzpower-assets/ucsd-logo-white.png",
+        style = paste0(
+          "position: absolute; top: 1.2rem; right: 1.5rem;",
+          "height: 30px; opacity: 0.9;"
+        ),
+        alt = "UC San Diego"
+      ),
+      shiny::img(
+        src = "zzpower-assets/hex-zzpower.png",
+        style = "height: 120px; margin-bottom: 1rem;",
+        alt = "zzpower hex sticker"
       ),
       shiny::h1(
         style = "color: #FFCD00; font-weight: 700; margin-bottom: 0.5rem;",
@@ -241,6 +255,12 @@ launch_zzpower <- function(..., launch.browser = TRUE,
       !!!test_panels
     )
   )
+
+  www_dir <- system.file("www", package = "zzpower")
+  if (www_dir == "") {
+    www_dir <- file.path(getwd(), "inst", "www")
+  }
+  shiny::addResourcePath("zzpower-assets", www_dir)
 
   server <- function(input, output, session) {
     shiny::observeEvent(input$nav_to, {
