@@ -8,7 +8,7 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/rgt47/zzpower/blob/v0.3.0/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/rgt47/zzpower/blob/main/DESCRIPTION)
 
 Thomas R (2026). *zzpower: Interactive Power Analysis Calculator for
 Clinical Trial Designs*. R package version 0.3.0,
