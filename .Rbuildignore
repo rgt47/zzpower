@@ -13,3 +13,4 @@
 ^\.Rprofile\.local$
 ^\.claude$
 ^\.gitignore$
+^CODE_OF_CONDUCT\.md$
