@@ -1,4 +1,4 @@
-# zzpower
+# zzpower <a href="https://rgt47.github.io/zzpower/"><img src="man/figures/logo.png" align="right" height="138" alt="zzpower hex sticker" /></a>
 
 <!-- badges: start -->
 [![CRAN status](https://www.r-pkg.org/badges/version/zzpower)](https://CRAN.R-project.org/package=zzpower)
