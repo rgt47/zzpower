@@ -29,6 +29,7 @@ Imports:
     rlang
 Suggests:
     testthat (>= 3.0.0),
+    tinytest,
     knitr,
     rmarkdown
 URL: https://github.com/rgt47/zzpower
