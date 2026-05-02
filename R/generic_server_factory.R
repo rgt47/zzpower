@@ -364,7 +364,7 @@ create_generic_test_server <- function(id, test_spec,
     })
 
     # ===== RESULTS TABLE =====
-    output$results_table <- DT::renderDataTable({
+    output$results_table <- DT::renderDT({
       mode <- solve_mode()
 
       if (mode == "power") {

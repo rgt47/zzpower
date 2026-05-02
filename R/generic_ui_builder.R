@@ -10,7 +10,7 @@
 #' @importFrom shiny NS sliderInput numericInput radioButtons
 #'   conditionalPanel checkboxInput plotOutput downloadButton
 #'   uiOutput verbatimTextOutput tagList
-#' @importFrom DT dataTableOutput
+#' @importFrom DT DTOutput
 
 #' Create Module UI for a Power Analysis Test
 #'
@@ -90,7 +90,7 @@ create_generic_test_ui <- function(test_id) {
         bslib::card_header("Results"),
         bslib::card_body(
           fillable = TRUE,
-          DT::dataTableOutput(ns("results_table"))
+          DT::DTOutput(ns("results_table"))
         )
       )
     ),
