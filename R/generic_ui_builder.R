@@ -49,7 +49,7 @@ param_label_with_tooltip <- function(param_spec) {
 #'
 #' @return A bslib layout_sidebar suitable for embedding in a tab
 #'
-#' @keywords internal
+#' @export
 create_generic_test_ui <- function(test_id) {
   ns <- shiny::NS(test_id)
   registry <- get_power_test_registry()
@@ -99,6 +99,29 @@ create_generic_test_ui <- function(test_id) {
       shiny::conditionalPanel(
         condition = sprintf("input['%s']", ns("show_advanced")),
         build_advanced_settings(ns)
+      )
+    ),
+
+    bslib::layout_columns(
+      fill = FALSE,
+      col_widths = c(4, 4, 4),
+      bslib::value_box(
+        title = shiny::textOutput(ns("headline_box1_title")),
+        value = shiny::textOutput(ns("headline_box1_value")),
+        showcase = bsicons::bs_icon("bullseye"),
+        theme = "primary"
+      ),
+      bslib::value_box(
+        title = shiny::textOutput(ns("headline_box2_title")),
+        value = shiny::textOutput(ns("headline_box2_value")),
+        showcase = bsicons::bs_icon("graph-up"),
+        theme = "info"
+      ),
+      bslib::value_box(
+        title = shiny::textOutput(ns("headline_box3_title")),
+        value = shiny::textOutput(ns("headline_box3_value")),
+        showcase = bsicons::bs_icon("people"),
+        theme = "secondary"
       )
     ),
 
@@ -298,7 +321,7 @@ build_effect_size_inputs <- function(test_spec, ns) {
   method_selector <- shiny::radioButtons(
     ns("effect_method"),
     "Effect Size Method",
-    choices = setNames(methods, methods),
+    choices = stats::setNames(methods, methods),
     selected = methods[1]
   )
 

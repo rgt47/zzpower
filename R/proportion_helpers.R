@@ -17,7 +17,9 @@
 #'
 #' @keywords internal
 #' @examples
+#' \dontrun{
 #' prop_to_cohens_h(0.6, 0.4)  # Returns ~0.41
+#' }
 prop_to_cohens_h <- function(p1, p2) {
   2 * (asin(sqrt(p1)) - asin(sqrt(p2)))
 }
@@ -54,8 +56,10 @@ cohens_h_to_prop <- function(h, p2) {
 #'
 #' @keywords internal
 #' @examples
+#' \dontrun{
 #' # If baseline is 50% and difference is -20%, p1=30%, p2=50%
 #' diff_to_cohens_h(-0.2, 0.5)  # Returns h for (0.3, 0.5)
+#' }
 diff_to_cohens_h <- function(diff, baseline) {
   p2 <- baseline
   p1 <- baseline + diff
@@ -75,8 +79,10 @@ diff_to_cohens_h <- function(diff, baseline) {
 #'
 #' @keywords internal
 #' @examples
+#' \dontrun{
 #' # If baseline is 50% and OR is 2
 #' or_to_cohens_h(2, 0.5)
+#' }
 or_to_cohens_h <- function(or, baseline) {
   p2 <- baseline
   # OR = (p1/(1-p1)) / (p2/(1-p2))
@@ -100,8 +106,10 @@ or_to_cohens_h <- function(or, baseline) {
 #'
 #' @keywords internal
 #' @examples
+#' \dontrun{
 #' # If baseline is 50% and RR is 1.5
 #' rr_to_cohens_h(1.5, 0.5)
+#' }
 rr_to_cohens_h <- function(rr, baseline) {
   p2 <- baseline
   # RR = p1 / p2

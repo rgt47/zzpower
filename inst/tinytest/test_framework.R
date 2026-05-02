@@ -138,7 +138,7 @@ registry <- get_power_test_registry()
 test_spec <- registry$ttest_2groups
 ns <- shiny::NS("ttest_2groups")
 
-controls <- build_sample_size_inputs(test_spec, ns)
+controls <- zzpower:::build_sample_size_inputs(test_spec, ns)
 
 expect_true(
   inherits(controls, "shiny.tag.list") ||
@@ -151,7 +151,7 @@ registry <- get_power_test_registry()
 test_spec <- registry$ttest_2groups
 ns <- shiny::NS("ttest_2groups")
 
-controls <- build_effect_size_inputs(test_spec, ns)
+controls <- zzpower:::build_effect_size_inputs(test_spec, ns)
 
 expect_true(
   inherits(controls, "shiny.tag.list") ||
@@ -162,7 +162,7 @@ expect_true(
 
 ns <- shiny::NS("ttest_2groups")
 
-settings <- build_advanced_settings(ns)
+settings <- zzpower:::build_advanced_settings(ns)
 
 expect_true(
   inherits(settings, "shiny.tag.list") ||

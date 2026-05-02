@@ -20,7 +20,7 @@
 #'
 #' @return The return value of moduleServer() (called for side effects)
 #'
-#' @keywords internal
+#' @export
 create_generic_test_server <- function(id, test_spec,
                                        registry_func = get_power_test_registry) {
   shiny::moduleServer(id, function(input, output, session) {
@@ -261,7 +261,14 @@ create_generic_test_server <- function(id, test_spec,
         standardized_es = standardized_es,
         power = power_vec
       )
-    })
+    }) |> shiny::bindCache(
+      solve_mode(),
+      effect_size_range(),
+      study_parameters(),
+      input$type1,
+      input$onesided,
+      cache = "session"
+    )
 
     # ===== SAMPLE SIZE RESULTS (sample size mode) =====
     sample_size_results <- shiny::reactive({
@@ -282,6 +289,119 @@ create_generic_test_server <- function(id, test_spec,
         standardized_es = es_range$standardized,
         required_n = required_n
       )
+    }) |> shiny::bindCache(
+      solve_mode(),
+      effect_size_range(),
+      input$target_power,
+      input$type1,
+      input$onesided,
+      .collect_design_params(),
+      cache = "session"
+    )
+
+    # ===== HEADLINE VALUE-BOX HELPERS =====
+    .headline_es_label <- function(es_method) {
+      switch(es_method %||% "",
+        "cohens_d" = "d", "percent_reduction" = "%",
+        "difference" = "diff", "active_change" = "change",
+        "proportions" = "p1", "odds_ratio" = "OR",
+        "relative_risk" = "RR", "correlation" = "r",
+        "hazard_ratio" = "HR", "prop_range" = "p",
+        "ES")
+    }
+
+    headline_data <- shiny::reactive({
+      shiny::req(is_valid())
+      mode <- solve_mode()
+      es_range <- shiny::req(effect_size_range())
+      es_label <- .headline_es_label(es_range$method)
+
+      if (mode == "power") {
+        results <- shiny::req(power_results())
+        ok <- results[!is.na(results$power), , drop = FALSE]
+        if (nrow(ok) == 0L) return(NULL)
+
+        max_idx <- which.max(ok$power)
+        cross_idx <- which(ok$power >= 0.80)[1]
+
+        list(
+          mode = "power",
+          es_label = es_label,
+          max_power = ok$power[max_idx],
+          max_power_es = ok$effect_size[max_idx],
+          es_at_80 = if (length(cross_idx) > 0L && !is.na(cross_idx)) {
+            ok$effect_size[cross_idx]
+          } else {
+            NA_real_
+          },
+          n_total = study_parameters()$n_total %||%
+            study_parameters()$n %||% NA_real_
+        )
+      } else {
+        results <- shiny::req(sample_size_results())
+        ok <- results[!is.na(results$required_n), , drop = FALSE]
+        if (nrow(ok) == 0L) return(NULL)
+
+        list(
+          mode = "sample_size",
+          es_label = es_label,
+          n_min = min(ok$required_n),
+          n_min_es = ok$effect_size[which.min(ok$required_n)],
+          n_max = max(ok$required_n),
+          n_max_es = ok$effect_size[which.max(ok$required_n)],
+          target_power = input$target_power %||% 0.80
+        )
+      }
+    })
+
+    output$headline_box1_title <- shiny::renderText({
+      d <- headline_data()
+      if (is.null(d)) return("--")
+      if (d$mode == "power") "Effect size for 80% power" else "Smallest N required"
+    })
+    output$headline_box1_value <- shiny::renderText({
+      d <- headline_data()
+      if (is.null(d)) return("--")
+      if (d$mode == "power") {
+        if (is.na(d$es_at_80)) "Not reached" else
+          sprintf("%s = %.3f", d$es_label, d$es_at_80)
+      } else {
+        sprintf("N = %.0f (at %s = %.3f)",
+                d$n_min, d$es_label, d$n_min_es)
+      }
+    })
+
+    output$headline_box2_title <- shiny::renderText({
+      d <- headline_data()
+      if (is.null(d)) return("--")
+      if (d$mode == "power") "Maximum power in range" else "Largest N required"
+    })
+    output$headline_box2_value <- shiny::renderText({
+      d <- headline_data()
+      if (is.null(d)) return("--")
+      if (d$mode == "power") {
+        sprintf("%.1f%% (at %s = %.3f)",
+                d$max_power * 100, d$es_label, d$max_power_es)
+      } else {
+        sprintf("N = %.0f (at %s = %.3f)",
+                d$n_max, d$es_label, d$n_max_es)
+      }
+    })
+
+    output$headline_box3_title <- shiny::renderText({
+      d <- headline_data()
+      if (is.null(d)) return("--")
+      if (d$mode == "power") "Total sample size" else "Target power"
+    })
+    output$headline_box3_value <- shiny::renderText({
+      d <- headline_data()
+      if (is.null(d)) return("--")
+      if (d$mode == "power") {
+        if (is.na(d$n_total)) "(see inputs)" else
+          sprintf("N = %.0f", d$n_total)
+      } else {
+        sprintf("%.0f%%", d$target_power * 100)
+      }
     })
 
     # ===== X-AXIS LABEL HELPER =====
@@ -303,6 +423,10 @@ create_generic_test_server <- function(id, test_spec,
 
     # ===== PLOT OUTPUT =====
     output$power_plot <- shiny::renderPlot({
+      shiny::validate(shiny::need(
+        is_valid(),
+        "Resolve the input issues shown in the sidebar to see results."
+      ))
       mode <- solve_mode()
       es_range <- shiny::req(effect_size_range())
       x_label <- .es_x_label(es_range$method)
@@ -310,7 +434,10 @@ create_generic_test_server <- function(id, test_spec,
       if (mode == "power") {
         results <- shiny::req(power_results())
         results <- results[!is.na(results$power), , drop = FALSE]
-        shiny::req(nrow(results) > 0)
+        shiny::validate(shiny::need(
+          nrow(results) > 0,
+          "Power calculation produced no valid results. Check inputs."
+        ))
 
         ggplot2::ggplot(
           results,
@@ -339,7 +466,12 @@ create_generic_test_server <- function(id, test_spec,
       } else {
         results <- shiny::req(sample_size_results())
         results <- results[!is.na(results$required_n), , drop = FALSE]
-        shiny::req(nrow(results) > 0)
+        shiny::validate(shiny::need(
+          nrow(results) > 0,
+          paste("Sample-size search did not converge for any effect",
+                "size in the selected range. Try widening the range",
+                "or lowering target power.")
+        ))
         target <- input$target_power %||% 0.80
 
         ggplot2::ggplot(
@@ -365,30 +497,43 @@ create_generic_test_server <- function(id, test_spec,
 
     # ===== RESULTS TABLE =====
     output$results_table <- DT::renderDT({
+      shiny::validate(shiny::need(
+        is_valid(),
+        "Resolve the input issues shown in the sidebar to see results."
+      ))
       mode <- solve_mode()
 
       if (mode == "power") {
         results <- shiny::req(power_results())
         display_df <- data.frame(
-          `Effect Size` = format(results$effect_size, digits = 3),
-          `Standardized` = format(results$standardized_es, digits = 3),
-          `Power` = format(results$power, digits = 3),
+          `Effect Size` = results$effect_size,
+          `Standardized` = results$standardized_es,
+          `Power` = results$power,
           check.names = FALSE
         )
+        dt <- DT::datatable(
+          display_df,
+          options = list(pageLength = nrow(display_df), dom = "t"),
+          rownames = FALSE
+        )
+        DT::formatRound(dt, c("Effect Size", "Standardized"), 3) |>
+          DT::formatPercentage("Power", 1)
       } else {
         results <- shiny::req(sample_size_results())
         display_df <- data.frame(
-          `Effect Size` = format(results$effect_size, digits = 3),
-          `Standardized` = format(results$standardized_es, digits = 3),
-          `Required N` = ifelse(
-            is.na(results$required_n), "---",
-            sprintf("%.0f", results$required_n)
-          ),
+          `Effect Size` = results$effect_size,
+          `Standardized` = results$standardized_es,
+          `Required N` = results$required_n,
           check.names = FALSE
         )
+        dt <- DT::datatable(
+          display_df,
+          options = list(pageLength = nrow(display_df), dom = "t"),
+          rownames = FALSE
+        )
+        DT::formatRound(dt, c("Effect Size", "Standardized"), 3) |>
+          DT::formatRound("Required N", 0)
       }
-
-      DT::datatable(display_df, options = list(pageLength = 10, dom = "lftip"))
     })
 
     # ===== STUDY SUMMARY =====

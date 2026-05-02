@@ -9,30 +9,38 @@ launch_zzpower(..., launch.browser = TRUE, host = "127.0.0.1", port = NULL)
 \arguments{
 \item{...}{Additional arguments passed to \code{\link[shiny]{runApp}}}
 
-\item{launch.browser}{Logical, whether to launch the app in browser. 
+\item{launch.browser}{Logical, whether to launch the app in browser.
 Default is \code{TRUE}.}
 
-\item{host}{Character string of IP address to listen on. Default is "127.0.0.1".}
+\item{host}{Character string of IP address to listen on.
+Default is "127.0.0.1".}
 
-\item{port}{Integer specifying the port to listen on. Default is \code{NULL}
-(random port).}
+\item{port}{Integer specifying the port to listen on.
+Default is \code{NULL} (random port).}
 }
 \value{
 No return value, launches the Shiny application
 }
 \description{
-This function launches the interactive 'Shiny' application for power analysis
-and sample size calculations for two-group parallel designs.
+This function launches the interactive 'Shiny' application for power
+analysis and sample size calculations using a registry of statistical
+tests. Each test runs as an independent Shiny module.
 }
 \details{
-The application provides interactive power analysis for two-group parallel 
-clinical trial designs with the following features:
+The application provides interactive power analysis for multiple
+statistical tests:
 \itemize{
-  \item Multiple effect size specifications (Cohen's d, percentage reduction, 
-    difference in change scores, treatment group change)
-  \item Accounts for dropout rates and unequal group allocation ratios
+  \item Two-group t-tests (independent samples)
+  \item Paired t-tests
+  \item One-sample t-tests
+  \item Two proportions (binomial comparison)
+  \item Correlation tests
+  \item Survival log-rank test
+  \item Fisher's exact test
+  \item Cochran-Armitage trend in proportions
+  \item Multiple effect size specifications per test
   \item Interactive power curves and detailed results tables
-  \item Downloadable reports in PDF, HTML, or Word formats
+  \item Downloadable reports in text or HTML formats
 }
 }
 \examples{

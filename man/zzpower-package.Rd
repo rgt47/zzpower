@@ -4,78 +4,66 @@
 \name{zzpower-package}
 \alias{zzpower-package}
 \alias{zzpower}
-\title{zzpower: Power Analysis Calculator for Two-Group Parallel Designs}
+\title{zzpower: Interactive Power Analysis Calculator for Clinical Trials}
 \description{
-The \pkg{zzpower} package provides an interactive 'Shiny' application for 
-power analysis and sample size calculations specifically designed for 
-two-group parallel clinical trial designs. The application supports multiple
-effect size specifications, accounts for dropout rates and unequal group 
-allocation ratios, and provides interactive visualizations with downloadable
-reports.
+The \pkg{zzpower} package provides an interactive 'Shiny' application
+covering eleven statistical tests via a registry/plugin architecture:
+two-group, paired, and one-sample t-tests; two-proportion comparisons;
+Pearson correlation; log-rank survival; Fisher's exact test;
+Cochran-Armitage trend; one-way ANOVA; McNemar's test for paired
+proportions; and a basic linear mixed-model power calculation. Each
+test supports multiple effect-size specifications, design parameters
+(alpha, allocation, dropout), and downloadable reports.
 }
 \details{
-A comprehensive 'Shiny' application for conducting power analysis and sample 
-size calculations for two-group parallel clinical trial designs.
+A 'Shiny' application for power analysis and sample size calculations
+across a catalogue of statistical tests common in clinical trial design.
 }
 \section{Key Features}{
 
 \itemize{
-  \item \strong{Multiple Effect Size Methods:} Supports Cohen's d, percentage 
-    reductions, difference in change scores, and treatment group changes
-  \item \strong{Comprehensive Design Considerations:} Accounts for dropout 
-    rates, drop-in rates, and unequal group allocation ratios
-  \item \strong{Interactive Visualizations:} Real-time power curves and 
-    detailed results tables
-  \item \strong{Report Generation:} Downloadable reports in PDF, HTML, or 
-    Word formats
-  \item \strong{Advanced Settings:} Configurable Type I error rates and 
-    one-sided vs two-sided testing
+  \item \strong{Eleven statistical tests} via the
+    \code{\link{get_power_test_registry}} registry, each rendered through
+    a generic UI/server factory pair
+    (\code{\link{create_generic_test_ui}},
+    \code{\link{create_generic_test_server}})
+  \item \strong{Multiple effect-size methods} per test (Cohen's d, h, f,
+    hazard ratio, odds ratio, percent reduction, etc.)
+  \item \strong{Sample-size and power solve modes:} compute power at a
+    given N or N required for target power
+  \item \strong{Interactive power curves} with reference lines and
+    formatted result tables (\code{DT})
+  \item \strong{Downloadable reports} (text and HTML) summarising study
+    design and power calculation
+  \item \strong{Design considerations:} dropout, drop-in, allocation
+    ratio, one-sided vs two-sided testing
 }
 }
 
 \section{Getting Started}{
 
-To launch the interactive application, simply run:
+To launch the interactive application, run:
 \preformatted{
 library(zzpower)
 launch_zzpower()
 }
 }
 
-\section{Effect Size Methods}{
-
-The application supports four different approaches to specifying effect sizes:
-\describe{
-  \item{\strong{Standard Deviation Units (Cohen's d):}}{Direct specification 
-    of standardized effect sizes}
-  \item{\strong{Percent Reduction:}}{Effect size specified as percentage 
-    reduction from placebo}
-  \item{\strong{Difference in Change Scores:}}{Absolute difference between 
-    treatment groups in outcome units}
-  \item{\strong{Change in Active Group:}}{Specifying the treatment group 
-    change directly}
-}
-}
-
-\section{Sample Size Calculations}{
-
-The application calculates both intention-to-treat (ITT) and completer sample
-sizes, accounting for:
-\itemize{
-  \item Expected dropout rates
-  \item Drop-in rates (control group receiving treatment)
-  \item Unequal randomization ratios between groups
-}
-}
-
 \references{
-Cohen, J. (1988). Statistical Power Analysis for the Behavioral Sciences 
-(2nd ed.). Lawrence Erlbaum Associates.
+Cohen, J. (1988). Statistical Power Analysis for the Behavioral
+Sciences (2nd ed.). Lawrence Erlbaum Associates.
+
+Schoenfeld, D. A. (1983). Sample-size formula for the proportional-
+hazards regression model. Biometrics, 39(2), 499-503.
+
+Champely, S. (2020). pwr: Basic Functions for Power Analysis. R package.
 }
 \seealso{
 \itemize{
-  \item \code{\link{launch_zzpower}} - Launch the interactive application
-  \item \code{\link[pwr]{pwr.t2n.test}} - Underlying power calculation function
+  \item \code{\link{launch_zzpower}} for the interactive application
+  \item \code{\link{get_power_test_registry}} for the test registry
+  \item The \pkg{pwr} package for the underlying power-calculation
+    primitives
 }
 }
 \author{
