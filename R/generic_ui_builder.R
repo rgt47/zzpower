@@ -12,6 +12,33 @@
 #'   uiOutput verbatimTextOutput tagList
 #' @importFrom DT DTOutput
 
+#' Wrap a parameter label with an info-icon tooltip
+#'
+#' If the parameter spec includes a `description`, the label is
+#' followed by a small info-circle icon that shows the description on
+#' hover. If not, the label is returned plain.
+#'
+#' @param param_spec Named list from the registry: must contain `label`
+#'   and may contain `description`.
+#' @return A character or `tagList` suitable as the `label` argument
+#'   of `shiny::sliderInput`, `shiny::numericInput`, etc.
+#' @keywords internal
+param_label_with_tooltip <- function(param_spec) {
+  if (is.null(param_spec$description) ||
+      !nzchar(param_spec$description)) {
+    return(param_spec$label)
+  }
+  shiny::tagList(
+    param_spec$label,
+    " ",
+    bslib::tooltip(
+      bsicons::bs_icon("info-circle", class = "text-muted small"),
+      param_spec$description,
+      placement = "right"
+    )
+  )
+}
+
 #' Create Module UI for a Power Analysis Test
 #'
 #' Module UI function. Uses NS(id) for all input/output IDs. Inputs
@@ -144,7 +171,7 @@ build_sample_size_inputs <- function(test_spec, ns) {
     widget <- switch(param_spec$type,
       "slider" = shiny::sliderInput(
         ns(param_name),
-        label = param_spec$label,
+        label = param_label_with_tooltip(param_spec),
         min = param_spec$min,
         max = param_spec$max,
         value = param_spec$default,
@@ -152,14 +179,14 @@ build_sample_size_inputs <- function(test_spec, ns) {
       ),
       "numeric" = shiny::numericInput(
         ns(param_name),
-        label = param_spec$label,
+        label = param_label_with_tooltip(param_spec),
         value = param_spec$default,
         min = param_spec$min %||% 0,
         max = param_spec$max %||% Inf
       ),
       "radio" = shiny::radioButtons(
         ns(param_name),
-        label = param_spec$label,
+        label = param_label_with_tooltip(param_spec),
         choices = param_spec$options,
         selected = param_spec$default
       ),
@@ -213,7 +240,7 @@ build_design_inputs <- function(test_spec, ns) {
     widget <- switch(param_spec$type,
       "slider" = shiny::sliderInput(
         ns(input_id),
-        label = param_spec$label,
+        label = param_label_with_tooltip(param_spec),
         min = param_spec$min,
         max = param_spec$max,
         value = param_spec$default,
@@ -221,14 +248,14 @@ build_design_inputs <- function(test_spec, ns) {
       ),
       "numeric" = shiny::numericInput(
         ns(input_id),
-        label = param_spec$label,
+        label = param_label_with_tooltip(param_spec),
         value = param_spec$default,
         min = param_spec$min %||% 0,
         max = param_spec$max %||% Inf
       ),
       "radio" = shiny::radioButtons(
         ns(input_id),
-        label = param_spec$label,
+        label = param_label_with_tooltip(param_spec),
         choices = param_spec$options,
         selected = param_spec$default
       ),

@@ -148,10 +148,22 @@ launch_zzpower <- function(..., launch.browser = TRUE,
                   "transition: transform 0.15s, box-shadow 0.15s;",
                   "min-height: 130px;"
                 ),
-                class = "shadow-sm",
+                class = "shadow-sm zzpower-launcher-card",
                 id = paste0("card_", tid),
+                role = "button",
+                tabindex = "0",
+                `aria-label` = paste("Open", spec$name),
                 onclick = sprintf(
                   "Shiny.setInputValue('nav_to', '%s', {priority: 'event'})",
+                  spec$name
+                ),
+                onkeydown = sprintf(
+                  paste0(
+                    "if (event.key === 'Enter' || event.key === ' ') ",
+                    "{ event.preventDefault(); ",
+                    "Shiny.setInputValue('nav_to', '%s', ",
+                    "{priority: 'event'}); }"
+                  ),
                   spec$name
                 ),
                 onmouseenter = paste0(
@@ -249,6 +261,19 @@ launch_zzpower <- function(..., launch.browser = TRUE,
       "navbar-bg" = "#182B49"
     ),
     title = "zzpower - Statistical Power Analysis Calculator",
+    shiny::tags$head(
+      shiny::tags$style(shiny::HTML(
+        ".zzpower-launcher-card:focus { ",
+        "  outline: 3px solid #00629B; ",
+        "  outline-offset: 2px; ",
+        "}",
+        ".zzpower-launcher-card:focus-visible { ",
+        "  outline: 3px solid #00629B; ",
+        "  outline-offset: 2px; ",
+        "}"
+      ))
+    ),
+    shiny::useBusyIndicators(),
     bslib::navset_hidden(
       id = "main_nav",
       hero_panel,
