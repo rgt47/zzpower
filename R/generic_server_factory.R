@@ -441,6 +441,32 @@ create_generic_test_server <- function(id, test_spec,
         results <- results[!is.na(results$power), , drop = FALSE]
         shiny::req(nrow(results) > 0, cancelOutput = TRUE)
 
+        # Identify the smallest effect size that reaches 80% power
+        # for an in-line annotation.
+        cross_idx <- which(results$power >= 0.80)[1]
+        annot_layers <- if (!is.na(cross_idx) && length(cross_idx)) {
+          x80 <- results$effect_size[cross_idx]
+          y80 <- results$power[cross_idx]
+          list(
+            ggplot2::geom_point(
+              data = data.frame(x = x80, y = y80),
+              ggplot2::aes(x = .data$x, y = .data$y),
+              inherit.aes = FALSE,
+              size = 4, color = "#C69214"
+            ),
+            ggplot2::annotate(
+              "label", x = x80, y = y80,
+              label = sprintf("80%% at %.3f", x80),
+              hjust = -0.1, vjust = 1.4, size = 3.4,
+              fill = "#FFF7E0",
+              colour = "#7A5A00",
+              label.size = 0
+            )
+          )
+        } else {
+          list()
+        }
+
         ggplot2::ggplot(
           results,
           ggplot2::aes(x = .data$effect_size, y = .data$power)
@@ -451,6 +477,7 @@ create_generic_test_server <- function(id, test_spec,
             yintercept = 0.8, linetype = "dashed",
             color = "#C69214", linewidth = 0.5
           ) +
+          annot_layers +
           ggplot2::labs(
             title = paste("Power Curve -", test_spec$name),
             x = x_label,
@@ -463,7 +490,10 @@ create_generic_test_server <- function(id, test_spec,
             axis.title = ggplot2::element_text(size = 12),
             panel.grid.minor = ggplot2::element_blank()
           ) +
-          ggplot2::ylim(0, 1)
+          ggplot2::scale_y_continuous(
+            limits = c(0, 1),
+            labels = function(x) paste0(round(x * 100), "%")
+          )
 
       } else {
         results <- shiny::req(sample_size_results(),
@@ -472,12 +502,39 @@ create_generic_test_server <- function(id, test_spec,
         shiny::req(nrow(results) > 0, cancelOutput = TRUE)
         target <- input$target_power %||% 0.80
 
+        # Annotate the smallest required-N point so the answer is
+        # readable directly off the curve.
+        min_idx <- which.min(results$required_n)
+        annot_layers <- if (length(min_idx) && !is.na(min_idx)) {
+          xm <- results$effect_size[min_idx]
+          ym <- results$required_n[min_idx]
+          list(
+            ggplot2::geom_point(
+              data = data.frame(x = xm, y = ym),
+              ggplot2::aes(x = .data$x, y = .data$y),
+              inherit.aes = FALSE,
+              size = 4, color = "#C69214"
+            ),
+            ggplot2::annotate(
+              "label", x = xm, y = ym,
+              label = sprintf("min N = %.0f", ym),
+              hjust = -0.1, vjust = 1.4, size = 3.4,
+              fill = "#FFF7E0",
+              colour = "#7A5A00",
+              label.size = 0
+            )
+          )
+        } else {
+          list()
+        }
+
         ggplot2::ggplot(
           results,
           ggplot2::aes(x = .data$effect_size, y = .data$required_n)
         ) +
           ggplot2::geom_line(linewidth = 1, color = "#00629B") +
           ggplot2::geom_point(size = 2, color = "#00629B") +
+          annot_layers +
           ggplot2::labs(
             title = paste("Required Sample Size -", test_spec$name),
             x = x_label,

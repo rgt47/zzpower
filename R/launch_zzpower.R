@@ -135,7 +135,15 @@ launch_zzpower <- function(..., launch.browser = TRUE,
             category
           ),
           bslib::layout_columns(
-            col_widths = rep(3, length(cat_ids)),
+            col_widths = bslib::breakpoints(
+              sm = rep(12, length(cat_ids)),
+              md = rep(6, length(cat_ids)),
+              lg = if (length(cat_ids) <= 4) {
+                rep(12 %/% length(cat_ids), length(cat_ids))
+              } else {
+                rep(3, length(cat_ids))
+              }
+            ),
             !!!lapply(cat_ids, function(tid) {
               spec <- registry[[tid]]
               clr <- card_colors[[tid]] %||% "#182B49"
@@ -298,6 +306,35 @@ launch_zzpower <- function(..., launch.browser = TRUE,
       id = "main_nav",
       hero_panel,
       !!!test_panels
+    ),
+    shiny::tags$footer(
+      class = "mt-4 pt-3 border-top text-muted small",
+      style = "text-align: center;",
+      sprintf(
+        "zzpower v%s",
+        as.character(utils::packageVersion("zzpower"))
+      ),
+      " | ",
+      shiny::tags$a(
+        href = "https://github.com/rgt47/zzpower",
+        target = "_blank", rel = "noopener noreferrer",
+        "Source"
+      ),
+      " | ",
+      shiny::tags$a(
+        href = "https://github.com/rgt47/zzpower/issues",
+        target = "_blank", rel = "noopener noreferrer",
+        "Issues"
+      ),
+      " | ",
+      shiny::actionLink("show_citation", "How to cite",
+                          style = "color: inherit;"),
+      " | ",
+      shiny::tags$a(
+        href = "https://www.gnu.org/licenses/gpl-3.0.html",
+        target = "_blank", rel = "noopener noreferrer",
+        "GPL-3"
+      )
     )
   )
 
@@ -310,6 +347,51 @@ launch_zzpower <- function(..., launch.browser = TRUE,
   server <- function(input, output, session) {
     shiny::observeEvent(input$nav_to, {
       bslib::nav_select("main_nav", selected = input$nav_to)
+    })
+
+    shiny::observeEvent(input$show_citation, {
+      cit <- tryCatch(
+        utils::citation("zzpower"),
+        error = function(e) NULL
+      )
+      cit_text <- if (!is.null(cit)) {
+        paste(format(cit, style = "text"), collapse = "\n\n")
+      } else {
+        paste(
+          "Thomas, R. G. (2026). zzpower: Interactive Power",
+          "Analysis Calculator for Clinical Trial Designs.",
+          sprintf("R package version %s.",
+                   as.character(utils::packageVersion("zzpower"))),
+          "https://github.com/rgt47/zzpower"
+        )
+      }
+      bib_text <- if (!is.null(cit)) {
+        paste(format(cit, style = "bibtex"), collapse = "\n")
+      } else {
+        ""
+      }
+      shiny::showModal(shiny::modalDialog(
+        title = "How to cite zzpower",
+        size = "l",
+        easyClose = TRUE,
+        shiny::tags$p(class = "text-muted small",
+                       "Suggested citation:"),
+        shiny::tags$pre(
+          style = "white-space: pre-wrap; font-size: 0.85rem;",
+          cit_text
+        ),
+        if (nzchar(bib_text)) {
+          shiny::tagList(
+            shiny::tags$p(class = "text-muted small mt-3",
+                           "BibTeX:"),
+            shiny::tags$pre(
+              style = "font-size: 0.8rem;",
+              bib_text
+            )
+          )
+        },
+        footer = shiny::modalButton("Close")
+      ))
     })
 
     lapply(test_ids, function(test_id) {
