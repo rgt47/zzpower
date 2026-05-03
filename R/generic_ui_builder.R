@@ -69,36 +69,37 @@ create_generic_test_ui <- function(test_id) {
         selected = "power", inline = TRUE
       ),
 
-      shiny::hr(),
-
-      shiny::conditionalPanel(
-        condition = sprintf("input['%s'] == 'power'", ns("solve_for")),
-        shiny::h6("Sample Size & Design"),
-        build_sample_size_inputs(test_spec, ns)
-      ),
-
-      shiny::conditionalPanel(
-        condition = sprintf("input['%s'] == 'sample_size'", ns("solve_for")),
-        shiny::h6("Target Power"),
-        shiny::sliderInput(
-          ns("target_power"), "Desired Power",
-          min = 0.5, max = 0.99, value = 0.80, step = 0.01
+      bslib::accordion(
+        id = ns("sidebar_accordion"),
+        open = c("Sample Size & Design", "Effect Size"),
+        bslib::accordion_panel(
+          "Sample Size & Design",
+          icon = bsicons::bs_icon("people"),
+          shiny::conditionalPanel(
+            condition = sprintf("input['%s'] == 'power'",
+                                 ns("solve_for")),
+            build_sample_size_inputs(test_spec, ns)
+          ),
+          shiny::conditionalPanel(
+            condition = sprintf("input['%s'] == 'sample_size'",
+                                 ns("solve_for")),
+            shiny::sliderInput(
+              ns("target_power"), "Target power",
+              min = 0.5, max = 0.99, value = 0.80, step = 0.01
+            ),
+            build_design_inputs(test_spec, ns)
+          )
         ),
-        shiny::h6("Design Parameters"),
-        build_design_inputs(test_spec, ns)
-      ),
-
-      shiny::hr(),
-
-      shiny::h6("Effect Size Specification"),
-      build_effect_size_inputs(test_spec, ns),
-
-      shiny::hr(),
-
-      shiny::checkboxInput(ns("show_advanced"), "Show Advanced Settings"),
-      shiny::conditionalPanel(
-        condition = sprintf("input['%s']", ns("show_advanced")),
-        build_advanced_settings(ns)
+        bslib::accordion_panel(
+          "Effect Size",
+          icon = bsicons::bs_icon("rulers"),
+          build_effect_size_inputs(test_spec, ns)
+        ),
+        bslib::accordion_panel(
+          "Advanced Settings",
+          icon = bsicons::bs_icon("sliders"),
+          build_advanced_settings(ns)
+        )
       )
     ),
 
@@ -129,17 +130,21 @@ create_generic_test_ui <- function(test_id) {
       col_widths = c(6, 6),
       bslib::card(
         full_screen = TRUE,
+        height = "420px",
         bslib::card_header("Power Curve"),
         bslib::card_body(
           fillable = TRUE,
-          shiny::plotOutput(ns("power_plot"))
+          min_height = "320px",
+          shiny::plotOutput(ns("power_plot"), height = "320px")
         )
       ),
       bslib::card(
         full_screen = TRUE,
+        height = "420px",
         bslib::card_header("Results"),
         bslib::card_body(
           fillable = TRUE,
+          min_height = "320px",
           DT::DTOutput(ns("results_table"))
         )
       )
@@ -148,12 +153,15 @@ create_generic_test_ui <- function(test_id) {
     bslib::layout_columns(
       col_widths = c(6, 6),
       bslib::card(
+        height = "260px",
         bslib::card_header("Study Summary"),
         bslib::card_body(
-          shiny::verbatimTextOutput(ns("summary"))
+          min_height = "180px",
+          shiny::uiOutput(ns("summary"))
         )
       ),
       bslib::card(
+        height = "260px",
         bslib::card_header("Generate Report"),
         bslib::card_body(
           shiny::radioButtons(

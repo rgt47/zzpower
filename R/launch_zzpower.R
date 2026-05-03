@@ -270,10 +270,30 @@ launch_zzpower <- function(..., launch.browser = TRUE,
         ".zzpower-launcher-card:focus-visible { ",
         "  outline: 3px solid #00629B; ",
         "  outline-offset: 2px; ",
+        "}",
+        # Lock the busy-pulse bar to the very top of the viewport
+        # so it overlays rather than pushing content down.
+        ".shiny-busy-indicator-pulse, .shiny-busy-indicator { ",
+        "  position: fixed !important; ",
+        "  top: 0; left: 0; right: 0; ",
+        "  z-index: 10000; ",
+        "}",
+        # Prevent value-box text outputs from collapsing to zero
+        # height while their content is recalculating.
+        ".bslib-value-box .shiny-text-output:empty::before { ",
+        "  content: '\\00a0'; ",
+        "}",
+        # Lock value-box dimensions so the recalculating state
+        # cannot expand them.
+        ".bslib-value-box { ",
+        "  height: 120px !important; ",
+        "  min-height: 120px !important; ",
+        "  max-height: 120px !important; ",
+        "  overflow: hidden; ",
         "}"
       ))
     ),
-    shiny::useBusyIndicators(),
+    shiny::useBusyIndicators(spinners = FALSE, pulse = TRUE),
     bslib::navset_hidden(
       id = "main_nav",
       hero_panel,

@@ -1,3 +1,17 @@
+# Bring non-exported helpers into scope.
+# tinytest::test_package() calls library(zzpower), which exposes
+# only exports; bare references would fail under R CMD check.
+build_advanced_settings <- getFromNamespace(
+  "build_advanced_settings", "zzpower")
+build_effect_size_inputs <- getFromNamespace(
+  "build_effect_size_inputs", "zzpower")
+build_sample_size_inputs <- getFromNamespace(
+  "build_sample_size_inputs", "zzpower")
+get_effect_size_range <- getFromNamespace(
+  "get_effect_size_range", "zzpower")
+logrank_power <- getFromNamespace("logrank_power", "zzpower")
+trend_power <- getFromNamespace("trend_power", "zzpower")
+
 registry <- get_power_test_registry()
 
 expect_true(is.list(registry))
@@ -180,7 +194,7 @@ input <- list(
   ttest_2groups_cohens_d_es = c(0.2, 0.8)
 )
 
-result <- get_effect_size_range(test_id, input)
+result <- zzpower:::get_effect_size_range(test_id, input)
 
 expect_true(is.list(result))
 expect_true("effect_sizes" %in% names(result))
@@ -230,7 +244,7 @@ report_data <- list(
 )
 
 # Test text report
-report_text <- .generate_generic_report(report_data, spec)
+report_text <- zzpower:::.generate_generic_report(report_data, spec)
 
 expect_true(is.character(report_text))
 expect_true(length(report_text) > 0)
@@ -264,7 +278,7 @@ report_data <- list(
   one_sided = FALSE
 )
 
-report_html <- .generate_generic_report(report_data, spec)
+report_html <- zzpower:::.generate_generic_report(report_data, spec)
 
 expect_true(is.character(report_html))
 # Flatten if it's a list
@@ -347,7 +361,7 @@ expect_equal(params$n1, 50)
 expect_equal(params$n2, 50)
 
 
-result <- logrank_power(
+result <- zzpower:::logrank_power(
   h = log(2), n1 = 50, n2 = 50,
   sig.level = 0.05, alternative = "two.sided"
 )
@@ -356,12 +370,12 @@ expect_true(!is.null(result$power))
 expect_true(result$power > 0 && result$power < 1)
 
 
-power_small <- logrank_power(
+power_small <- zzpower:::logrank_power(
   h = log(2), n1 = 25, n2 = 25,
   sig.level = 0.05, alternative = "two.sided"
 )$power
 
-power_large <- logrank_power(
+power_large <- zzpower:::logrank_power(
   h = log(2), n1 = 100, n2 = 100,
   sig.level = 0.05, alternative = "two.sided"
 )$power
@@ -437,7 +451,7 @@ expect_true(result[3] > result[1])
 
 
 d <- 0.15
-result <- trend_power(n = 150, d = d, sig.level = 0.05,
+result <- zzpower:::trend_power(n = 150, d = d, sig.level = 0.05,
                       alternative = "two.sided")
 
 expect_true(!is.null(result$power))
@@ -445,9 +459,9 @@ expect_true(result$power > 0 && result$power < 1)
 
 
 d <- 0.15
-power_small <- trend_power(n = 50, d = d, sig.level = 0.05,
+power_small <- zzpower:::trend_power(n = 50, d = d, sig.level = 0.05,
                            alternative = "two.sided")$power
-power_large <- trend_power(n = 300, d = d, sig.level = 0.05,
+power_large <- zzpower:::trend_power(n = 300, d = d, sig.level = 0.05,
                            alternative = "two.sided")$power
 
 expect_true(power_large > power_small)

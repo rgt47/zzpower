@@ -140,6 +140,11 @@ create_generic_test_server <- function(id, test_spec,
             `data-bs-dismiss` = "alert", `aria-label` = "Close"
           )
         )
+      } else {
+        # Invisible spacer keeps sidebar height stable so the page
+        # does not reflow when validation issues appear/disappear.
+        shiny::div(style = "height: 0; visibility: hidden;",
+                    " ")
       }
     })
 
@@ -355,12 +360,12 @@ create_generic_test_server <- function(id, test_spec,
     })
 
     output$headline_box1_title <- shiny::renderText({
-      d <- headline_data()
+      d <- shiny::req(headline_data(), cancelOutput = TRUE)
       if (is.null(d)) return("--")
       if (d$mode == "power") "Effect size for 80% power" else "Smallest N required"
     })
     output$headline_box1_value <- shiny::renderText({
-      d <- headline_data()
+      d <- shiny::req(headline_data(), cancelOutput = TRUE)
       if (is.null(d)) return("--")
       if (d$mode == "power") {
         if (is.na(d$es_at_80)) "Not reached" else
@@ -372,12 +377,12 @@ create_generic_test_server <- function(id, test_spec,
     })
 
     output$headline_box2_title <- shiny::renderText({
-      d <- headline_data()
+      d <- shiny::req(headline_data(), cancelOutput = TRUE)
       if (is.null(d)) return("--")
       if (d$mode == "power") "Maximum power in range" else "Largest N required"
     })
     output$headline_box2_value <- shiny::renderText({
-      d <- headline_data()
+      d <- shiny::req(headline_data(), cancelOutput = TRUE)
       if (is.null(d)) return("--")
       if (d$mode == "power") {
         sprintf("%.1f%% (at %s = %.3f)",
@@ -389,12 +394,12 @@ create_generic_test_server <- function(id, test_spec,
     })
 
     output$headline_box3_title <- shiny::renderText({
-      d <- headline_data()
+      d <- shiny::req(headline_data(), cancelOutput = TRUE)
       if (is.null(d)) return("--")
       if (d$mode == "power") "Total sample size" else "Target power"
     })
     output$headline_box3_value <- shiny::renderText({
-      d <- headline_data()
+      d <- shiny::req(headline_data(), cancelOutput = TRUE)
       if (is.null(d)) return("--")
       if (d$mode == "power") {
         if (is.na(d$n_total)) "(see inputs)" else
@@ -423,21 +428,18 @@ create_generic_test_server <- function(id, test_spec,
 
     # ===== PLOT OUTPUT =====
     output$power_plot <- shiny::renderPlot({
-      shiny::validate(shiny::need(
-        is_valid(),
-        "Resolve the input issues shown in the sidebar to see results."
-      ))
+      # Keep the previous plot on screen while inputs are in
+      # transient flight. Only show the validation message if the
+      # initial state is invalid (no prior plot to keep).
+      shiny::req(is_valid(), cancelOutput = TRUE)
       mode <- solve_mode()
-      es_range <- shiny::req(effect_size_range())
+      es_range <- shiny::req(effect_size_range(), cancelOutput = TRUE)
       x_label <- .es_x_label(es_range$method)
 
       if (mode == "power") {
-        results <- shiny::req(power_results())
+        results <- shiny::req(power_results(), cancelOutput = TRUE)
         results <- results[!is.na(results$power), , drop = FALSE]
-        shiny::validate(shiny::need(
-          nrow(results) > 0,
-          "Power calculation produced no valid results. Check inputs."
-        ))
+        shiny::req(nrow(results) > 0, cancelOutput = TRUE)
 
         ggplot2::ggplot(
           results,
@@ -464,14 +466,10 @@ create_generic_test_server <- function(id, test_spec,
           ggplot2::ylim(0, 1)
 
       } else {
-        results <- shiny::req(sample_size_results())
+        results <- shiny::req(sample_size_results(),
+                                cancelOutput = TRUE)
         results <- results[!is.na(results$required_n), , drop = FALSE]
-        shiny::validate(shiny::need(
-          nrow(results) > 0,
-          paste("Sample-size search did not converge for any effect",
-                "size in the selected range. Try widening the range",
-                "or lowering target power.")
-        ))
+        shiny::req(nrow(results) > 0, cancelOutput = TRUE)
         target <- input$target_power %||% 0.80
 
         ggplot2::ggplot(
@@ -497,14 +495,11 @@ create_generic_test_server <- function(id, test_spec,
 
     # ===== RESULTS TABLE =====
     output$results_table <- DT::renderDT({
-      shiny::validate(shiny::need(
-        is_valid(),
-        "Resolve the input issues shown in the sidebar to see results."
-      ))
+      shiny::req(is_valid(), cancelOutput = TRUE)
       mode <- solve_mode()
 
       if (mode == "power") {
-        results <- shiny::req(power_results())
+        results <- shiny::req(power_results(), cancelOutput = TRUE)
         display_df <- data.frame(
           `Effect Size` = results$effect_size,
           `Standardized` = results$standardized_es,
@@ -519,7 +514,8 @@ create_generic_test_server <- function(id, test_spec,
         DT::formatRound(dt, c("Effect Size", "Standardized"), 3) |>
           DT::formatPercentage("Power", 1)
       } else {
-        results <- shiny::req(sample_size_results())
+        results <- shiny::req(sample_size_results(),
+                                cancelOutput = TRUE)
         display_df <- data.frame(
           `Effect Size` = results$effect_size,
           `Standardized` = results$standardized_es,
@@ -537,53 +533,72 @@ create_generic_test_server <- function(id, test_spec,
     })
 
     # ===== STUDY SUMMARY =====
-    output$summary <- shiny::renderText({
+    .summary_dt_row <- function(label, value) {
+      shiny::tagList(
+        shiny::tags$dt(class = "col-sm-5 text-muted small fw-normal",
+                        label),
+        shiny::tags$dd(class = "col-sm-7 small mb-1", value)
+      )
+    }
+
+    output$summary <- shiny::renderUI({
+      shiny::req(is_valid(), cancelOutput = TRUE)
       mode <- solve_mode()
-      es_range <- shiny::req(effect_size_range())
+      es_range <- shiny::req(effect_size_range(),
+                              cancelOutput = TRUE)
 
       type1 <- input$type1 %||% consts$TYPE1_DEFAULT
       one_sided <- isTRUE(input$onesided)
 
-      header <- paste(
-        "TEST:", test_spec$name,
-        "\nMODE:", ifelse(mode == "power", "Solve for Power",
-          "Solve for Sample Size"),
-        "\n\nEFFECT SIZE METHOD:", es_range$method,
-        "\nEffect Size Range:",
-        sprintf("%.3f to %.3f",
-          min(es_range$effect_sizes), max(es_range$effect_sizes))
+      mode_label <- if (mode == "power") {
+        "Solve for power"
+      } else {
+        "Solve for sample size"
+      }
+
+      rows <- list(
+        .summary_dt_row("Test", test_spec$name),
+        .summary_dt_row("Mode", mode_label),
+        .summary_dt_row("Effect-size method", es_range$method),
+        .summary_dt_row(
+          "Effect-size range",
+          sprintf("%.3f to %.3f",
+                   min(es_range$effect_sizes),
+                   max(es_range$effect_sizes))
+        )
       )
 
       if (mode == "power") {
-        shiny::req(is_valid())
         params <- shiny::req(study_parameters())
-
-        size_text <- ""
         if (!is.null(params$n1) && !is.null(params$n2)) {
-          size_text <- paste(
-            "\n\nSAMPLE SIZE:",
-            "\nGroup 1 (n):", sprintf("%.0f", params$n1),
-            "\nGroup 2 (n):", sprintf("%.0f", params$n2),
-            "\nTotal (n):", sprintf("%.0f", params$n1 + params$n2)
-          )
+          rows <- c(rows, list(
+            .summary_dt_row("Group 1 (n)", sprintf("%.0f", params$n1)),
+            .summary_dt_row("Group 2 (n)", sprintf("%.0f", params$n2)),
+            .summary_dt_row("Total (N)",
+                             sprintf("%.0f", params$n1 + params$n2))
+          ))
         } else if (!is.null(params$n)) {
-          size_text <- paste(
-            "\n\nSAMPLE SIZE:",
-            "\nSample Size (n):", sprintf("%.0f", params$n)
-          )
+          rows <- c(rows, list(
+            .summary_dt_row("Sample size (n)",
+                             sprintf("%.0f", params$n))
+          ))
         }
-
-        paste(header, size_text,
-          "\n\nTYPE I ERROR:", sprintf("%.4f", type1),
-          "\nTEST DIRECTION:", ifelse(one_sided, "One-sided", "Two-sided"))
-
       } else {
         target <- input$target_power %||% 0.80
-        paste(header,
-          "\n\nTARGET POWER:", sprintf("%.0f%%", target * 100),
-          "\nTYPE I ERROR:", sprintf("%.4f", type1),
-          "\nTEST DIRECTION:", ifelse(one_sided, "One-sided", "Two-sided"))
+        rows <- c(rows, list(
+          .summary_dt_row("Target power",
+                           sprintf("%.0f%%", target * 100))
+        ))
       }
+
+      rows <- c(rows, list(
+        .summary_dt_row("Type I error (alpha)",
+                         sprintf("%.4f", type1)),
+        .summary_dt_row("Test direction",
+                         if (one_sided) "One-sided" else "Two-sided")
+      ))
+
+      shiny::tags$dl(class = "row mb-0", rows)
     })
 
     # ===== REPORT DOWNLOAD =====
