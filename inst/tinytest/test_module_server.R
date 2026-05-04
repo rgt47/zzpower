@@ -187,3 +187,45 @@ shiny::testServer(
     expect_true(d$max_power >= 0 && d$max_power <= 1)
   }
 )
+
+
+# ------------------------------------------------------------
+# Gap 4: every spec returns the canonical 4-layer N contract
+# ------------------------------------------------------------
+required_fields <- c(
+  "n_per_arm_evaluable", "n_per_arm_enrolled",
+  "n_total_evaluable",   "n_total_enrolled",
+  "n_arms", "arm_labels", "dropout"
+)
+
+for (id in names(registry)) {
+  out <- registry[[id]]$sample_size_calc(list())
+
+  for (f in required_fields) {
+    expect_true(f %in% names(out),
+                info = sprintf("%s missing field %s", id, f))
+  }
+
+  expect_true(out$n_arms >= 1L,
+              info = sprintf("%s n_arms must be >= 1", id))
+  expect_equal(length(out$n_per_arm_evaluable), out$n_arms,
+               info = sprintf("%s evaluable vector length", id))
+  expect_equal(length(out$n_per_arm_enrolled), out$n_arms,
+               info = sprintf("%s enrolled vector length", id))
+
+  # logrank reports participants in canonical fields and events
+  # in back-compat n1/n2; for every other test the canonical
+  # total equals what consumers used to read.
+  if (id != "logrank") {
+    expect_equal(sum(out$n_per_arm_evaluable),
+                 out$n_total_evaluable,
+                 info = sprintf("%s evaluable sum", id))
+    expect_equal(sum(out$n_per_arm_enrolled),
+                 out$n_total_enrolled,
+                 info = sprintf("%s enrolled sum", id))
+  }
+
+  # Enrolled >= evaluable for any non-negative dropout.
+  expect_true(out$n_total_enrolled >= out$n_total_evaluable,
+              info = sprintf("%s enrolled >= evaluable", id))
+}

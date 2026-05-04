@@ -6,6 +6,153 @@
 #'
 #' @keywords internal
 
+#' Canonicalize a sample-size calculation result
+#'
+#' Converts per-arm enrolled counts plus a dropout rate into the
+#' canonical four-layer record (`n_per_arm_evaluable`,
+#' `n_per_arm_enrolled`, `n_total_evaluable`, `n_total_enrolled`)
+#' that every grant-writing artifact (Gaps 1, 2, 3, 9) reads from.
+#' Back-compat scalars (`n`, `n1`, `n2`, `n1_itt`, `n2_itt`, `k`)
+#' are populated so consumers that read the legacy keys keep
+#' working unchanged.
+#'
+#' @param per_arm_enrolled Numeric vector of enrolled (pre-dropout)
+#'   counts per arm. Length 1 for single-sample tests, 2 for
+#'   two-arm tests, k for ANOVA-style designs.
+#' @param dropout Expected dropout rate in [0, 1).
+#' @param arm_labels Optional character vector of arm names for
+#'   display. Defaults to "Sample" for one arm, "Group i" otherwise.
+#'
+#' @return Named list with the canonical fields plus legacy shims.
+#'
+#' @keywords internal
+.canonicalize_sample_sizes <- function(per_arm_enrolled,
+                                       dropout = 0,
+                                       arm_labels = NULL) {
+  per_arm_enrolled  <- as.numeric(per_arm_enrolled)
+  per_arm_evaluable <- per_arm_enrolled * (1 - dropout)
+  n_arms <- length(per_arm_enrolled)
+
+  if (is.null(arm_labels)) {
+    arm_labels <- if (n_arms == 1L) {
+      "Sample"
+    } else {
+      paste("Group", seq_len(n_arms))
+    }
+  }
+
+  list(
+    n_per_arm_evaluable = per_arm_evaluable,
+    n_per_arm_enrolled  = per_arm_enrolled,
+    n_total_evaluable   = sum(per_arm_evaluable),
+    n_total_enrolled    = sum(per_arm_enrolled),
+    n_arms              = n_arms,
+    arm_labels          = arm_labels,
+    dropout             = dropout,
+
+    # Back-compat scalars consumed by generic_server_factory.R
+    # and the report builders. Evaluable values (post-dropout)
+    # are what the power-calc functions expect.
+    n  = if (n_arms == 1L) per_arm_evaluable else per_arm_evaluable[1L],
+    n1 = if (n_arms >= 1L) per_arm_evaluable[1L] else NULL,
+    n2 = if (n_arms >= 2L) per_arm_evaluable[2L] else NULL,
+    n1_itt = if (n_arms >= 1L) per_arm_enrolled[1L] else NULL,
+    n2_itt = if (n_arms >= 2L) per_arm_enrolled[2L] else NULL,
+    k  = if (n_arms >= 2L) n_arms else NULL
+  )
+}
+
+#' Build a calc_context for a single power calculation
+#'
+#' Bundles inputs, outputs, provenance, and metadata for one
+#' power/sample-size calculation into a single named list. Every
+#' grant-writing artifact (Gap 1 methods paragraph, Gap 2 table
+#' builder, Gap 9 reproducibility script, Gap 3 multi-aim aggregator)
+#' reads its values from a calc_context. Building the context once
+#' from inputs and consuming it from many places replaces what
+#' would otherwise be eleven specs × five output-paste sites.
+#'
+#' This is the structural shape consumed by the programmatic API
+#' (`power_calc()`, Gap 10) and the Wave 2 generators. Field
+#' values populated in earlier waves are treated as ground truth;
+#' fields populated in later waves default to NULL until then.
+#'
+#' @param test_spec A test spec (one of the elements of
+#'   `get_power_test_registry()`).
+#' @param sample_sizes Output of the spec's `sample_size_calc()`,
+#'   already canonicalized via `.canonicalize_sample_sizes()`.
+#' @param effect_size Numeric scalar effect size on the native
+#'   scale of the chosen `effect_method`.
+#' @param effect_size_std Numeric scalar effect size on the
+#'   standardized scale (Cohen's d, h, f, or analogous).
+#' @param effect_method Character string identifying which entry
+#'   of `test_spec$effect_size_methods` was selected.
+#' @param effect_params Named list of method-dependent parameters
+#'   (e.g. `sd0`, `p2`, `baseline`).
+#' @param target_power Target power threshold (sample-size mode)
+#'   or NULL (power mode).
+#' @param achieved_power Achieved power at the proposed N (power
+#'   mode) or NULL (sample-size mode).
+#' @param alpha Type I error rate.
+#' @param alternative `"two.sided"` or `"one.sided"`.
+#' @param effect_source,effect_doi Provenance strings for the
+#'   effect-size assumption (Gap 5). Default empty.
+#' @param sensitivity_factor Numeric multiplier for the
+#'   conservative-effect sentence in the methods paragraph (Gap 6).
+#' @param include_sex_paragraph Logical; whether the sex-as-bio
+#'   paragraph is appended (Gap 12).
+#'
+#' @return Named list with the calc_context shape.
+#'
+#' @keywords internal
+.build_calc_context <- function(test_spec,
+                                sample_sizes,
+                                effect_size,
+                                effect_size_std    = NA_real_,
+                                effect_method      = NULL,
+                                effect_params      = list(),
+                                target_power       = NULL,
+                                achieved_power     = NULL,
+                                alpha              = 0.05,
+                                alternative        = "two.sided",
+                                effect_source      = "",
+                                effect_doi         = "",
+                                sensitivity_factor = NULL,
+                                include_sex_paragraph = TRUE) {
+
+  list(
+    # Identity
+    test_id          = test_spec$id,
+    test_name        = test_spec$name,
+    test_description = test_spec$description,
+
+    # Inputs (the user knobs)
+    alpha              = alpha,
+    alternative        = alternative,
+    target_power       = target_power,
+    effect_size        = effect_size,
+    effect_size_std    = effect_size_std,
+    effect_method      = effect_method,
+    effect_params      = effect_params,
+
+    # Provenance (Gaps 5, 6, 12)
+    effect_source         = effect_source,
+    effect_doi            = effect_doi,
+    sensitivity_factor    = sensitivity_factor,
+    include_sex_paragraph = include_sex_paragraph,
+
+    # Outputs
+    sample_sizes   = sample_sizes,
+    achieved_power = achieved_power,
+
+    # Metadata for downstream artifacts
+    formula_citation     = test_spec$formula_citation %||% "",
+    paragraph_template   = test_spec$paragraph_template,  # may be NULL
+    repro_call_template  = test_spec$repro_call,          # may be NULL
+    default_effect_grid  = test_spec$default_effect_grid %||% list()
+  )
+}
+
 #' Get the complete test registry
 #'
 #' @return List of all available power tests with their configurations
@@ -39,6 +186,14 @@ create_ttest_2groups_spec <- function() {
     icon = "bar-chart-line",
     power_function = pwr::pwr.t2n.test,
     effect_size_methods = c("cohens_d", "percent_reduction", "difference", "active_change"),
+    formula_citation = "Cohen J (1988). Statistical Power Analysis for the Behavioral Sciences, 2nd ed., Lawrence Erlbaum, sec. 2.3 (p. 19).",
+    default_effect_grid = list(
+      cohens_d  = c(0.2, 0.5, 0.8),
+      difference = c(2, 5, 8),
+      percent_reduction = c(0.10, 0.25, 0.40)
+    ),
+    paragraph_template = NULL,  # populated in Wave 2 (Gap 1)
+    repro_call         = NULL,  # populated in Wave 3 (Gap 9)
 
     parameters = list(
       sample_size = list(
@@ -115,23 +270,14 @@ create_ttest_2groups_spec <- function() {
       dropout <- input$dropout %||% 0.1
 
       if (allocation == "equal") {
-        n1 <- total_n / 2
-        n2 <- total_n / 2
+        per_arm <- c(total_n / 2, total_n / 2)
       } else {
         ratio <- input$ratio %||% 1
-        n1 <- ratio * total_n / (ratio + 1)
-        n2 <- total_n / (ratio + 1)
+        per_arm <- c(ratio * total_n / (ratio + 1),
+                     total_n / (ratio + 1))
       }
 
-      n1_comp <- n1 * (1 - dropout)
-      n2_comp <- n2 * (1 - dropout)
-
-      list(
-        n1 = n1_comp,
-        n2 = n2_comp,
-        n1_itt = n1,
-        n2_itt = n2
-      )
+      .canonicalize_sample_sizes(per_arm, dropout = dropout)
     },
 
     validation = function(input) {
@@ -159,6 +305,10 @@ create_ttest_paired_spec <- function() {
     power_function = pwr::pwr.t.test,
     test_type = "paired",
     effect_size_methods = c("cohens_d"),
+    formula_citation = "Cohen J (1988). Statistical Power Analysis for the Behavioral Sciences, 2nd ed., Lawrence Erlbaum, sec. 2.5 (p. 48).",
+    default_effect_grid = list(cohens_d = c(0.2, 0.5, 0.8)),
+    paragraph_template = NULL,
+    repro_call         = NULL,
 
     parameters = list(
       sample_size = list(
@@ -166,6 +316,12 @@ create_ttest_paired_spec <- function() {
         label = "Number of Pairs",
         min = 10, max = 500, default = 50, step = 10,
         description = "Number of paired observations"
+      ),
+      dropout = list(
+        type = "slider",
+        label = "Dropout Rate",
+        min = 0, max = 0.5, default = 0.1, step = 0.05,
+        description = "Expected dropout rate"
       )
     ),
 
@@ -182,13 +338,20 @@ create_ttest_paired_spec <- function() {
 
     sample_size_calc = function(input) {
       n <- input$sample_size %||% 50
-      list(n = n)
+      .canonicalize_sample_sizes(
+        per_arm_enrolled = n,
+        dropout    = input$dropout %||% 0.1,
+        arm_labels = "Pairs"
+      )
     },
 
     validation = function(input) {
       issues <- character()
       if ((input$sample_size %||% 50) <= 0) {
         issues <- c(issues, "Sample size must be positive")
+      }
+      if ((input$dropout %||% 0) > 1) {
+        issues <- c(issues, "Dropout rate cannot exceed 100%")
       }
       issues
     }
@@ -207,6 +370,10 @@ create_ttest_one_sample_spec <- function() {
     power_function = pwr::pwr.t.test,
     test_type = "one.sample",
     effect_size_methods = c("cohens_d"),
+    formula_citation = "Cohen J (1988). Statistical Power Analysis for the Behavioral Sciences, 2nd ed., Lawrence Erlbaum, sec. 2.4 (p. 40).",
+    default_effect_grid = list(cohens_d = c(0.2, 0.5, 0.8)),
+    paragraph_template = NULL,
+    repro_call         = NULL,
 
     parameters = list(
       sample_size = list(
@@ -214,6 +381,12 @@ create_ttest_one_sample_spec <- function() {
         label = "Sample Size",
         min = 10, max = 500, default = 50, step = 10,
         description = "Number of observations"
+      ),
+      dropout = list(
+        type = "slider",
+        label = "Dropout Rate",
+        min = 0, max = 0.5, default = 0.1, step = 0.05,
+        description = "Expected dropout rate"
       )
     ),
 
@@ -230,13 +403,20 @@ create_ttest_one_sample_spec <- function() {
 
     sample_size_calc = function(input) {
       n <- input$sample_size %||% 50
-      list(n = n)
+      .canonicalize_sample_sizes(
+        per_arm_enrolled = n,
+        dropout    = input$dropout %||% 0.1,
+        arm_labels = "Sample"
+      )
     },
 
     validation = function(input) {
       issues <- character()
       if ((input$sample_size %||% 50) <= 0) {
         issues <- c(issues, "Sample size must be positive")
+      }
+      if ((input$dropout %||% 0) > 1) {
+        issues <- c(issues, "Dropout rate cannot exceed 100%")
       }
       issues
     }
@@ -254,6 +434,15 @@ create_prop_2groups_spec <- function() {
     icon = "percent",
     power_function = pwr::pwr.2p2n.test,
     effect_size_methods = c("proportions", "difference", "odds_ratio", "relative_risk"),
+    formula_citation = "Cohen J (1988). Statistical Power Analysis for the Behavioral Sciences, 2nd ed., Lawrence Erlbaum, ch. 6 (Cohen's h).",
+    default_effect_grid = list(
+      difference    = c(0.05, 0.10, 0.15, 0.20),
+      odds_ratio    = c(1.25, 1.50, 2.00, 3.00),
+      relative_risk = c(1.25, 1.50, 2.00, 3.00),
+      proportions   = c(0.40, 0.50, 0.60)
+    ),
+    paragraph_template = NULL,
+    repro_call         = NULL,
 
     parameters = list(
       sample_size = list(
@@ -273,6 +462,12 @@ create_prop_2groups_spec <- function() {
         label = "Group Ratio",
         min = 0.5, max = 5, default = 1,
         condition = "allocation == 'unequal'"
+      ),
+      dropout = list(
+        type = "slider",
+        label = "Dropout Rate",
+        min = 0, max = 0.5, default = 0.1, step = 0.05,
+        description = "Expected dropout rate"
       )
     ),
 
@@ -319,21 +514,24 @@ create_prop_2groups_spec <- function() {
       allocation <- input$allocation %||% "equal"
 
       if (allocation == "equal") {
-        n1 <- total_n / 2
-        n2 <- total_n / 2
+        per_arm <- c(total_n / 2, total_n / 2)
       } else {
         ratio <- input$ratio %||% 1
-        n1 <- ratio * total_n / (ratio + 1)
-        n2 <- total_n / (ratio + 1)
+        per_arm <- c(ratio * total_n / (ratio + 1),
+                     total_n / (ratio + 1))
       }
 
-      list(n1 = n1, n2 = n2)
+      .canonicalize_sample_sizes(per_arm,
+                                 dropout = input$dropout %||% 0.1)
     },
 
     validation = function(input) {
       issues <- character()
       if ((input$sample_size %||% 200) <= 0) {
         issues <- c(issues, "Sample size must be positive")
+      }
+      if ((input$dropout %||% 0) > 1) {
+        issues <- c(issues, "Dropout rate cannot exceed 100%")
       }
       issues
     }
@@ -351,6 +549,10 @@ create_correlation_spec <- function() {
     icon = "diagram-2",
     power_function = pwr::pwr.r.test,
     effect_size_methods = c("correlation"),
+    formula_citation = "Cohen J (1988). Statistical Power Analysis for the Behavioral Sciences, 2nd ed., Lawrence Erlbaum, ch. 3 (Pearson r).",
+    default_effect_grid = list(correlation = c(0.10, 0.30, 0.50)),
+    paragraph_template = NULL,
+    repro_call         = NULL,
 
     parameters = list(
       sample_size = list(
@@ -358,6 +560,12 @@ create_correlation_spec <- function() {
         label = "Sample Size",
         min = 10, max = 1000, default = 100, step = 10,
         description = "Number of observations"
+      ),
+      dropout = list(
+        type = "slider",
+        label = "Dropout Rate",
+        min = 0, max = 0.5, default = 0.1, step = 0.05,
+        description = "Expected dropout rate"
       )
     ),
 
@@ -374,13 +582,20 @@ create_correlation_spec <- function() {
 
     sample_size_calc = function(input) {
       n <- input$sample_size %||% 100
-      list(n = n)
+      .canonicalize_sample_sizes(
+        per_arm_enrolled = n,
+        dropout    = input$dropout %||% 0.1,
+        arm_labels = "Sample"
+      )
     },
 
     validation = function(input) {
       issues <- character()
       if ((input$sample_size %||% 100) <= 0) {
         issues <- c(issues, "Sample size must be positive")
+      }
+      if ((input$dropout %||% 0) > 1) {
+        issues <- c(issues, "Dropout rate cannot exceed 100%")
       }
       issues
     }
@@ -403,6 +618,10 @@ create_logrank_spec <- function() {
     icon = "hourglass-split",
     power_function = logrank_power,
     effect_size_methods = c("hazard_ratio"),
+    formula_citation = "Schoenfeld DA (1981). The asymptotic properties of nonparametric tests for comparing survival distributions. Biometrika, 68(1), 316-319.",
+    default_effect_grid = list(hazard_ratio = c(0.50, 0.65, 0.75)),
+    paragraph_template = NULL,
+    repro_call         = NULL,
 
     parameters = list(
       sample_size = list(
@@ -428,6 +647,12 @@ create_logrank_spec <- function() {
         label = "Group Ratio (n1/n2)",
         min = 0.5, max = 5, default = 1, step = 0.1,
         condition = "allocation == 'unequal'"
+      ),
+      dropout = list(
+        type = "slider",
+        label = "Dropout Rate",
+        min = 0, max = 0.5, default = 0.1, step = 0.05,
+        description = "Expected dropout rate"
       )
     ),
 
@@ -446,20 +671,28 @@ create_logrank_spec <- function() {
       total_n <- input$sample_size %||% 200
       event_prob <- input$event_prob %||% 0.7
       allocation <- input$allocation %||% "equal"
+      dropout <- input$dropout %||% 0.1
 
       if (allocation == "equal") {
-        n1 <- total_n / 2
-        n2 <- total_n / 2
+        per_arm <- c(total_n / 2, total_n / 2)
       } else {
         ratio <- input$ratio %||% 1
-        n1 <- ratio * total_n / (ratio + 1)
-        n2 <- total_n / (ratio + 1)
+        per_arm <- c(ratio * total_n / (ratio + 1),
+                     total_n / (ratio + 1))
       }
 
-      list(
-        n1 = n1 * event_prob,
-        n2 = n2 * event_prob
-      )
+      result <- .canonicalize_sample_sizes(per_arm, dropout = dropout)
+
+      # Schoenfeld's log-rank formula expects expected event counts,
+      # not participants. Override the back-compat n1/n2 scalars
+      # consumed by the power function with events; canonical
+      # n_per_arm_* fields continue to report participants.
+      result$n1 <- result$n_per_arm_evaluable[1] * event_prob
+      result$n2 <- result$n_per_arm_evaluable[2] * event_prob
+      result$expected_events_total <-
+        result$n_total_evaluable * event_prob
+
+      result
     },
 
     validation = function(input) {
@@ -470,6 +703,9 @@ create_logrank_spec <- function() {
       ep <- input$event_prob %||% 0.7
       if (ep <= 0 || ep > 1) {
         issues <- c(issues, "Event probability must be between 0 and 1")
+      }
+      if ((input$dropout %||% 0) > 1) {
+        issues <- c(issues, "Dropout rate cannot exceed 100%")
       }
       issues
     }
@@ -492,6 +728,13 @@ create_fisher_exact_spec <- function() {
     icon = "grid-3x2",
     power_function = pwr::pwr.2p2n.test,
     effect_size_methods = c("proportions", "odds_ratio"),
+    formula_citation = "Cohen J (1988). Statistical Power Analysis for the Behavioral Sciences, 2nd ed., Lawrence Erlbaum, ch. 6 (Cohen's h normal approximation).",
+    default_effect_grid = list(
+      proportions = c(0.20, 0.35, 0.50),
+      odds_ratio  = c(2.0, 4.0, 8.0)
+    ),
+    paragraph_template = NULL,
+    repro_call         = NULL,
 
     parameters = list(
       sample_size = list(
@@ -511,6 +754,12 @@ create_fisher_exact_spec <- function() {
         label = "Group Ratio",
         min = 0.5, max = 5, default = 1,
         condition = "allocation == 'unequal'"
+      ),
+      dropout = list(
+        type = "slider",
+        label = "Dropout Rate",
+        min = 0, max = 0.5, default = 0.1, step = 0.05,
+        description = "Expected dropout rate"
       )
     ),
 
@@ -548,21 +797,24 @@ create_fisher_exact_spec <- function() {
       allocation <- input$allocation %||% "equal"
 
       if (allocation == "equal") {
-        n1 <- total_n / 2
-        n2 <- total_n / 2
+        per_arm <- c(total_n / 2, total_n / 2)
       } else {
         ratio <- input$ratio %||% 1
-        n1 <- ratio * total_n / (ratio + 1)
-        n2 <- total_n / (ratio + 1)
+        per_arm <- c(ratio * total_n / (ratio + 1),
+                     total_n / (ratio + 1))
       }
 
-      list(n1 = n1, n2 = n2)
+      .canonicalize_sample_sizes(per_arm,
+                                 dropout = input$dropout %||% 0.1)
     },
 
     validation = function(input) {
       issues <- character()
       if ((input$sample_size %||% 60) <= 0) {
         issues <- c(issues, "Sample size must be positive")
+      }
+      if ((input$dropout %||% 0) > 1) {
+        issues <- c(issues, "Dropout rate cannot exceed 100%")
       }
       issues
     }
@@ -585,6 +837,10 @@ create_trend_prop_spec <- function() {
     icon = "graph-up-arrow",
     power_function = trend_power,
     effect_size_methods = c("prop_range"),
+    formula_citation = "Cochran WG (1954). Some methods for strengthening the common chi-squared tests. Biometrics, 10(4), 417-451; Armitage P (1955). Tests for linear trends in proportions and frequencies. Biometrics, 11(3), 375-386.",
+    default_effect_grid = list(prop_range = c(0.30, 0.45, 0.60)),
+    paragraph_template = NULL,
+    repro_call         = NULL,
 
     parameters = list(
       sample_size = list(
@@ -598,6 +854,12 @@ create_trend_prop_spec <- function() {
         label = "Number of Dose Groups",
         min = 3, max = 8, default = 3, step = 1,
         description = "Number of ordered dose levels"
+      ),
+      dropout = list(
+        type = "slider",
+        label = "Dropout Rate",
+        min = 0, max = 0.5, default = 0.1, step = 0.05,
+        description = "Expected dropout rate"
       )
     ),
 
@@ -634,7 +896,11 @@ create_trend_prop_spec <- function() {
 
     sample_size_calc = function(input) {
       n <- input$sample_size %||% 150
-      list(n = n)
+      .canonicalize_sample_sizes(
+        per_arm_enrolled = n,
+        dropout    = input$dropout %||% 0.1,
+        arm_labels = "Total"
+      )
     },
 
     validation = function(input) {
@@ -644,6 +910,9 @@ create_trend_prop_spec <- function() {
       }
       if ((input$n_groups %||% 3) < 3) {
         issues <- c(issues, "At least 3 dose groups required")
+      }
+      if ((input$dropout %||% 0) > 1) {
+        issues <- c(issues, "Dropout rate cannot exceed 100%")
       }
       issues
     }
@@ -665,6 +934,10 @@ create_anova_oneway_spec <- function() {
     power_function = pwr::pwr.anova.test,
     power_args = list(k = "k"),
     effect_size_methods = c("cohens_f"),
+    formula_citation = "Cohen J (1988). Statistical Power Analysis for the Behavioral Sciences, 2nd ed., Lawrence Erlbaum, ch. 8 (Cohen's f).",
+    default_effect_grid = list(cohens_f = c(0.10, 0.25, 0.40)),
+    paragraph_template = NULL,
+    repro_call         = NULL,
 
     parameters = list(
       sample_size = list(
@@ -678,6 +951,12 @@ create_anova_oneway_spec <- function() {
         label = "Number of Groups",
         min = 2, max = 10, default = 3, step = 1,
         description = "Number of independent groups"
+      ),
+      dropout = list(
+        type = "slider",
+        label = "Dropout Rate",
+        min = 0, max = 0.5, default = 0.1, step = 0.05,
+        description = "Expected dropout rate"
       )
     ),
 
@@ -695,7 +974,12 @@ create_anova_oneway_spec <- function() {
     sample_size_calc = function(input) {
       total_n <- input$sample_size %||% 120
       k <- input$n_groups %||% 3
-      list(n = total_n / k, k = k)
+      per_arm <- rep(total_n / k, k)
+      .canonicalize_sample_sizes(
+        per_arm_enrolled = per_arm,
+        dropout    = input$dropout %||% 0.1,
+        arm_labels = paste("Group", seq_len(k))
+      )
     },
 
     validation = function(input) {
@@ -705,6 +989,9 @@ create_anova_oneway_spec <- function() {
       }
       if ((input$n_groups %||% 3) < 2) {
         issues <- c(issues, "At least 2 groups required")
+      }
+      if ((input$dropout %||% 0) > 1) {
+        issues <- c(issues, "Dropout rate cannot exceed 100%")
       }
       issues
     }
@@ -726,6 +1013,10 @@ create_mcnemar_spec <- function() {
     icon = "arrow-left-right",
     power_function = mcnemar_power,
     effect_size_methods = c("discordant"),
+    formula_citation = "Connor RJ (1987). Sample size for testing differences in proportions for the paired-sample design. Biometrics, 43(1), 207-211.",
+    default_effect_grid = list(discordant = c(0.10, 0.20, 0.30)),
+    paragraph_template = NULL,
+    repro_call         = NULL,
 
     parameters = list(
       sample_size = list(
@@ -733,6 +1024,12 @@ create_mcnemar_spec <- function() {
         label = "Number of Pairs",
         min = 10, max = 1000, default = 100, step = 10,
         description = "Number of matched pairs"
+      ),
+      dropout = list(
+        type = "slider",
+        label = "Dropout Rate",
+        min = 0, max = 0.5, default = 0.1, step = 0.05,
+        description = "Expected dropout rate"
       )
     ),
 
@@ -762,13 +1059,20 @@ create_mcnemar_spec <- function() {
 
     sample_size_calc = function(input) {
       n <- input$sample_size %||% 100
-      list(n = n)
+      .canonicalize_sample_sizes(
+        per_arm_enrolled = n,
+        dropout    = input$dropout %||% 0.1,
+        arm_labels = "Pairs"
+      )
     },
 
     validation = function(input) {
       issues <- character()
       if ((input$sample_size %||% 100) <= 0) {
         issues <- c(issues, "Number of pairs must be positive")
+      }
+      if ((input$dropout %||% 0) > 1) {
+        issues <- c(issues, "Dropout rate cannot exceed 100%")
       }
       issues
     }
@@ -790,6 +1094,10 @@ create_mixed_model_spec <- function() {
     icon = "graph-up",
     power_function = mixed_model_power,
     effect_size_methods = c("slope_diff"),
+    formula_citation = "Diggle PJ, Heagerty P, Liang K-Y, Zeger SL (2002). Analysis of Longitudinal Data, 2nd ed., Oxford University Press, p. 29.",
+    default_effect_grid = list(slope_diff = c(0.20, 0.50, 1.00)),
+    paragraph_template = NULL,
+    repro_call         = NULL,
 
     parameters = list(
       sample_size = list(
@@ -809,6 +1117,12 @@ create_mixed_model_spec <- function() {
         label = "Within-Subject Correlation",
         min = 0.05, max = 0.95, default = 0.5, step = 0.05,
         description = "Compound symmetry correlation (rho)"
+      ),
+      dropout = list(
+        type = "slider",
+        label = "Dropout Rate",
+        min = 0, max = 0.5, default = 0.1, step = 0.05,
+        description = "Expected dropout rate"
       )
     ),
 
@@ -837,7 +1151,9 @@ create_mixed_model_spec <- function() {
 
     sample_size_calc = function(input) {
       total_n <- input$sample_size %||% 100
-      list(n = total_n / 2)
+      per_arm <- c(total_n / 2, total_n / 2)
+      .canonicalize_sample_sizes(per_arm,
+                                 dropout = input$dropout %||% 0.1)
     },
 
     validation = function(input) {
@@ -847,6 +1163,9 @@ create_mixed_model_spec <- function() {
       }
       if ((input$n_timepoints %||% 5) < 3) {
         issues <- c(issues, "At least 3 time points required")
+      }
+      if ((input$dropout %||% 0) > 1) {
+        issues <- c(issues, "Dropout rate cannot exceed 100%")
       }
       issues
     }
