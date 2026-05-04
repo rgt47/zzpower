@@ -1,3 +1,48 @@
+# zzpower v0.4.1 (2026-05-03)
+
+## Reports
+
+* PDF and Word formats added to the Download Report card. PDF
+  rendering uses Typst (via the optional `typst` package) for
+  fast, no-LaTeX-required output and falls back to xelatex via
+  `rmarkdown::pdf_document()` when Typst is not installed. Word
+  uses `rmarkdown::word_document()` (pandoc).
+* When the user selects PDF without `typst` installed, the app
+  shows a once-per-session modal offering to install the package
+  and download the Typst CLI binary.
+* All four report formats (text, HTML, PDF, Word) now include the
+  package citation in their footer in plain-text form, drawn from
+  a new `inst/CITATION` file. The citation reads "Thomas, R.G.
+  (2026). zzpower: ..."
+
+## Plot polish
+
+* Power-curve plots now annotate both the 80 percent and the 90
+  percent power thresholds. The 80 percent line is gold dashed
+  (primary); the 90 percent line is grey dotted (secondary), with
+  a smaller marker and label. The y-axis renders as percent
+  (50 percent / 80 percent / ...) rather than 0.5 / 0.8.
+* Sample-size plots gain a "min N = ..." annotation at the
+  smallest required-N point.
+* The plotly experiment introduced mid-cycle was rolled back; the
+  geom_label refactor it produced is retained because it is
+  strictly cleaner than the original `annotate("label", ...)`
+  pattern.
+
+## App shell
+
+* Page footer added: version, source link, issue tracker, "How to
+  cite" modal trigger, and licence.
+* Hero category grids on the landing page use breakpoint-aware
+  column widths so single-card categories no longer leave 75
+  percent of the row empty on small screens.
+
+## Dependencies
+
+* `htmltools` added to `Imports` (used for citation HTML escape
+  in the report footer).
+* `typst` added to `Suggests` (optional, for PDF reports).
+
 # zzpower v0.4.0 (2026-05-02)
 
 ## Bug fixes

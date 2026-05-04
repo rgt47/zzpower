@@ -166,7 +166,12 @@ create_generic_test_ui <- function(test_id) {
         bslib::card_body(
           shiny::radioButtons(
             ns("report_format"), "Format",
-            choices = c("Text" = "text", "HTML" = "html"),
+            choices = c(
+              "Text" = "text",
+              "HTML" = "html",
+              "PDF"  = "pdf",
+              "Word" = "word"
+            ),
             inline = TRUE
           ),
           shiny::downloadButton(ns("download_report"), "Download Report")

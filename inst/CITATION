@@ -1,0 +1,23 @@
+year <- "2026"
+note <- sprintf("R package version %s", meta$Version)
+
+bibentry(
+  bibtype  = "Manual",
+  title    = paste("zzpower: Interactive Power Analysis Calculator",
+                    "for Clinical Trial Designs"),
+  author   = person(
+    given   = c("Ronald", "G."),
+    family  = "Thomas",
+    email   = "rgthomas@ucsd.edu",
+    role    = c("aut", "cre"),
+    comment = c(ORCID = "0000-0003-1686-4965")
+  ),
+  year     = year,
+  note     = note,
+  url      = "https://github.com/rgt47/zzpower",
+  textVersion = sprintf(paste(
+    "Thomas, R.G. (%s). zzpower: Interactive Power Analysis",
+    "Calculator for Clinical Trial Designs.",
+    "%s. https://github.com/rgt47/zzpower"
+  ), year, note)
+)

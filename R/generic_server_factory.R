@@ -24,6 +24,7 @@
 create_generic_test_server <- function(id, test_spec,
                                        registry_func = get_power_test_registry) {
   shiny::moduleServer(id, function(input, output, session) {
+    ns <- session$ns
     consts <- ZZPOWER_CONSTANTS
     param_names <- names(test_spec$parameters)
     design_names <- setdiff(param_names, "sample_size")
@@ -427,7 +428,7 @@ create_generic_test_server <- function(id, test_spec,
     }
 
     # ===== PLOT OUTPUT =====
-    output$power_plot <- shiny::renderPlot({
+    .build_power_ggplot <- function() {
       # Keep the previous plot on screen while inputs are in
       # transient flight. Only show the validation message if the
       # initial state is invalid (no prior plot to keep).
@@ -441,25 +442,62 @@ create_generic_test_server <- function(id, test_spec,
         results <- results[!is.na(results$power), , drop = FALSE]
         shiny::req(nrow(results) > 0, cancelOutput = TRUE)
 
-        # Identify the smallest effect size that reaches 80% power
-        # for an in-line annotation.
-        cross_idx <- which(results$power >= 0.80)[1]
-        annot_layers <- if (!is.na(cross_idx) && length(cross_idx)) {
-          x80 <- results$effect_size[cross_idx]
-          y80 <- results$power[cross_idx]
+        # Identify the smallest effect size that reaches 80% (gold,
+        # primary) and 90% (gray, secondary) power thresholds.
+        cross_80 <- which(results$power >= 0.80)[1]
+        cross_90 <- which(results$power >= 0.90)[1]
+
+        layer_80 <- if (!is.na(cross_80) && length(cross_80)) {
+          x80 <- results$effect_size[cross_80]
+          y80 <- results$power[cross_80]
+          df_80 <- data.frame(
+            x = x80, y = y80,
+            lbl = sprintf("80%% at %.3f", x80),
+            stringsAsFactors = FALSE
+          )
           list(
             ggplot2::geom_point(
-              data = data.frame(x = x80, y = y80),
-              ggplot2::aes(x = .data$x, y = .data$y),
+              data = df_80,
+              mapping = ggplot2::aes(x = x, y = y),
               inherit.aes = FALSE,
               size = 4, color = "#C69214"
             ),
-            ggplot2::annotate(
-              "label", x = x80, y = y80,
-              label = sprintf("80%% at %.3f", x80),
+            ggplot2::geom_label(
+              data = df_80,
+              mapping = ggplot2::aes(x = x, y = y, label = lbl),
+              inherit.aes = FALSE,
               hjust = -0.1, vjust = 1.4, size = 3.4,
               fill = "#FFF7E0",
               colour = "#7A5A00",
+              label.size = 0
+            )
+          )
+        } else {
+          list()
+        }
+
+        layer_90 <- if (!is.na(cross_90) && length(cross_90)) {
+          x90 <- results$effect_size[cross_90]
+          y90 <- results$power[cross_90]
+          df_90 <- data.frame(
+            x = x90, y = y90,
+            lbl = sprintf("90%% at %.3f", x90),
+            stringsAsFactors = FALSE
+          )
+          list(
+            ggplot2::geom_point(
+              data = df_90,
+              mapping = ggplot2::aes(x = x, y = y),
+              inherit.aes = FALSE,
+              size = 3, color = "#9aa0a6", alpha = 0.7
+            ),
+            ggplot2::geom_label(
+              data = df_90,
+              mapping = ggplot2::aes(x = x, y = y, label = lbl),
+              inherit.aes = FALSE,
+              hjust = -0.1, vjust = 1.4, size = 3.0,
+              fill = "#F2F3F4",
+              colour = "#5f6368", alpha = 0.85,
               label.size = 0
             )
           )
@@ -474,15 +512,23 @@ create_generic_test_server <- function(id, test_spec,
           ggplot2::geom_line(linewidth = 1, color = "#00629B") +
           ggplot2::geom_point(size = 2, color = "#00629B") +
           ggplot2::geom_hline(
+            yintercept = 0.9, linetype = "dotted",
+            color = "#9aa0a6", linewidth = 0.4, alpha = 0.7
+          ) +
+          ggplot2::geom_hline(
             yintercept = 0.8, linetype = "dashed",
             color = "#C69214", linewidth = 0.5
           ) +
-          annot_layers +
+          layer_90 +
+          layer_80 +
           ggplot2::labs(
             title = paste("Power Curve -", test_spec$name),
             x = x_label,
             y = "Statistical Power",
-            caption = "Dashed line indicates 80% power threshold"
+            caption = paste(
+              "Dashed gold = 80% threshold;",
+              "dotted gray = 90% threshold"
+            )
           ) +
           ggplot2::theme_minimal() +
           ggplot2::theme(
@@ -508,16 +554,22 @@ create_generic_test_server <- function(id, test_spec,
         annot_layers <- if (length(min_idx) && !is.na(min_idx)) {
           xm <- results$effect_size[min_idx]
           ym <- results$required_n[min_idx]
+          df_min <- data.frame(
+            x = xm, y = ym,
+            lbl = sprintf("min N = %.0f", ym),
+            stringsAsFactors = FALSE
+          )
           list(
             ggplot2::geom_point(
-              data = data.frame(x = xm, y = ym),
-              ggplot2::aes(x = .data$x, y = .data$y),
+              data = df_min,
+              mapping = ggplot2::aes(x = x, y = y),
               inherit.aes = FALSE,
               size = 4, color = "#C69214"
             ),
-            ggplot2::annotate(
-              "label", x = xm, y = ym,
-              label = sprintf("min N = %.0f", ym),
+            ggplot2::geom_label(
+              data = df_min,
+              mapping = ggplot2::aes(x = x, y = y, label = lbl),
+              inherit.aes = FALSE,
               hjust = -0.1, vjust = 1.4, size = 3.4,
               fill = "#FFF7E0",
               colour = "#7A5A00",
@@ -548,6 +600,10 @@ create_generic_test_server <- function(id, test_spec,
             panel.grid.minor = ggplot2::element_blank()
           )
       }
+    }
+
+    output$power_plot <- shiny::renderPlot({
+      .build_power_ggplot()
     })
 
     # ===== RESULTS TABLE =====
@@ -658,12 +714,125 @@ create_generic_test_server <- function(id, test_spec,
       shiny::tags$dl(class = "row mb-0", rows)
     })
 
+    # ===== TYPST INSTALL PROMPT =====
+    # When the user switches report format to PDF, offer to install
+    # the 'typst' package (and its CLI binary) on the fly. Asking
+    # once per session is sufficient.
+    typst_prompt_shown <- shiny::reactiveVal(FALSE)
+
+    shiny::observeEvent(input$report_format, {
+      if (identical(input$report_format, "pdf") &&
+          !requireNamespace("typst", quietly = TRUE) &&
+          !isTRUE(typst_prompt_shown())) {
+        typst_prompt_shown(TRUE)
+        shiny::showModal(shiny::modalDialog(
+          title = "Install Typst for fast PDF rendering?",
+          easyClose = TRUE,
+          shiny::p(
+            "PDF reports use Typst, a modern typesetting engine.",
+            "The R package 'typst' is not yet installed."
+          ),
+          shiny::p(
+            "Click ", shiny::strong("Install"), " to fetch it from",
+            "CRAN and download the Typst CLI binary",
+            "(roughly 30 MB, ~1 minute). The Shiny session will",
+            "pause briefly during the install."
+          ),
+          shiny::p(
+            class = "text-muted small",
+            "If you skip, PDF will fall back to a LaTeX render",
+            "(requires tinytex / MacTeX). You can change this",
+            "decision later by re-selecting PDF."
+          ),
+          footer = shiny::tagList(
+            shiny::modalButton("Skip"),
+            shiny::actionButton(
+              ns("install_typst_now"),
+              "Install Typst",
+              class = "btn-primary",
+              icon = shiny::icon("download")
+            )
+          )
+        ))
+      }
+    }, ignoreInit = TRUE)
+
+    shiny::observeEvent(input$install_typst_now, {
+      shiny::removeModal()
+      shiny::withProgress(
+        message = "Installing typst R package...",
+        value = 0.1,
+        {
+          # Step 1: ensure a CRAN mirror is set.
+          repos <- getOption("repos")
+          if (is.null(repos) ||
+              identical(unname(repos["CRAN"]), "@CRAN@")) {
+            options(repos = c(CRAN = "https://cloud.r-project.org"))
+          }
+
+          ok_pkg <- tryCatch({
+            utils::install.packages("typst", quiet = TRUE)
+            requireNamespace("typst", quietly = TRUE)
+          }, error = function(e) {
+            message("install.packages('typst') failed: ", e$message)
+            FALSE
+          })
+
+          if (!ok_pkg) {
+            shiny::showNotification(
+              paste(
+                "Could not install the 'typst' R package.",
+                "PDF will fall back to LaTeX."
+              ),
+              type = "error", duration = 8
+            )
+            return(invisible(NULL))
+          }
+
+          shiny::setProgress(
+            value = 0.5,
+            message = "Downloading Typst CLI binary..."
+          )
+          ok_bin <- tryCatch({
+            typst::install_typst()
+            TRUE
+          }, error = function(e) {
+            message("typst::install_typst() failed: ", e$message)
+            FALSE
+          })
+
+          if (ok_bin) {
+            shiny::showNotification(
+              "Typst installed. PDF will use Typst from now on.",
+              type = "message", duration = 6
+            )
+          } else {
+            shiny::showNotification(
+              paste(
+                "Installed the R package but the Typst CLI",
+                "binary did not download. PDF will fall back",
+                "to LaTeX."
+              ),
+              type = "warning", duration = 8
+            )
+          }
+        }
+      )
+    })
+
     # ===== REPORT DOWNLOAD =====
     output$download_report <- shiny::downloadHandler(
       filename = function() {
         fmt <- input$report_format %||% "text"
-        ext <- ifelse(fmt == "html", "html", "txt")
-        paste0("power_report_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".", ext)
+        ext <- switch(fmt,
+                       html = "html",
+                       pdf  = "pdf",
+                       word = "docx",
+                       "txt")
+        paste0(
+          "power_report_",
+          format(Sys.time(), "%Y%m%d_%H%M%S"), ".", ext
+        )
       },
       content = function(file) {
         mode <- solve_mode()
@@ -695,8 +864,33 @@ create_generic_test_server <- function(id, test_spec,
           one_sided = isTRUE(input$onesided)
         )
 
-        report_content <- .generate_generic_report(report_data, test_spec)
-        writeLines(report_content, file)
+        if (fmt %in% c("pdf", "word")) {
+          rendered <- .render_generic_report_binary(
+            report_data, test_spec, fmt
+          )
+          if (is.null(rendered)) {
+            shiny::showNotification(
+              paste(
+                "PDF/Word export requires the 'rmarkdown' package",
+                "and (for PDF) a working LaTeX install.",
+                "Falling back to a text report."
+              ),
+              type = "warning", duration = 8
+            )
+            report_data$format <- "text"
+            writeLines(
+              .generate_generic_report(report_data, test_spec),
+              file
+            )
+          } else {
+            file.copy(rendered, file, overwrite = TRUE)
+          }
+        } else {
+          report_content <- .generate_generic_report(
+            report_data, test_spec
+          )
+          writeLines(report_content, file)
+        }
       }
     )
   })
@@ -718,6 +912,326 @@ create_generic_test_server <- function(id, test_spec,
   } else {
     .format_generic_text_report(report_data, test_spec)
   }
+}
+
+#' Markdown body suitable for rmarkdown rendering to PDF or Word
+#'
+#' Produces a self-contained markdown document. PDF uses
+#' `pdf_document` (requires LaTeX); Word uses `word_document`.
+#'
+#' @keywords internal
+.format_generic_md_report <- function(report_data, test_spec) {
+  ts <- format(report_data$timestamp, "%Y-%m-%d %H:%M:%S")
+  parts <- c(
+    sprintf("# Power Analysis Report: %s", test_spec$name),
+    "",
+    sprintf("**Generated:** %s  ", ts),
+    sprintf("**R version:** %s  ", report_data$r_version),
+    sprintf("**Solve mode:** %s",
+             if (identical(report_data$solve_mode, "sample_size")) {
+               "Solve for sample size"
+             } else {
+               "Solve for power"
+             }),
+    "",
+    "## Test specification",
+    "",
+    sprintf("- **Test type:** %s", test_spec$name),
+    sprintf("- **Description:** %s", test_spec$description),
+    "",
+    "## Effect-size method",
+    "",
+    sprintf("- **Method:** %s", report_data$effect_size_range$method),
+    sprintf(
+      "- **Range:** %.4f to %.4f",
+      min(report_data$effect_size_range$effect_sizes),
+      max(report_data$effect_size_range$effect_sizes)
+    ),
+    "",
+    "## Sample size",
+    ""
+  )
+
+  if (!is.null(report_data$sample_sizes$n1) &&
+      !is.null(report_data$sample_sizes$n2)) {
+    parts <- c(parts,
+      sprintf("- **Group 1 (n1):** %.0f",
+               report_data$sample_sizes$n1),
+      sprintf("- **Group 2 (n2):** %.0f",
+               report_data$sample_sizes$n2),
+      sprintf("- **Total (N):** %.0f",
+               report_data$sample_sizes$n1 +
+                 report_data$sample_sizes$n2),
+      ""
+    )
+  } else if (!is.null(report_data$sample_sizes$n)) {
+    parts <- c(parts,
+      sprintf("- **Sample size (n):** %.0f",
+               report_data$sample_sizes$n),
+      ""
+    )
+  } else {
+    parts <- c(parts, "_(Sample-size search results below.)_", "")
+  }
+
+  parts <- c(parts,
+    "## Statistical parameters",
+    "",
+    sprintf("- **Type I error (alpha):** %.4f",
+             report_data$type1_error),
+    sprintf("- **Test direction:** %s",
+             if (isTRUE(report_data$one_sided)) "One-sided" else
+               "Two-sided"),
+    "",
+    "## Power-analysis results",
+    "",
+    "| Effect Size | Standardized | Power |",
+    "|---:|---:|---:|"
+  )
+
+  parts <- c(parts, vapply(
+    seq_len(nrow(report_data$power_results)),
+    function(i) {
+      r <- report_data$power_results[i, ]
+      power_col <- if ("power" %in% names(r)) {
+        sprintf("%.4f", r$power)
+      } else if ("required_n" %in% names(r)) {
+        if (is.na(r$required_n)) "NA" else
+          sprintf("%.0f (N)", r$required_n)
+      } else {
+        "--"
+      }
+      sprintf("| %.4f | %.4f | %s |",
+               r$effect_size, r$standardized_es, power_col)
+    },
+    character(1)
+  ))
+
+  parts <- c(parts,
+    "",
+    "---",
+    "",
+    sprintf("*Citation:* %s", .zzpower_citation_line())
+  )
+
+  paste(parts, collapse = "\n")
+}
+
+#' Typst source for PDF rendering
+#'
+#' Produces a self-contained Typst document. Typst is preferred over
+#' LaTeX for the PDF backend because it has no TeX-Live install
+#' burden and renders an order of magnitude faster.
+#'
+#' @keywords internal
+.format_generic_typst_report <- function(report_data, test_spec) {
+  esc <- function(s) {
+    s <- as.character(s)
+    s <- gsub("\\\\", "\\\\\\\\", s)
+    s <- gsub("\"", "\\\\\"", s)
+    s
+  }
+  ts <- format(report_data$timestamp, "%Y-%m-%d %H:%M:%S")
+  mode_label <- if (identical(report_data$solve_mode, "sample_size")) {
+    "Solve for sample size"
+  } else {
+    "Solve for power"
+  }
+
+  has_n1n2 <- !is.null(report_data$sample_sizes$n1) &&
+              !is.null(report_data$sample_sizes$n2)
+  has_n   <- !is.null(report_data$sample_sizes$n)
+
+  size_block <- if (has_n1n2) {
+    sprintf(paste(
+      "- *Group 1 (n1):* %.0f",
+      "- *Group 2 (n2):* %.0f",
+      "- *Total (N):* %.0f",
+      sep = "\n"
+    ),
+    report_data$sample_sizes$n1,
+    report_data$sample_sizes$n2,
+    report_data$sample_sizes$n1 + report_data$sample_sizes$n2)
+  } else if (has_n) {
+    sprintf("- *Sample size (n):* %.0f", report_data$sample_sizes$n)
+  } else {
+    "_(Sample-size search results below.)_"
+  }
+
+  table_rows <- vapply(
+    seq_len(nrow(report_data$power_results)),
+    function(i) {
+      r <- report_data$power_results[i, ]
+      power_col <- if ("power" %in% names(r)) {
+        sprintf("%.4f", r$power)
+      } else if ("required_n" %in% names(r)) {
+        if (is.na(r$required_n)) "--" else
+          sprintf("%.0f (N)", r$required_n)
+      } else {
+        "--"
+      }
+      sprintf("  [%.4f], [%.4f], [%s],",
+               r$effect_size, r$standardized_es, power_col)
+    },
+    character(1)
+  )
+
+  src <- c(
+    sprintf("#set document(title: \"Power Analysis Report: %s\")",
+             esc(test_spec$name)),
+    "#set page(margin: 0.9in, numbering: \"1\")",
+    "#set text(size: 11pt)",
+    "#set par(justify: true, leading: 0.65em)",
+    "#show heading.where(level: 1): set text(size: 18pt, weight: \"bold\")",
+    "#show heading.where(level: 2): set text(size: 13pt, weight: \"bold\")",
+    "",
+    sprintf("= Power Analysis Report: %s", esc(test_spec$name)),
+    "",
+    sprintf("*Generated:* %s \\", ts),
+    sprintf("*R version:* %s \\", esc(report_data$r_version)),
+    sprintf("*Solve mode:* %s", mode_label),
+    "",
+    "== Test specification",
+    "",
+    sprintf("- *Test type:* %s", esc(test_spec$name)),
+    sprintf("- *Description:* %s", esc(test_spec$description)),
+    "",
+    "== Effect-size method",
+    "",
+    sprintf("- *Method:* %s", esc(report_data$effect_size_range$method)),
+    sprintf("- *Range:* %.4f to %.4f",
+             min(report_data$effect_size_range$effect_sizes),
+             max(report_data$effect_size_range$effect_sizes)),
+    "",
+    "== Sample size",
+    "",
+    size_block,
+    "",
+    "== Statistical parameters",
+    "",
+    sprintf("- *Type I error (alpha):* %.4f", report_data$type1_error),
+    sprintf("- *Test direction:* %s",
+             if (isTRUE(report_data$one_sided)) "One-sided" else
+               "Two-sided"),
+    "",
+    "== Power-analysis results",
+    "",
+    "#table(",
+    "  columns: 3,",
+    "  align: right,",
+    "  stroke: 0.4pt,",
+    "  [*Effect Size*], [*Standardized*], [*Power*],",
+    table_rows,
+    ")",
+    "",
+    "#line(length: 100%, stroke: 0.4pt + gray)",
+    "",
+    sprintf(
+      "#text(size: 9pt, fill: gray.darken(40%%))[#emph[Citation:] %s]",
+      esc(.zzpower_citation_line())
+    )
+  )
+
+  paste(src, collapse = "\n")
+}
+
+#' Render the markdown report to PDF or Word
+#'
+#' For PDF, prefer Typst (no TeX install needed, fast). Fall back to
+#' rmarkdown's xelatex pipeline if Typst is unavailable.
+#'
+#' @return Path to the rendered file, or `NULL` if no rendering
+#'   backend is installed or rendering fails.
+#' @keywords internal
+.render_generic_report_binary <- function(report_data, test_spec, fmt) {
+  if (fmt == "pdf") {
+    pdf_path <- .render_pdf_via_typst(report_data, test_spec)
+    if (!is.null(pdf_path)) return(pdf_path)
+    return(.render_pdf_via_latex(report_data, test_spec))
+  }
+  if (fmt == "word") {
+    return(.render_via_rmarkdown(report_data, test_spec, "word"))
+  }
+  NULL
+}
+
+#' @keywords internal
+.render_pdf_via_typst <- function(report_data, test_spec) {
+  if (!requireNamespace("typst", quietly = TRUE)) {
+    return(NULL)
+  }
+  src <- .format_generic_typst_report(report_data, test_spec)
+  src_file <- tempfile(fileext = ".typ")
+  out_file <- tempfile(fileext = ".pdf")
+  writeLines(src, src_file)
+
+  tryCatch({
+    typst::typst_compile(src_file, output = out_file)
+    out_file
+  }, error = function(e) {
+    message("typst render failed: ", e$message)
+    NULL
+  })
+}
+
+#' @keywords internal
+.render_pdf_via_latex <- function(report_data, test_spec) {
+  .render_via_rmarkdown(report_data, test_spec, "pdf")
+}
+
+#' @keywords internal
+.render_via_rmarkdown <- function(report_data, test_spec, fmt) {
+  if (!requireNamespace("rmarkdown", quietly = TRUE)) {
+    return(NULL)
+  }
+  md <- .format_generic_md_report(report_data, test_spec)
+  md_file <- tempfile(fileext = ".md")
+  writeLines(md, md_file)
+
+  out_format <- if (fmt == "pdf") {
+    rmarkdown::pdf_document(latex_engine = "xelatex")
+  } else if (fmt == "word") {
+    rmarkdown::word_document()
+  } else {
+    return(NULL)
+  }
+
+  tryCatch(
+    rmarkdown::render(
+      md_file,
+      output_format = out_format,
+      quiet = TRUE,
+      envir = new.env()
+    ),
+    error = function(e) {
+      message("rmarkdown render failed: ", e$message)
+      NULL
+    }
+  )
+}
+
+#' Citation text for inclusion in downloaded reports
+#'
+#' Returns a one-line citation string. Pulls from the package's
+#' `inst/CITATION` when available; otherwise falls back to a
+#' hard-coded string keyed off the installed version.
+#'
+#' @keywords internal
+.zzpower_citation_line <- function() {
+  # Build a plain-text citation directly rather than going through
+  # `utils::citation()` + `format(style = "text")`. The latter
+  # produces markdown-style emphasis around the title (`_..._`) and
+  # angle-bracket URLs that look broken when rendered into the
+  # HTML report or the citation footer of the text report.
+  ver <- tryCatch(
+    as.character(utils::packageVersion("zzpower")),
+    error = function(e) "0.4.0"
+  )
+  sprintf(paste(
+    "Thomas, R.G. (2026). zzpower: Interactive Power Analysis",
+    "Calculator for Clinical Trial Designs.",
+    "R package version %s. https://github.com/rgt47/zzpower"
+  ), ver)
 }
 
 #' Format Generic Text Report
@@ -794,6 +1308,8 @@ create_generic_test_server <- function(id, test_spec,
     "========================================================================",
     "End of Report",
     "========================================================================",
+    "",
+    paste("Citation:", .zzpower_citation_line()),
     "")
 }
 
@@ -1003,6 +1519,10 @@ create_generic_test_server <- function(id, test_spec,
     <div class="footer">
       <p>Report generated by zzpower. See package documentation
       for methodology details.</p>
+      <p style="font-size: 0.8rem; color: #888; margin-top: 0.5rem;">
+        <em>Citation:</em> ',
+    htmltools::htmlEscape(.zzpower_citation_line()),
+    '</p>
     </div>
   </div>
 </body>

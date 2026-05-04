@@ -62,3 +62,9 @@
 #' @name zzpower-package
 #' @aliases zzpower
 "_PACKAGE"
+
+# Silence R CMD check NOTEs for the local data-frame columns used in
+# `aes(x = x, y = y, label = lbl)` inside `.build_power_ggplot()`.
+# These names live in tiny on-the-fly data frames built right next to
+# the aes() call; they are not unbound globals.
+utils::globalVariables(c("x", "y", "lbl"))
