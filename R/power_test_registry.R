@@ -153,6 +153,296 @@
   )
 }
 
+#' Compose a power-function call for a single (test, design) pair
+#'
+#' Mirrors the call assembly inside `create_generic_test_server`'s
+#' `.power_at_n()` closure but takes plain values rather than
+#' Shiny `input` references. Centralising the call shape here lets
+#' the programmatic API (`power_calc`, `power_table`) and the
+#' Shiny server share one engine.
+#'
+#' @param test_spec A registry entry.
+#' @param sample_sizes Output of the spec's `sample_size_calc()`.
+#' @param effect_size_std Standardized effect size (Cohen's d/h/f
+#'   or analogous).
+#' @param alpha Type I error rate.
+#' @param alternative `"two.sided"` or `"one.sided"`.
+#'
+#' @return Numeric scalar power, or `NA_real_` if the call errors.
+#'
+#' @keywords internal
+.compute_power <- function(test_spec, sample_sizes, effect_size_std,
+                           alpha = 0.05, alternative = "two.sided") {
+  fn <- test_spec$power_function
+  fn_formals <- names(formals(fn))
+  es_param <- intersect(c("d", "h", "r", "f"), fn_formals)[1]
+
+  call_args <- list(sig.level = alpha)
+  if ("alternative" %in% fn_formals) {
+    call_args$alternative <- alternative
+  }
+  if (!is.na(es_param)) call_args[[es_param]] <- effect_size_std
+
+  if (!is.null(sample_sizes$n1) && "n1" %in% fn_formals) {
+    call_args$n1 <- sample_sizes$n1
+    call_args$n2 <- sample_sizes$n2
+  } else if ("n" %in% fn_formals) {
+    call_args$n <- sample_sizes$n
+  }
+
+  if ("type" %in% fn_formals && !is.null(test_spec$test_type)) {
+    call_args$type <- test_spec$test_type
+  }
+
+  if (!is.null(test_spec$power_args)) {
+    for (nm in names(test_spec$power_args)) {
+      if (nm %in% fn_formals) {
+        val <- test_spec$power_args[[nm]]
+        call_args[[nm]] <- if (is.character(val) &&
+                               val %in% names(sample_sizes)) {
+          sample_sizes[[val]]
+        } else {
+          val
+        }
+      }
+    }
+  }
+
+  tryCatch({
+    out <- do.call(fn, call_args)
+    out$power %||% NA_real_
+  }, warning = function(w) NA_real_,
+     error = function(e) NA_real_)
+}
+
+#' Solve for required N to achieve a target power
+#'
+#' Bisection on the total sample-size slider domain. Mirrors
+#' `.find_required_n()` inside the server module.
+#'
+#' @param test_spec A registry entry.
+#' @param target_power Target power threshold (e.g. 0.80).
+#' @param effect_size_std Standardized effect size.
+#' @param design_params Named list of design parameters consumed by
+#'   the spec's `sample_size_calc()` (e.g. `dropout`, `allocation`).
+#' @param alpha Type I error rate.
+#' @param alternative `"two.sided"` or `"one.sided"`.
+#' @param n_lo,n_hi Bisection bounds on total enrolled sample size.
+#'
+#' @return Smallest total enrolled N within [n_lo, n_hi] that
+#'   achieves at least `target_power`, or `NA_real_` if not found.
+#'
+#' @keywords internal
+.required_n <- function(test_spec, target_power, effect_size_std,
+                        design_params = list(),
+                        alpha = 0.05, alternative = "two.sided",
+                        n_lo = 10, n_hi = 10000) {
+  power_at <- function(n_total) {
+    ss <- test_spec$sample_size_calc(
+      c(list(sample_size = n_total), design_params)
+    )
+    .compute_power(test_spec, ss, effect_size_std, alpha, alternative)
+  }
+
+  p_lo <- power_at(n_lo)
+  while (is.na(p_lo) && n_lo < 100) {
+    n_lo <- n_lo + 10
+    p_lo <- power_at(n_lo)
+  }
+  if (is.na(p_lo)) return(NA_real_)
+
+  p_hi <- power_at(n_hi)
+  if (is.na(p_hi))         return(NA_real_)
+  if (p_hi < target_power) return(NA_real_)
+  if (p_lo >= target_power) return(n_lo)
+
+  for (iter in seq_len(30)) {
+    n_mid <- ceiling((n_lo + n_hi) / 2)
+    p_mid <- power_at(n_mid)
+    if (is.na(p_mid)) return(NA_real_)
+    if (p_mid < target_power) n_lo <- n_mid else n_hi <- n_mid
+    if (n_hi - n_lo <= 1) break
+  }
+
+  n_hi
+}
+
+#' Programmatic power calculation
+#'
+#' Compute power (or required N) for a single test from R, without
+#' launching the Shiny app. The companion to `power_table()` for
+#' tabular sweeps.
+#'
+#' @param test Character test id (one of `names(get_power_test_registry())`)
+#'   or a test_spec list returned by the registry.
+#' @param sample_size Total enrolled sample size. Optional in
+#'   sample-size mode (`target_power` supplied) — left NULL the
+#'   function solves for required N via bisection.
+#' @param effect_size Effect size on the native scale of the chosen
+#'   `effect_method` (e.g. raw difference for `"difference"`,
+#'   hazard ratio for `"hazard_ratio"`, Cohen's d for `"cohens_d"`).
+#' @param effect_method Character; one of
+#'   `test_spec$effect_size_methods`. Default is the first.
+#' @param target_power Target power threshold. If supplied the
+#'   function solves for required N; otherwise computes achieved
+#'   power at `sample_size`.
+#' @param alpha Type I error rate.
+#' @param alternative `"two.sided"` or `"one.sided"`.
+#' @param ... Additional design parameters passed through to the
+#'   spec's `sample_size_calc()` (e.g. `dropout`, `allocation`,
+#'   `ratio`, `event_prob`, `n_groups`) and `standardize()`
+#'   (e.g. `sd0`, `p2`, `baseline`, `sigma`, `correlation`).
+#'
+#' @return A `calc_context` named list (see `.build_calc_context`).
+#'
+#' @examples
+#' \dontrun{
+#' # Power at fixed N
+#' power_calc("ttest_2groups",
+#'            sample_size = 100, effect_size = 0.5,
+#'            effect_method = "cohens_d")
+#'
+#' # Required N at target power
+#' power_calc("ttest_2groups",
+#'            target_power = 0.80, effect_size = 0.5,
+#'            effect_method = "cohens_d")
+#' }
+#'
+#' @export
+power_calc <- function(test, sample_size = NULL, effect_size,
+                       effect_method = NULL,
+                       target_power  = NULL,
+                       alpha         = 0.05,
+                       alternative   = "two.sided",
+                       ...) {
+
+  reg <- get_power_test_registry()
+  test_spec <- if (is.character(test)) reg[[test]] else test
+  if (is.null(test_spec)) {
+    stop("unknown test: ", test, call. = FALSE)
+  }
+
+  effect_method <- effect_method %||% test_spec$effect_size_methods[1]
+  if (!effect_method %in% test_spec$effect_size_methods) {
+    stop(sprintf("effect_method '%s' not valid for test '%s'",
+                 effect_method, test_spec$id), call. = FALSE)
+  }
+
+  extra <- list(...)
+  effect_std <- as.numeric(
+    test_spec$standardize(effect_size, effect_method, extra)
+  )
+
+  if (!is.null(target_power)) {
+    n_total <- .required_n(test_spec, target_power, effect_std,
+                           design_params = extra,
+                           alpha = alpha, alternative = alternative)
+    if (is.null(sample_size)) sample_size <- n_total
+  }
+
+  if (is.null(sample_size)) {
+    stop("Either `sample_size` or `target_power` must be supplied",
+         call. = FALSE)
+  }
+
+  ss <- test_spec$sample_size_calc(c(list(sample_size = sample_size),
+                                     extra))
+  achieved <- .compute_power(test_spec, ss, effect_std, alpha, alternative)
+
+  .build_calc_context(
+    test_spec       = test_spec,
+    sample_sizes    = ss,
+    effect_size     = effect_size,
+    effect_size_std = effect_std,
+    effect_method   = effect_method,
+    effect_params   = extra,
+    target_power    = target_power,
+    achieved_power  = achieved,
+    alpha           = alpha,
+    alternative     = alternative
+  )
+}
+
+#' Sample-size sensitivity table for a test
+#'
+#' Produces the §2.1 Layout 1 sensitivity table: rows = effect-size
+#' grid, columns = required N at each power threshold (typically
+#' 0.80 and 0.90). The artifact most often pasted directly into
+#' an NIH proposal.
+#'
+#' @inheritParams power_calc
+#' @param effect_grid Numeric vector of effect sizes on the native
+#'   scale. If NULL, uses the spec's `default_effect_grid` for the
+#'   chosen `effect_method`.
+#' @param power_thresholds Numeric vector of power thresholds for
+#'   the table columns. Defaults to `c(0.80, 0.90)`.
+#'
+#' @return Tidy `data.frame` with columns `effect_size`,
+#'   `effect_size_std`, and one `n_total_enrolled_at_<power>`
+#'   column per power threshold (plus `n_total_evaluable_at_*`).
+#'
+#' @examples
+#' \dontrun{
+#' power_table("ttest_2groups",
+#'             effect_grid = c(0.20, 0.50, 0.80),
+#'             effect_method = "cohens_d",
+#'             power_thresholds = c(0.80, 0.90))
+#' }
+#'
+#' @export
+power_table <- function(test, effect_grid = NULL,
+                        power_thresholds = c(0.80, 0.90),
+                        effect_method = NULL,
+                        alpha       = 0.05,
+                        alternative = "two.sided",
+                        ...) {
+
+  reg <- get_power_test_registry()
+  test_spec <- if (is.character(test)) reg[[test]] else test
+  if (is.null(test_spec)) {
+    stop("unknown test: ", test, call. = FALSE)
+  }
+
+  effect_method <- effect_method %||% test_spec$effect_size_methods[1]
+  if (is.null(effect_grid)) {
+    effect_grid <- test_spec$default_effect_grid[[effect_method]]
+    if (is.null(effect_grid)) {
+      stop(sprintf("no default_effect_grid for method '%s' in test '%s'; supply `effect_grid`",
+                   effect_method, test_spec$id), call. = FALSE)
+    }
+  }
+
+  rows <- lapply(effect_grid, function(eff) {
+    ctx <- power_calc(test_spec,
+                      effect_size   = eff,
+                      effect_method = effect_method,
+                      target_power  = power_thresholds[1L],
+                      alpha         = alpha,
+                      alternative   = alternative,
+                      ...)
+    out <- list(
+      effect_size      = eff,
+      effect_size_std  = ctx$effect_size_std
+    )
+    for (p in power_thresholds) {
+      ctx_p <- power_calc(test_spec,
+                          effect_size   = eff,
+                          effect_method = effect_method,
+                          target_power  = p,
+                          alpha         = alpha,
+                          alternative   = alternative,
+                          ...)
+      ss <- ctx_p$sample_sizes
+      pname <- formatC(p * 100, format = "d")
+      out[[paste0("n_total_enrolled_p", pname)]]  <- ss$n_total_enrolled
+      out[[paste0("n_total_evaluable_p", pname)]] <- ss$n_total_evaluable
+    }
+    out
+  })
+
+  do.call(rbind.data.frame, c(rows, list(stringsAsFactors = FALSE)))
+}
+
 #' Get the complete test registry
 #'
 #' @return List of all available power tests with their configurations
