@@ -1854,3 +1854,351 @@ create_mixed_model_spec <- function() {
     }
   )
 }
+
+#' Cluster-Randomized RCT Specification (continuous outcome)
+#'
+#' Two-group cluster-randomized trial with a continuous outcome.
+#' Uses Cohen's d on the per-arm effective sample size, where the
+#' design effect DE = 1 + (m̄ − 1) × ICC inflates the variance.
+#' The user enters total participants (across both arms); the
+#' power function consumes the effective N = N / DE.
+#'
+#' Modeled after the cluster-RCT design in NCI sample R01
+#' R01CA177592 (Mohile et al., reducing chemotherapy toxicity in
+#' older adults; see grant-proposals-sample-size-practice.md
+#' §1.4 for the exemplar paragraph). NIH cluster-randomized
+#' trials require this adjustment per the "special methods are
+#' required" clause for trials that randomize groups.
+#'
+#' @keywords internal
+create_cluster_rct_spec <- function() {
+  list(
+    id = "cluster_rct",
+    name = "Cluster-Randomized RCT (continuous)",
+    description = "Cluster-randomized two-group trial with continuous outcome",
+    icon = "diagram-3",
+    power_function = pwr::pwr.t2n.test,
+    effect_size_methods = c("cohens_d", "difference"),
+    formula_citation = "Cohen J (1988) ch. 2 (Cohen's d) with design-effect inflation DE = 1 + (m̄ − 1) × ICC (Donner & Klar 2000, Design and Analysis of Cluster Randomization Trials in Health Research, Arnold). Implementation: pwr::pwr.t2n.test on N_eff = N / DE.",
+    default_effect_grid = list(
+      cohens_d   = c(0.2, 0.5, 0.8),
+      difference = c(2, 5, 8)
+    ),
+    paragraph_template = NULL,
+    repro_call         = "pwr::pwr.t2n.test",
+
+    parameters = list(
+      sample_size = list(
+        type = "slider",
+        label = "Total Participants",
+        min = 40, max = 5000, default = 400, step = 20,
+        description = "Total participants across both arms (pre-DE inflation)"
+      ),
+      m_cluster = list(
+        type = "slider",
+        label = "Mean Cluster Size",
+        min = 2, max = 200, default = 30, step = 1,
+        description = "Average number of participants per cluster"
+      ),
+      icc = list(
+        type = "slider",
+        label = "Intracluster Correlation (ICC)",
+        min = 0, max = 0.5, default = 0.05, step = 0.01,
+        description = "Within-cluster correlation"
+      ),
+      dropout = list(
+        type = "slider",
+        label = "Dropout Rate",
+        min = 0, max = 0.5, default = 0.1, step = 0.05,
+        description = "Expected dropout rate"
+      )
+    ),
+
+    effect_size_params = list(
+      cohens_d = list(
+        min = 0, max = 2, default_min = 0.2, default_max = 1.0,
+        label = "Effect Size (Cohen's d)"
+      ),
+      difference = list(
+        min = 0, max = 10, default_min = 1, default_max = 5,
+        label = "Difference in Scores",
+        requires = list(sd0 = list(
+          type = "numeric", label = "SD", default = 10
+        ))
+      )
+    ),
+
+    standardize = function(effect_sizes, method, params) {
+      switch(method,
+        "cohens_d"   = effect_sizes,
+        "difference" = effect_sizes / (params$sd0 %||% 10),
+        effect_sizes
+      )
+    },
+
+    sample_size_calc = function(input) {
+      total_n <- input$sample_size %||% 400
+      m       <- input$m_cluster %||% 30
+      icc     <- input$icc %||% 0.05
+      dropout <- input$dropout %||% 0.1
+
+      DE <- 1 + (m - 1) * icc
+
+      per_arm <- c(total_n / 2, total_n / 2)
+      result <- .canonicalize_sample_sizes(per_arm, dropout = dropout)
+
+      # Override back-compat n1/n2 with effective N for power calc
+      # (same pattern as logrank). Canonical participant counts
+      # remain in n_per_arm_evaluable / n_per_arm_enrolled.
+      result$n1 <- result$n_per_arm_evaluable[1] / DE
+      result$n2 <- result$n_per_arm_evaluable[2] / DE
+
+      result$design_effect       <- DE
+      result$icc                 <- icc
+      result$m_cluster           <- m
+      result$n_clusters_per_arm  <- per_arm[1] / m
+
+      result
+    },
+
+    validation = function(input) {
+      issues <- character()
+      if ((input$sample_size %||% 400) <= 0) {
+        issues <- c(issues, "Sample size must be positive")
+      }
+      if ((input$m_cluster %||% 30) < 2) {
+        issues <- c(issues, "Cluster size must be at least 2")
+      }
+      icc <- input$icc %||% 0.05
+      if (icc < 0 || icc > 1) {
+        issues <- c(issues, "ICC must be between 0 and 1")
+      }
+      if ((input$dropout %||% 0) > 1) {
+        issues <- c(issues, "Dropout rate cannot exceed 100%")
+      }
+      issues
+    }
+  )
+}
+
+#' Cluster-Randomized Two-Proportion Specification
+#'
+#' Two-group cluster-randomized trial with a binary outcome.
+#' Cohen's h on the per-arm effective sample size; design effect
+#' inflates variance via DE = 1 + (m̄ − 1) × ICC.
+#'
+#' @keywords internal
+create_cluster_prop_spec <- function() {
+  list(
+    id = "cluster_prop",
+    name = "Cluster-Randomized RCT (proportion)",
+    description = "Cluster-randomized two-group trial with binary outcome",
+    icon = "diagram-3-fill",
+    power_function = pwr::pwr.2p2n.test,
+    effect_size_methods = c("difference", "odds_ratio"),
+    formula_citation = "Cohen J (1988) ch. 6 (Cohen's h) with design-effect inflation DE = 1 + (m̄ − 1) × ICC (Donner & Klar 2000). Implementation: pwr::pwr.2p2n.test on N_eff = N / DE.",
+    default_effect_grid = list(
+      difference = c(0.05, 0.10, 0.15),
+      odds_ratio = c(1.5, 2.0, 3.0)
+    ),
+    paragraph_template = NULL,
+    repro_call         = "pwr::pwr.2p2n.test",
+
+    parameters = list(
+      sample_size = list(
+        type = "slider",
+        label = "Total Participants",
+        min = 40, max = 5000, default = 400, step = 20
+      ),
+      m_cluster = list(
+        type = "slider",
+        label = "Mean Cluster Size",
+        min = 2, max = 200, default = 30, step = 1
+      ),
+      icc = list(
+        type = "slider",
+        label = "Intracluster Correlation (ICC)",
+        min = 0, max = 0.5, default = 0.05, step = 0.01
+      ),
+      dropout = list(
+        type = "slider",
+        label = "Dropout Rate",
+        min = 0, max = 0.5, default = 0.1, step = 0.05
+      )
+    ),
+
+    effect_size_params = list(
+      difference = list(
+        min = -0.5, max = 0.5, default_min = -0.20, default_max = -0.05,
+        label = "Proportion Difference"
+      ),
+      odds_ratio = list(
+        min = 0.1, max = 10, default_min = 1.5, default_max = 3,
+        label = "Odds Ratio"
+      )
+    ),
+
+    standardize = function(effect_sizes, method, params) {
+      baseline <- params$baseline %||% 0.5
+      switch(method,
+        "difference" = sapply(effect_sizes, function(d) {
+          diff_to_cohens_h(d, baseline)
+        }),
+        "odds_ratio" = sapply(effect_sizes, function(or) {
+          or_to_cohens_h(or, baseline)
+        }),
+        effect_sizes
+      )
+    },
+
+    sample_size_calc = function(input) {
+      total_n <- input$sample_size %||% 400
+      m       <- input$m_cluster %||% 30
+      icc     <- input$icc %||% 0.05
+      dropout <- input$dropout %||% 0.1
+
+      DE <- 1 + (m - 1) * icc
+
+      per_arm <- c(total_n / 2, total_n / 2)
+      result <- .canonicalize_sample_sizes(per_arm, dropout = dropout)
+
+      result$n1 <- result$n_per_arm_evaluable[1] / DE
+      result$n2 <- result$n_per_arm_evaluable[2] / DE
+
+      result$design_effect       <- DE
+      result$icc                 <- icc
+      result$m_cluster           <- m
+      result$n_clusters_per_arm  <- per_arm[1] / m
+
+      result
+    },
+
+    validation = function(input) {
+      issues <- character()
+      if ((input$sample_size %||% 400) <= 0) {
+        issues <- c(issues, "Sample size must be positive")
+      }
+      if ((input$m_cluster %||% 30) < 2) {
+        issues <- c(issues, "Cluster size must be at least 2")
+      }
+      icc <- input$icc %||% 0.05
+      if (icc < 0 || icc > 1) {
+        issues <- c(issues, "ICC must be between 0 and 1")
+      }
+      if ((input$dropout %||% 0) > 1) {
+        issues <- c(issues, "Dropout rate cannot exceed 100%")
+      }
+      issues
+    }
+  )
+}
+
+#' Cluster-Randomized Log-rank Specification
+#'
+#' Two-group cluster-randomized trial with a survival outcome.
+#' Schoenfeld formula on the per-arm effective event count, where
+#' both event_prob and design effect (DE) inflate the variance.
+#'
+#' @keywords internal
+create_cluster_logrank_spec <- function() {
+  list(
+    id = "cluster_logrank",
+    name = "Cluster-Randomized Log-rank",
+    description = "Cluster-randomized two-group trial with survival outcome",
+    icon = "hourglass-bottom",
+    power_function = logrank_power,
+    effect_size_methods = c("hazard_ratio"),
+    formula_citation = "Schoenfeld DA (1981) Biometrika 68(1) 316-319, with design-effect inflation DE = 1 + (m̄ − 1) × ICC (Donner & Klar 2000). Implementation: zzpower::logrank_power on expected events × event_prob, divided by DE.",
+    default_effect_grid = list(hazard_ratio = c(0.50, 0.65, 0.75)),
+    paragraph_template = NULL,
+    repro_call         = "zzpower::logrank_power",
+
+    parameters = list(
+      sample_size = list(
+        type = "slider",
+        label = "Total Participants",
+        min = 40, max = 5000, default = 400, step = 20
+      ),
+      event_prob = list(
+        type = "slider",
+        label = "Event Probability",
+        min = 0.1, max = 1, default = 0.7, step = 0.05
+      ),
+      m_cluster = list(
+        type = "slider",
+        label = "Mean Cluster Size",
+        min = 2, max = 200, default = 30, step = 1
+      ),
+      icc = list(
+        type = "slider",
+        label = "Intracluster Correlation (ICC)",
+        min = 0, max = 0.5, default = 0.05, step = 0.01
+      ),
+      dropout = list(
+        type = "slider",
+        label = "Dropout Rate",
+        min = 0, max = 0.5, default = 0.1, step = 0.05
+      )
+    ),
+
+    effect_size_params = list(
+      hazard_ratio = list(
+        min = 0.1, max = 5, default_min = 1.2, default_max = 3.0,
+        label = "Hazard Ratio"
+      )
+    ),
+
+    standardize = function(effect_sizes, method, params) {
+      log(effect_sizes)
+    },
+
+    sample_size_calc = function(input) {
+      total_n    <- input$sample_size %||% 400
+      event_prob <- input$event_prob %||% 0.7
+      m          <- input$m_cluster %||% 30
+      icc        <- input$icc %||% 0.05
+      dropout    <- input$dropout %||% 0.1
+
+      DE <- 1 + (m - 1) * icc
+
+      per_arm <- c(total_n / 2, total_n / 2)
+      result  <- .canonicalize_sample_sizes(per_arm, dropout = dropout)
+
+      # Schoenfeld formula expects events; cluster RCT additionally
+      # divides by DE. Compose both adjustments on the effective N.
+      result$n1 <- result$n_per_arm_evaluable[1] * event_prob / DE
+      result$n2 <- result$n_per_arm_evaluable[2] * event_prob / DE
+
+      result$design_effect          <- DE
+      result$icc                    <- icc
+      result$m_cluster              <- m
+      result$n_clusters_per_arm     <- per_arm[1] / m
+      result$expected_events_total  <-
+        result$n_total_evaluable * event_prob
+
+      result
+    },
+
+    validation = function(input) {
+      issues <- character()
+      if ((input$sample_size %||% 400) <= 0) {
+        issues <- c(issues, "Sample size must be positive")
+      }
+      if ((input$m_cluster %||% 30) < 2) {
+        issues <- c(issues, "Cluster size must be at least 2")
+      }
+      icc <- input$icc %||% 0.05
+      if (icc < 0 || icc > 1) {
+        issues <- c(issues, "ICC must be between 0 and 1")
+      }
+      ep <- input$event_prob %||% 0.7
+      if (ep <= 0 || ep > 1) {
+        issues <- c(issues, "Event probability must be between 0 and 1")
+      }
+      if ((input$dropout %||% 0) > 1) {
+        issues <- c(issues, "Dropout rate cannot exceed 100%")
+      }
+      issues
+    }
+  )
+}
