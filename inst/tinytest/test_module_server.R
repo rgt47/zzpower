@@ -229,3 +229,50 @@ for (id in names(registry)) {
   expect_true(out$n_total_enrolled >= out$n_total_evaluable,
               info = sprintf("%s enrolled >= evaluable", id))
 }
+
+
+# ------------------------------------------------------------
+# Gap 10: programmatic API smoke tests (power_calc, power_table)
+# ------------------------------------------------------------
+
+# Power at fixed N matches pwr::pwr.t.test with same inputs.
+ctx <- power_calc("ttest_2groups",
+                  sample_size = 100, effect_size = 0.5,
+                  effect_method = "cohens_d", dropout = 0)
+expect_equal(ctx$test_id, "ttest_2groups")
+expect_true(!is.na(ctx$achieved_power))
+expect_true(ctx$achieved_power > 0 && ctx$achieved_power < 1)
+expect_equal(ctx$sample_sizes$n_total_enrolled, 100)
+expect_equal(ctx$sample_sizes$n_total_evaluable, 100)
+
+# Sample-size mode: required N is consistent with achieved power.
+ctx_n <- power_calc("ttest_2groups",
+                    target_power = 0.80, effect_size = 0.5,
+                    effect_method = "cohens_d", dropout = 0)
+expect_true(!is.na(ctx_n$sample_sizes$n_total_enrolled))
+expect_true(ctx_n$achieved_power >= 0.795)  # bisection tolerance
+
+# power_table: default grid produces a 3-row data frame.
+tbl <- power_table("ttest_2groups",
+                   effect_method = "cohens_d", dropout = 0)
+expect_true(is.data.frame(tbl))
+expect_equal(nrow(tbl), 3L)
+expect_true(all(c("effect_size", "effect_size_std",
+                  "n_total_enrolled_p80", "n_total_enrolled_p90")
+                %in% names(tbl)))
+# Required N decreases as effect grows.
+expect_true(all(diff(tbl$n_total_enrolled_p80) < 0))
+
+# power_calc returns the canonical 4-layer N record.
+required_fields <- c(
+  "n_per_arm_evaluable", "n_per_arm_enrolled",
+  "n_total_evaluable",   "n_total_enrolled",
+  "n_arms", "arm_labels", "dropout"
+)
+for (f in required_fields) {
+  expect_true(f %in% names(ctx$sample_sizes),
+              info = sprintf("calc_context.sample_sizes missing %s", f))
+}
+
+# Unknown test id raises.
+expect_error(power_calc("not_a_test", sample_size = 100, effect_size = 0.5))

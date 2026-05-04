@@ -1,3 +1,86 @@
+# zzpower v0.5.0 (in development)
+
+## Wave 1: foundation for grant-proposal features
+
+This release lands the structural plumbing for the grant-writing
+roadmap (Gaps 4, 5, 6, 10, 12 from
+`docs/grant-proposals-sample-size-practice.md`). No new headline
+artifact ships in this version — the methods-paragraph generator,
+sensitivity table builder, and reproducibility script export
+(Wave 2 / Wave 3) build on top of these foundations.
+
+### Three-layer N contract (Gap 4)
+
+* All eleven `sample_size_calc()` returns now share the canonical
+  shape `n_per_arm_evaluable / n_per_arm_enrolled /
+  n_total_evaluable / n_total_enrolled / n_arms / arm_labels /
+  dropout`, plus the legacy `n / n1 / n2 / k / n1_itt / n2_itt`
+  shims that existing consumers (the server module, report
+  builders, headline value-boxes) read. A new
+  `.canonicalize_sample_sizes()` helper centralises the
+  enrolled-to-evaluable conversion.
+* **Behaviour change:** the ten specs that previously had no
+  `dropout` parameter now expose a Dropout Rate slider with
+  default 0.10. Power curves on those tests are now ~10% lower
+  than before unless the user dials dropout to 0. This aligns
+  every test with the existing `ttest_2groups` convention and
+  matches the NIH-realistic default of 10% loss to follow-up.
+* Logrank's back-compat `n1`/`n2` continue to report **expected
+  events** (the value the Schoenfeld formula consumes); the
+  canonical `n_per_arm_*` fields report **participants** for the
+  first time.
+
+### Programmatic R API (Gap 10)
+
+* New exported `power_calc(test, sample_size, effect_size,
+  effect_method, target_power, alpha, alternative, ...)` returns
+  a `calc_context` named list — every grant-writing artifact
+  reads its values from this single object. Supplying
+  `target_power` instead of `sample_size` triggers bisection on
+  the required-N answer.
+* New exported `power_table(test, effect_grid, power_thresholds,
+  ...)` returns the §2.1 Layout 1 sensitivity table as a tidy
+  `data.frame`. Defaults to Cohen small/medium/large from the
+  spec's `default_effect_grid`; both `0.80` and `0.90` power
+  thresholds in the column set out of the box.
+* Two free helpers (`.compute_power`, `.required_n`) now hold
+  the call-assembly logic that the Shiny module's `.power_at_n`
+  closure inlined; the server keeps its closure unchanged for
+  this release, but the next refactor will route through the
+  shared helpers.
+
+### Registry metadata (Gap 5 / 6 / 12 plumbing)
+
+* Each registry entry gains four new fields:
+  `formula_citation` (a one-liner with the canonical citation
+  for the test's formula — Cohen, Schoenfeld, Connor, Diggle, or
+  Cochran–Armitage as applicable), `default_effect_grid` (a
+  per-method numeric grid for `power_table()`),
+  `paragraph_template` (NULL placeholder; populated in Wave 2),
+  and `repro_call` (NULL placeholder; populated in Wave 3).
+* `.build_calc_context()` constructs the `calc_context` from a
+  test_spec + canonical sample sizes + provenance fields. It is
+  the contract every Wave 2/3 generator reads from.
+
+### Sidebar inputs (Gap 5 / Gap 6 / Gap 12)
+
+* The Advanced Settings accordion gains four new inputs that the
+  Wave 2 methods-paragraph generator will inject into its
+  output: `effect_source` (citation text), `effect_doi`,
+  `sensitivity_factor` (multiplier for the conservative-effect
+  sentence per ICH E9 §3.5), and `include_sex_paragraph` (NIH
+  rigor toggle).
+* These inputs render but do not affect any output yet; their
+  rendered output is Wave 2.
+
+### Tests
+
+* `inst/tinytest/test_module_server.R` gains 160 assertions:
+  per-spec verification that the canonical N contract holds
+  for every entry in the registry, and end-to-end smoke tests
+  for `power_calc()` and `power_table()`. Total assertions
+  rose from 14 to 174.
+
 # zzpower v0.4.1 (2026-05-03)
 
 ## Reports

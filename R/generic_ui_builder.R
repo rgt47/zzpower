@@ -400,6 +400,50 @@ build_advanced_settings <- function(ns) {
         label = "One-sided Test",
         value = FALSE
       )
+    ),
+
+    # Gap 5: effect-size provenance. The Wave 2 methods-paragraph
+    # generator and the table-builder caption both inject these
+    # strings; default empty falls back to "pilot data (citation
+    # pending)" in the rendered output.
+    shiny::tags$hr(),
+    shiny::tags$h6(
+      bsicons::bs_icon("quote"), " Effect-Size Source",
+      class = "text-muted small"
+    ),
+    shiny::textInput(
+      ns("effect_source"),
+      label = "Citation",
+      placeholder = "Smith et al. 2019, JAMA, n=30, observed d=0.52"
+    ),
+    shiny::textInput(
+      ns("effect_doi"),
+      label = "DOI or URL",
+      placeholder = "10.1001/jama.2019.12345"
+    ),
+
+    # Gap 6: sensitivity-row knob. Multiplier on the headline
+    # effect size for the conservative-effect sentence the
+    # Wave 2 generator appends to the methods paragraph.
+    shiny::tags$hr(),
+    shiny::sliderInput(
+      ns("sensitivity_factor"),
+      label = "Sensitivity Multiplier",
+      min = 0.3, max = 1, value = 0.7, step = 0.05
+    ),
+    shiny::tags$small(
+      class = "text-muted",
+      "Used to compute power if the true effect is smaller than ",
+      "the headline (e.g. 0.7 → 30% smaller). Reported in the ",
+      "methods paragraph per ICH E9 §3.5."
+    ),
+
+    # Gap 12: sex-as-biological-variable paragraph toggle.
+    shiny::tags$hr(),
+    shiny::checkboxInput(
+      ns("include_sex_paragraph"),
+      label = "Append NIH Sex-as-a-Biological-Variable paragraph",
+      value = TRUE
     )
   )
 }
