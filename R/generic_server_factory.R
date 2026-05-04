@@ -1140,6 +1140,73 @@ create_generic_test_server <- function(id, test_spec,
 #' `pdf_document` (requires LaTeX); Word uses `word_document`.
 #'
 #' @keywords internal
+#' Reshape the report_data list into a minimal calc_context
+#'
+#' The Wave 3 reproducibility-script renderer (`.render_repro_script`)
+#' consumes a calc_context. Reports already have all the same
+#' information in the report_data list shape, so this helper just
+#' rewires the names. Returns NULL if the report lacks the data
+#' needed (e.g. sample-size mode with no closed-form sample_sizes).
+#'
+#' @keywords internal
+.report_data_to_ctx <- function(report_data) {
+  ss <- report_data$sample_sizes
+  es_range <- report_data$effect_size_range
+
+  if (is.null(es_range)) return(NULL)
+
+  # Lower end of the standardized effect-size range (most
+  # conservative; matches the methods-paragraph convention).
+  std <- es_range$standardized
+  if (length(std) == 0) return(NULL)
+  std <- std[!is.na(std)]
+  if (length(std) == 0) return(NULL)
+  ix_min <- which.min(abs(std))
+  es_std <- std[ix_min]
+  es_raw <- es_range$effect_sizes[ix_min]
+
+  # Find achieved power at this effect (power mode), if available.
+  achieved <- NULL
+  pr <- report_data$power_results
+  if (!is.null(pr) && "power" %in% names(pr)) {
+    diffs <- abs(pr$standardized_es - es_std)
+    j <- which.min(diffs)
+    if (length(j)) achieved <- pr$power[j]
+  }
+
+  # In sample-size mode the report does not carry a single
+  # sample_sizes row — synthesise one at the smallest required N
+  # for the lower-end effect.
+  if (is.null(ss) && !is.null(pr) && "required_n" %in% names(pr)) {
+    j <- which.min(abs(pr$standardized_es - es_std))
+    if (length(j) && !is.na(pr$required_n[j])) {
+      reg <- get_power_test_registry()
+      spec <- reg[[report_data$test_id]]
+      design <- report_data$parameters %||% list()
+      ss <- spec$sample_size_calc(c(
+        list(sample_size = pr$required_n[j]),
+        design[setdiff(names(design), "sample_size")]
+      ))
+    }
+  }
+  if (is.null(ss)) return(NULL)
+
+  list(
+    test_id         = report_data$test_id,
+    sample_sizes    = ss,
+    effect_size     = es_raw,
+    effect_size_std = es_std,
+    alpha           = report_data$type1_error,
+    alternative     = if (isTRUE(report_data$one_sided)) {
+                        "one.sided"
+                      } else {
+                        "two.sided"
+                      },
+    achieved_power  = achieved,
+    target_power    = report_data$target_power
+  )
+}
+
 .format_generic_md_report <- function(report_data, test_spec) {
   ts <- format(report_data$timestamp, "%Y-%m-%d %H:%M:%S")
   parts <- c(
@@ -1226,6 +1293,24 @@ create_generic_test_server <- function(id, test_spec,
     },
     character(1)
   ))
+
+  # Gap 9: reproducibility R script section.
+  ctx <- .report_data_to_ctx(report_data)
+  if (!is.null(ctx)) {
+    repro <- .render_repro_script(ctx, fence = TRUE)
+    if (nzchar(repro)) {
+      parts <- c(parts,
+        "",
+        "## Reproducibility script",
+        "",
+        paste0("Run this block in a fresh R session with `pwr` ",
+               "(and, for non-pwr tests, `zzpower`) installed to ",
+               "exactly reproduce the headline calculation:"),
+        "",
+        repro
+      )
+    }
+  }
 
   parts <- c(parts,
     "",
@@ -1343,7 +1428,33 @@ create_generic_test_server <- function(id, test_spec,
     "  [*Effect Size*], [*Standardized*], [*Power*],",
     table_rows,
     ")",
-    "",
+    ""
+  )
+
+  # Gap 9: reproducibility R script. Typst raw blocks need
+  # explicit escaping; emit as a raw block with `lang: "r"`.
+  ctx <- .report_data_to_ctx(report_data)
+  if (!is.null(ctx)) {
+    repro <- .render_repro_script(ctx, fence = FALSE)
+    if (nzchar(repro)) {
+      src <- c(src,
+        "== Reproducibility script",
+        "",
+        paste0("Run this block in a fresh R session with `pwr` ",
+               "(and, for non-pwr tests, `zzpower`) installed to ",
+               "reproduce the headline calculation."),
+        "",
+        "#raw(",
+        sprintf("  \"%s\",", esc(repro)),
+        "  lang: \"r\",",
+        "  block: true",
+        ")",
+        ""
+      )
+    }
+  }
+
+  src <- c(src,
     "#line(length: 100%, stroke: 0.4pt + gray)",
     "",
     sprintf(
@@ -1522,6 +1633,19 @@ create_generic_test_server <- function(id, test_spec,
       sprintf("%.4f | %.4f | %.4f",
         row$effect_size, row$standardized_es, row$power)
     )
+  }
+
+  # Gap 9: reproducibility R script section.
+  ctx <- .report_data_to_ctx(report_data)
+  if (!is.null(ctx)) {
+    repro <- .render_repro_script(ctx, fence = FALSE)
+    if (nzchar(repro)) {
+      lines <- c(lines, "",
+        "REPRODUCIBILITY SCRIPT",
+        "--------------------------------------------",
+        strsplit(repro, "\n", fixed = TRUE)[[1]]
+      )
+    }
   }
 
   c(lines, "",
@@ -1732,9 +1856,30 @@ create_generic_test_server <- function(id, test_spec,
         </tr>')
   }
 
+  # Gap 9: reproducibility R script section.
+  repro_html <- ""
+  ctx <- .report_data_to_ctx(report_data)
+  if (!is.null(ctx)) {
+    repro <- .render_repro_script(ctx, fence = FALSE)
+    if (nzchar(repro)) {
+      repro_html <- paste0(
+        '<h2>Reproducibility script</h2>',
+        '<p>Run this block in a fresh R session with <code>pwr</code> ',
+        '(and, for non-pwr tests, <code>zzpower</code>) installed to ',
+        'exactly reproduce the headline calculation.</p>',
+        '<pre style="background:#f5f5f5; padding:1rem; ',
+        'border-radius:4px; overflow-x:auto;"><code>',
+        htmltools::htmlEscape(repro),
+        '</code></pre>'
+      )
+    }
+  }
+
   paste0(html, '
       </tbody>
     </table>
+
+    ', repro_html, '
 
     <div class="footer">
       <p>Report generated by zzpower. See package documentation

@@ -389,3 +389,77 @@ md <- .df_to_markdown(
 expect_true(grepl("**Test**", md, fixed = TRUE))
 expect_true(grepl("| A | B |", md, fixed = TRUE))
 expect_true(grepl("|---|---|", md, fixed = TRUE))
+
+
+# ------------------------------------------------------------
+# Gap 9: reproducibility R script export
+# ------------------------------------------------------------
+
+# pwr-backed test: emits library(pwr) and pwr::pwr.t2n.test call.
+ctx <- power_calc("ttest_2groups",
+                  sample_size = 100, effect_size = 0.5,
+                  effect_method = "cohens_d", dropout = 0.10)
+script <- .render_repro_script(ctx)
+expect_true(nchar(script) > 100)
+expect_true(grepl("library(pwr)", script, fixed = TRUE))
+expect_true(grepl("pwr::pwr.t2n.test", script, fixed = TRUE))
+expect_true(grepl("d ", script))
+expect_true(grepl("n1 ", script))
+expect_true(grepl("n2 ", script))
+expect_true(grepl("sig.level", script, fixed = TRUE))
+# Args should come in signature order, not alphabetic insertion.
+d_pos  <- regexpr("\\bd\\s+=", script)
+sig_pos <- regexpr("sig.level", script)
+expect_true(d_pos < sig_pos)
+
+# zzpower-backed test: emits library(zzpower) and zzpower:: call.
+ctx2 <- power_calc("logrank",
+                   sample_size = 200, effect_size = 0.6,
+                   effect_method = "hazard_ratio",
+                   dropout = 0.10, event_prob = 0.7)
+script2 <- .render_repro_script(ctx2)
+expect_true(grepl("library(zzpower)", script2, fixed = TRUE))
+expect_true(grepl("zzpower::logrank_power", script2, fixed = TRUE))
+
+# Result-comment line includes achieved-power figure.
+expect_true(grepl("Achieved power:", script, fixed = TRUE))
+expect_true(grepl("Total enrolled:", script, fixed = TRUE))
+
+# Markdown fence wrapper.
+script_fenced <- .render_repro_script(ctx, fence = TRUE)
+expect_true(startsWith(script_fenced, "```r\n"))
+expect_true(endsWith(script_fenced, "\n```"))
+
+# Every spec produces a non-empty repro script.
+for (id in names(registry)) {
+  ctx_i <- power_calc(id,
+    sample_size   = 100,
+    effect_size   = registry[[id]]$default_effect_grid[[1]][2] %||% 0.5,
+    effect_method = registry[[id]]$effect_size_methods[1])
+  s <- .render_repro_script(ctx_i)
+  expect_true(nchar(s) > 50,
+              info = sprintf("%s repro script empty", id))
+  expect_true(grepl(registry[[id]]$repro_call, s, fixed = TRUE),
+              info = sprintf("%s repro_call name not in script", id))
+}
+
+# .report_data_to_ctx threads the canonical sample sizes through.
+report_data <- list(
+  test_id = "ttest_2groups",
+  sample_sizes = ctx$sample_sizes,
+  effect_size_range = list(
+    method = "cohens_d",
+    effect_sizes = c(0.2, 0.5, 0.8),
+    standardized = c(0.2, 0.5, 0.8)
+  ),
+  power_results = data.frame(effect_size = c(0.2, 0.5, 0.8),
+                             standardized_es = c(0.2, 0.5, 0.8),
+                             power = c(0.30, 0.65, 0.90)),
+  type1_error = 0.05,
+  one_sided = FALSE
+)
+ctx_back <- .report_data_to_ctx(report_data)
+expect_false(is.null(ctx_back))
+expect_equal(ctx_back$test_id, "ttest_2groups")
+expect_equal(ctx_back$alpha, 0.05)
+expect_equal(ctx_back$alternative, "two.sided")

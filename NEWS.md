@@ -1,3 +1,34 @@
+# zzpower v0.6.1 (in development)
+
+## Wave 3: reproducibility R script export (Gap 9)
+
+* **Reproducibility script appended to every report.** All four
+  formats (markdown, text, HTML, PDF via Typst, Word via
+  rmarkdown) now include a "Reproducibility script" section that
+  reproduces the headline calculation in a fresh R session.
+  `library(pwr)` for the seven `pwr`-backed tests;
+  `library(zzpower)` for the four custom helpers (logrank,
+  McNemar, mixed model, Cochran-Armitage trend). The script
+  uses literal numeric arguments — no Shiny state required.
+* **Custom helpers exported.** `logrank_power`, `mcnemar_power`,
+  `mixed_model_power`, and `trend_power` are now part of the
+  package's public API so the reproducibility script runs.
+  Previously `@keywords internal` only.
+* **Argument order matches the function signature.** The
+  rendered call places arguments in the order their
+  `formals()` declares them (e.g. `d`, `n1`, `n2`, `sig.level`,
+  `alternative`) rather than alphabetic insertion order, so
+  the script reads naturally.
+* **Per-spec `repro_call` field populated.** Wave 1 reserved
+  `repro_call` as NULL; Wave 3 fills it with the qualified
+  function name (`"pwr::pwr.t2n.test"`,
+  `"zzpower::logrank_power"`, etc.) for each of the eleven
+  registry entries.
+* **`.report_data_to_ctx()` helper.** Reshapes the existing
+  report-data list into a calc_context so the renderer can
+  share one engine across the methods-paragraph (Wave 2) and
+  the reproducibility-script (Wave 3) generators.
+
 # zzpower v0.6.0 (in development)
 
 ## Wave 2: headline grant-proposal artifacts
