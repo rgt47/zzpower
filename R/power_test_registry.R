@@ -851,7 +851,10 @@ get_power_test_registry <- function() {
     trend_prop = create_trend_prop_spec(),
     anova_oneway = create_anova_oneway_spec(),
     mcnemar = create_mcnemar_spec(),
-    mixed_model = create_mixed_model_spec()
+    mixed_model = create_mixed_model_spec(),
+    cluster_rct = create_cluster_rct_spec(),
+    cluster_prop = create_cluster_prop_spec(),
+    cluster_logrank = create_cluster_logrank_spec()
   )
 }
 
