@@ -177,9 +177,16 @@
   fn_formals <- names(formals(fn))
   es_param <- intersect(c("d", "h", "r", "f"), fn_formals)[1]
 
+  # pwr functions accept "two.sided" / "less" / "greater"; zzpower
+  # internally uses "one.sided" as a generic label. Map to "greater"
+  # (the common case for superiority and non-inferiority).
+  alt_pwr <- switch(alternative,
+                    "one.sided" = "greater",
+                    alternative)
+
   call_args <- list(sig.level = alpha)
   if ("alternative" %in% fn_formals) {
-    call_args$alternative <- alternative
+    call_args$alternative <- alt_pwr
   }
   if (!is.na(es_param)) call_args[[es_param]] <- effect_size_std
 
@@ -861,6 +868,215 @@ power_table <- function(test, effect_grid = NULL,
   }
 }
 
+#' Initialise an empty multi-aim study
+#'
+#' A multi-aim study is a list of `calc_context` objects (one per
+#' Specific Aim), plus optional metadata (study name, target
+#' agency). Use `add_aim()` to append entries and
+#' `format_multi_aim_df()` / `multi_aim_markdown()` /
+#' `multi_aim_csv()` to render the §2.5 Layout 4 study-level
+#' table for an NIH proposal.
+#'
+#' @param study_name Optional study identifier for the table
+#'   caption (e.g. "TEST-001: Reducing Chemotherapy Toxicity").
+#'
+#' @return A `multi_aim_study` object (a list with class).
+#'
+#' @examples
+#' \dontrun{
+#' study <- multi_aim_study(study_name = "Phase II Trial")
+#' study <- add_aim(study,
+#'   power_calc("ttest_2groups", target_power = 0.80,
+#'              effect_size = 0.5, effect_method = "cohens_d",
+#'              dropout = 0.10),
+#'   outcome = "Toxicity at 3 months")
+#' study <- add_aim(study,
+#'   power_calc("logrank", target_power = 0.80,
+#'              effect_size = 0.65, effect_method = "hazard_ratio",
+#'              dropout = 0.10, event_prob = 0.7),
+#'   outcome = "6-month survival")
+#' format_multi_aim_df(study)
+#' multi_aim_markdown(study)
+#' }
+#'
+#' @export
+multi_aim_study <- function(study_name = NULL) {
+  structure(
+    list(study_name = study_name, aims = list()),
+    class = "multi_aim_study"
+  )
+}
+
+#' Append a calc_context to a multi-aim study
+#'
+#' @param study A `multi_aim_study` from `multi_aim_study()`.
+#' @param ctx A `calc_context` from `power_calc()`.
+#' @param name Aim label (e.g. "Aim 1", "Primary"). Defaults to
+#'   "Aim N" where N is the next ordinal.
+#' @param outcome Outcome description (e.g. "Toxicity at 3 months").
+#'   Defaults to the test description.
+#'
+#' @return The study with the new aim appended.
+#'
+#' @export
+add_aim <- function(study, ctx, name = NULL, outcome = NULL) {
+  if (!inherits(study, "multi_aim_study")) {
+    stop("`study` must be from multi_aim_study()", call. = FALSE)
+  }
+  if (is.null(ctx) || !is.list(ctx) || is.null(ctx$test_id)) {
+    stop("`ctx` must be a calc_context from power_calc()",
+         call. = FALSE)
+  }
+
+  if (is.null(name)) name <- paste("Aim", length(study$aims) + 1L)
+  ctx$aim_name    <- name
+  ctx$aim_outcome <- outcome %||% ctx$test_description %||% ""
+
+  study$aims <- c(study$aims, list(ctx))
+  study
+}
+
+#' Format a multi-aim study as a tidy data frame
+#'
+#' Produces the §2.5 Layout 4 study-level table: one row per aim
+#' with Outcome, Test, Effect size, Alpha, Power, N evaluable,
+#' N enrolled, and a `binding` flag identifying the row with the
+#' largest enrolled N (the aim that drives the overall study
+#' size).
+#'
+#' @param study A `multi_aim_study`.
+#'
+#' @return A data frame.
+#'
+#' @export
+format_multi_aim_df <- function(study) {
+  if (!inherits(study, "multi_aim_study")) {
+    stop("`study` must be a multi_aim_study", call. = FALSE)
+  }
+  if (length(study$aims) == 0L) {
+    return(data.frame(
+      Aim = character(), Outcome = character(),
+      Test = character(),
+      `Effect size` = character(),
+      Alpha = numeric(), Power = numeric(),
+      `N evaluable` = numeric(), `N enrolled` = numeric(),
+      Binding = logical(),
+      check.names = FALSE,
+      stringsAsFactors = FALSE
+    ))
+  }
+
+  # Build column-by-column to preserve column names with spaces;
+  # `do.call(rbind.data.frame, ...)` round-trips through make.names.
+  n <- length(study$aims)
+  ctx_at <- function(field, default = NA) {
+    vapply(study$aims, function(ctx) {
+      v <- ctx[[field]]
+      if (is.null(v)) default else v
+    }, FUN.VALUE = default)
+  }
+  effect_str <- vapply(study$aims, function(ctx) {
+    sprintf("%s = %s",
+            .effect_method_phrase(ctx$effect_method %||% ""),
+            formatC(ctx$effect_size, digits = 3, format = "g"))
+  }, character(1))
+  power_vals <- vapply(study$aims, function(ctx) {
+    ctx$achieved_power %||% ctx$target_power %||% NA_real_
+  }, numeric(1))
+  alpha_vals <- vapply(study$aims, function(ctx) {
+    ctx$alpha_effective %||% ctx$alpha
+  }, numeric(1))
+  n_eval <- vapply(study$aims, function(ctx) {
+    ctx$sample_sizes$n_total_evaluable
+  }, numeric(1))
+  n_enr  <- vapply(study$aims, function(ctx) {
+    ctx$sample_sizes$n_total_enrolled
+  }, numeric(1))
+
+  df <- data.frame(
+    Aim     = ctx_at("aim_name", ""),
+    Outcome = ctx_at("aim_outcome", ""),
+    Test    = ctx_at("test_name", ""),
+    stringsAsFactors = FALSE,
+    check.names = FALSE
+  )
+  df[["Effect size"]]  <- effect_str
+  df[["Alpha"]]        <- alpha_vals
+  df[["Power"]]        <- power_vals
+  df[["N evaluable"]]  <- n_eval
+  df[["N enrolled"]]   <- n_enr
+  df[["Binding"]]      <- n_enr == max(n_enr, na.rm = TRUE)
+  df
+}
+
+#' Render a multi-aim study as Markdown
+#'
+#' @inheritParams format_multi_aim_df
+#'
+#' @return A single character string with embedded newlines.
+#'
+#' @export
+multi_aim_markdown <- function(study) {
+  df <- format_multi_aim_df(study)
+  if (nrow(df) == 0) return("")
+
+  caption <- if (!is.null(study$study_name) &&
+                 nzchar(study$study_name)) {
+    sprintf("Multi-aim sample-size summary: %s",
+            study$study_name)
+  } else {
+    "Multi-aim sample-size summary"
+  }
+
+  # Format numerics for narrative use: Alpha to 4 sig digits,
+  # Power to 2 decimals as a percent, N as integer with comma.
+  display <- df
+  display$Alpha <- formatC(display$Alpha, digits = 4, format = "g")
+  display$Power <- sprintf("%.0f%%", display$Power * 100)
+  display[["N evaluable"]] <- format(round(display[["N evaluable"]]),
+                                      big.mark = ",", trim = TRUE)
+  display[["N enrolled"]]  <- format(round(display[["N enrolled"]]),
+                                      big.mark = ",", trim = TRUE)
+
+  # Mark the binding aim with a trailing asterisk so reviewers see
+  # which aim drives the overall N. Drop the boolean column from
+  # the rendered output.
+  display$Aim <- ifelse(display$Binding,
+                         paste0(display$Aim, " *"),
+                         display$Aim)
+  display$Binding <- NULL
+
+  body <- .df_to_markdown(display, caption = caption)
+  paste(body,
+        "",
+        "*Aim marked with `*` is the binding aim (drives the overall study sample size).*",
+        sep = "\n")
+}
+
+#' Render a multi-aim study as CSV
+#'
+#' @inheritParams format_multi_aim_df
+#' @param file Optional file path. If `NULL` returns the CSV
+#'   content as a character string.
+#'
+#' @return The file path if `file` is non-null; otherwise the CSV
+#'   content as a string.
+#'
+#' @export
+multi_aim_csv <- function(study, file = NULL) {
+  df <- format_multi_aim_df(study)
+  if (is.null(file)) {
+    out <- character()
+    con <- textConnection("out", "w", local = TRUE)
+    utils::write.csv(df, con, row.names = FALSE)
+    close(con)
+    paste(out, collapse = "\n")
+  } else {
+    utils::write.csv(df, file, row.names = FALSE)
+    invisible(file)
+  }
+}
+
 #' Get the complete test registry
 #'
 #' @return List of all available power tests with their configurations
@@ -932,6 +1148,20 @@ create_ttest_2groups_spec <- function() {
         min = 0.5, max = 5, default = 1, step = 0.1,
         condition = "allocation == 'unequal'",
         description = "Ratio of group 1 to group 2 sample sizes"
+      ),
+      hypothesis_type = list(
+        type = "radio",
+        label = "Hypothesis",
+        options = c("superiority", "non_inferiority"),
+        default = "superiority",
+        description = "Standard superiority vs FDA-style non-inferiority test"
+      ),
+      ni_margin = list(
+        type = "numeric",
+        label = "Non-inferiority Margin",
+        min = 0, max = 5, default = 0.2, step = 0.05,
+        condition = "hypothesis_type == 'non_inferiority'",
+        description = "Margin in the same units as the effect-size slider; FDA convention is α=0.025 one-sided"
       )
     ),
 
@@ -965,13 +1195,26 @@ create_ttest_2groups_spec <- function() {
     ),
 
     standardize = function(effect_sizes, method, params) {
+      # Gap 8: non-inferiority. The slider in NI mode reports the
+      # assumed true effect under the alternative (often 0 for
+      # exact equivalence). The standardised effect for power adds
+      # the NI margin: standardised = (true_effect + margin) / sd.
+      # Margin is in the same units as the slider for the chosen
+      # method (Cohen's d for cohens_d; raw scale for difference /
+      # percent_reduction / active_change).
+      is_ni  <- identical(params$hypothesis_type, "non_inferiority")
+      margin <- if (is_ni) params$ni_margin %||% 0 else 0
+
       # Convert all effect size methods to Cohen's d
       switch(method,
-        "cohens_d" = effect_sizes,
-        "percent_reduction" = effect_sizes / (params$sd0 %||% 10),
-        "difference" = effect_sizes / (params$sd0 %||% 10),
-        "active_change" = ((params$d0 %||% 10) - effect_sizes) / (params$sd0 %||% 10),
-        effect_sizes
+        "cohens_d" = effect_sizes + margin,
+        "percent_reduction" = (effect_sizes + margin) /
+                                 (params$sd0 %||% 10),
+        "difference" = (effect_sizes + margin) /
+                         (params$sd0 %||% 10),
+        "active_change" = ((params$d0 %||% 10) - effect_sizes +
+                              margin) / (params$sd0 %||% 10),
+        effect_sizes + margin
       )
     },
 

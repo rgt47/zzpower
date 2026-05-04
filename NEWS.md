@@ -1,3 +1,62 @@
+# zzpower v0.7.0 (in development)
+
+## Wave 4: design coverage (Gaps 7, 8, 11)
+
+### Cluster-randomized RCT specs (Gap 7)
+
+* Three new test specifications: `cluster_rct` (continuous
+  outcome via Cohen's d), `cluster_prop` (binary outcome via
+  Cohen's h), `cluster_logrank` (survival outcome via Schoenfeld
+  formula). Each adds `m_cluster` (mean cluster size) and `icc`
+  (intracluster correlation) parameters; the design effect
+  DE = 1 + (m̄ − 1) × ICC inflates the variance, equivalent to
+  reducing the per-arm effective sample size to N / DE.
+  Methodologically standard (Donner & Klar 2000); fills the NIH
+  "special methods are required" gap for cluster-randomized
+  trials. Reference design: NCI Mohile R01CA177592.
+* The Schoenfeld back-compat `n1`/`n2` for `cluster_logrank`
+  encode `participants × event_prob / DE` (events with cluster
+  shrinkage), mirroring the pattern the non-cluster `logrank`
+  spec uses for events.
+* Total registry size grows from 11 to 14 specs.
+
+### Bonferroni-aware ANOVA (Gap 11)
+
+* `anova_oneway` gains a `n_pairwise_contrasts` input. When set
+  > 1 the spec's new `effective_alpha` hook divides α by the
+  contrast count before solving the omnibus F-test. The omnibus
+  F itself does not require Bonferroni correction; this readout
+  is conservative (more N than strictly needed for the omnibus)
+  but supports protocol-level commitment to Bonferroni for
+  post-hoc pairwise comparisons.
+* The methods paragraph annotates the adjustment in-line:
+  *α=0.0167 (Bonferroni-adjusted from 0.05)*. The reproducibility
+  R script uses the adjusted α directly.
+* Generic `effective_alpha = function(input, alpha)` registry
+  hook plumbed through `power_calc()` and `.required_n()`. Other
+  specs inherit identity behavior; future specs can declare
+  their own multiplicity adjustments without engine changes.
+
+### Non-inferiority option (Gap 8, partial)
+
+* `ttest_2groups` gains `hypothesis_type` (radio:
+  superiority / non_inferiority) and `ni_margin` (numeric,
+  conditional on NI selection). When NI is selected, the
+  `standardize()` function shifts the standardized effect by
+  the margin so power is computed on `(true_effect + margin) /
+  sd`. This matches the FDA convention where one-sided α=0.025
+  has the same critical value as two-sided α=0.05.
+* Latent bug fix in `.compute_power`: zzpower's internal
+  `"one.sided"` label is now mapped to `"greater"` before being
+  passed to `pwr::pwr.*` functions, which only accept
+  `"two.sided"`/`"less"`/`"greater"`. This bug was previously
+  masked because superiority tests typically use two-sided
+  defaults; one-sided + NI workflow surfaced it.
+* **Deferred to v0.7.x:** non-inferiority for `prop_2groups`
+  (Cohen's h margin conversion) and `logrank` (log-HR margin)
+  needs careful per-scale margin handling and is left as
+  follow-up work. Equivalence (TOST) is also deferred.
+
 # zzpower v0.6.1 (in development)
 
 ## Wave 3: reproducibility R script export (Gap 9)
