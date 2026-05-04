@@ -262,7 +262,23 @@ create_generic_test_ui <- function(test_id) {
           DT::DTOutput(ns("sensitivity_table"))
         )
       )
-    )
+    ),
+
+    # Per-panel formula citation footnote. Pulled from
+    # test_spec$formula_citation (populated in Wave 1) — one
+    # italic line below all the cards, above the global page
+    # footer. Surfaces the methods-paper citation for the
+    # currently-viewed test so reviewers reading the panel do
+    # not have to scroll into the methods-paragraph card.
+    if (!is.null(test_spec$formula_citation) &&
+        nzchar(test_spec$formula_citation)) {
+      shiny::tags$p(
+        class = "text-muted small mt-3",
+        style = "font-style: italic; line-height: 1.4;",
+        shiny::tags$strong("Method: "),
+        test_spec$formula_citation
+      )
+    }
   )
 }
 
