@@ -333,10 +333,20 @@ power_calc <- function(test, sample_size = NULL, effect_size,
     test_spec$standardize(effect_size, effect_method, extra)
   )
 
+  # Gap 11: spec-declared alpha adjustment (e.g. Bonferroni for the
+  # ANOVA's pairwise-contrast count). Apply once; downstream
+  # power/required-N calculations use the adjusted value.
+  alpha_eff <- if (!is.null(test_spec$effective_alpha)) {
+    test_spec$effective_alpha(extra, alpha)
+  } else {
+    alpha
+  }
+
   if (!is.null(target_power)) {
     n_total <- .required_n(test_spec, target_power, effect_std,
                            design_params = extra,
-                           alpha = alpha, alternative = alternative)
+                           alpha = alpha_eff,
+                           alternative = alternative)
     if (is.null(sample_size)) sample_size <- n_total
   }
 
@@ -347,9 +357,10 @@ power_calc <- function(test, sample_size = NULL, effect_size,
 
   ss <- test_spec$sample_size_calc(c(list(sample_size = sample_size),
                                      extra))
-  achieved <- .compute_power(test_spec, ss, effect_std, alpha, alternative)
+  achieved <- .compute_power(test_spec, ss, effect_std,
+                             alpha_eff, alternative)
 
-  .build_calc_context(
+  ctx <- .build_calc_context(
     test_spec       = test_spec,
     sample_sizes    = ss,
     effect_size     = effect_size,
@@ -361,6 +372,10 @@ power_calc <- function(test, sample_size = NULL, effect_size,
     alpha           = alpha,
     alternative     = alternative
   )
+  # Surface the adjusted alpha so the methods paragraph and the
+  # reproducibility script use the right number.
+  ctx$alpha_effective <- alpha_eff
+  ctx
 }
 
 #' Sample-size sensitivity table for a test
@@ -542,7 +557,17 @@ power_table <- function(test, effect_grid = NULL,
   }
   trim_period <- function(x) sub("\\.+\\s*$", "", x)
 
-  alpha_str <- num3(ctx$alpha)
+  # Use Bonferroni-adjusted alpha if the spec declared a
+  # multiplicity adjustment (e.g. ANOVA with pairwise contrasts);
+  # otherwise the raw alpha. The paragraph mentions both when
+  # they differ so reviewers see the adjustment applied.
+  alpha_eff <- ctx$alpha_effective %||% ctx$alpha
+  alpha_str <- num3(alpha_eff)
+  alpha_note <- if (!isTRUE(all.equal(alpha_eff, ctx$alpha))) {
+    sprintf(" (Bonferroni-adjusted from %s)", num3(ctx$alpha))
+  } else {
+    ""
+  }
   alt_str   <- if (identical(ctx$alternative, "two.sided")) {
     "two-sided"
   } else {
@@ -590,17 +615,17 @@ power_table <- function(test, effect_grid = NULL,
     power_str <- pct(ctx$target_power)
     if (ss$n_arms == 1L) {
       s3 <- sprintf(
-        paste0("For α=%s (%s) and a target power of %s, ",
+        paste0("For α=%s%s (%s) and a target power of %s, ",
                "%s evaluable participants are required."),
-        alpha_str, alt_str, power_str,
+        alpha_str, alpha_note, alt_str, power_str,
         num0(ss$n_total_evaluable)
       )
     } else {
       s3 <- sprintf(
-        paste0("For α=%s (%s) and a target power of %s, ",
+        paste0("For α=%s%s (%s) and a target power of %s, ",
                "%s evaluable participants per arm are required ",
                "(%s total)."),
-        alpha_str, alt_str, power_str,
+        alpha_str, alpha_note, alt_str, power_str,
         num0(ss$n_per_arm_evaluable[1]),
         num0(ss$n_total_evaluable)
       )
@@ -613,17 +638,18 @@ power_table <- function(test, effect_grid = NULL,
     }
     if (ss$n_arms == 1L) {
       s3 <- sprintf(
-        paste0("With %s evaluable participants and α=%s (%s), ",
+        paste0("With %s evaluable participants and α=%s%s (%s), ",
                "the achieved power is %s."),
-        num0(ss$n_total_evaluable), alpha_str, alt_str, achieved_str
+        num0(ss$n_total_evaluable),
+        alpha_str, alpha_note, alt_str, achieved_str
       )
     } else {
       s3 <- sprintf(
         paste0("With %s evaluable participants per arm (%s total) ",
-               "and α=%s (%s), the achieved power is %s."),
+               "and α=%s%s (%s), the achieved power is %s."),
         num0(ss$n_per_arm_evaluable[1]),
         num0(ss$n_total_evaluable),
-        alpha_str, alt_str, achieved_str
+        alpha_str, alpha_note, alt_str, achieved_str
       )
     }
   }
@@ -742,7 +768,9 @@ power_table <- function(test, effect_grid = NULL,
   es_param <- intersect(c("d", "h", "r", "f"), fn_formals)[1]
 
   ss <- ctx$sample_sizes
-  args <- list(sig.level = ctx$alpha)
+  # Use the Bonferroni-adjusted alpha (Gap 11) if the spec
+  # supplied one; otherwise the raw alpha.
+  args <- list(sig.level = ctx$alpha_effective %||% ctx$alpha)
   if ("alternative" %in% fn_formals) {
     args$alternative <- ctx$alternative
   }
@@ -1622,6 +1650,20 @@ create_anova_oneway_spec <- function() {
     paragraph_template = NULL,
     repro_call         = "pwr::pwr.anova.test",
 
+    # Gap 11: Bonferroni-aware alpha. When the user plans
+    # `n_pairwise_contrasts` post-hoc pairwise comparisons, divide
+    # α by that count so the omnibus F is solved at the
+    # family-wise-controlled level. The omnibus F itself does not
+    # need a Bonferroni correction; this readout is conservative
+    # (more N than strictly needed for the omnibus) but supports
+    # the protocol-level commitment to the multiplicity correction
+    # carried into the pairwise post-hoc contrasts.
+    effective_alpha = function(input, alpha) {
+      contrasts <- max(1L,
+                        as.integer(input$n_pairwise_contrasts %||% 1L))
+      alpha / contrasts
+    },
+
     parameters = list(
       sample_size = list(
         type = "slider",
@@ -1634,6 +1676,12 @@ create_anova_oneway_spec <- function() {
         label = "Number of Groups",
         min = 2, max = 10, default = 3, step = 1,
         description = "Number of independent groups"
+      ),
+      n_pairwise_contrasts = list(
+        type = "numeric",
+        label = "Number of Pairwise Contrasts (Bonferroni)",
+        min = 1, max = 45, default = 1, step = 1,
+        description = "Post-hoc comparisons to control with Bonferroni; 1 = omnibus only"
       ),
       dropout = list(
         type = "slider",
