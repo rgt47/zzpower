@@ -1,3 +1,63 @@
+# zzpower v0.6.0 (in development)
+
+## Wave 2: headline grant-proposal artifacts
+
+This release ships the two artifacts grant writers paste directly:
+the methods-section paragraph (Gap 1) and the sensitivity table
+(Gap 2). Both consume the calc_context contract built in Wave 1.
+
+### Methods paragraph (Gap 1)
+
+* New "Methods paragraph" card on every test panel renders a
+  Glueck-Muller-shaped paragraph for the NIH Statistical Design
+  and Power attachment or the ICH E9 §3.5 sample-size statement.
+  Composed of seven sentences: planned analysis, effect-size
+  assumption with citation, alpha + power + N (per-arm phrased
+  for multi-arm designs), dropout inflation, sensitivity scenario
+  (ICH E9 §3.5), software citation, sex-as-biological-variable
+  paragraph (NIH rigor; toggleable). The S3 phrasing flips
+  between "the achieved power is X%" (power mode) and "X
+  evaluable participants are required" (sample-size mode).
+* "Copy" button uses `navigator.clipboard.writeText` to put the
+  paragraph on the clipboard; the button briefly reads "Copied"
+  for confirmation.
+* The paragraph reflects the **lower end** of the effect-size
+  slider — the most conservative assumption, which produces the
+  largest N. This matches NIH convention where reviewers
+  assume the smallest effect from the user's range.
+* Effect-size phrasing is humanised per method
+  (`cohens_d` → "Cohen's d", `hazard_ratio` → "the hazard
+  ratio", `correlation` → "the correlation coefficient r", and
+  so on for the eleven methods).
+
+### Sensitivity table (Gap 2)
+
+* New "Sensitivity table" card on every test panel renders the
+  §2.1 Layout 1 sample-size table: rows = effect-size grid,
+  columns = required N at 80% and 90% power, in both evaluable
+  (analyzed) and enrolled (post-dropout-inflation) layers. Default
+  rows seed from each spec's `default_effect_grid` (Cohen's
+  small/medium/large for d, f, r; reasonable per-method grids for
+  proportion difference, odds ratio, hazard ratio, etc.).
+* The Effect-size column is **editable**: double-click a cell to
+  override; the four N columns recompute via `power_table()`.
+  Other columns are read-only.
+* Two download handlers ship CSV and Markdown formats. The
+  Markdown caption follows §2.3 conventions (which inputs vary
+  / which are held fixed / formula citation). A new
+  `.df_to_markdown(df, caption)` helper produces the table body.
+
+### Tests
+
+* Twelve new assertions cover the methods-paragraph renderer
+  (Test name, citation, alpha, "evaluable participants",
+  dropout, sensitivity sentence, software, sex paragraph), the
+  sex-toggle off-path, the sensitivity-factor off-path, the
+  Shiny output reactive, the sensitivity-table reactive (default
+  3 rows from `cohens_d` grid; required-N monotonicity in effect;
+  90% > 80% N), and the markdown formatter. Total assertions
+  rose from 174 to 197.
+
 # zzpower v0.5.0 (in development)
 
 ## Wave 1: foundation for grant-proposal features

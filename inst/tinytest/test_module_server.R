@@ -341,3 +341,51 @@ shiny::testServer(
     expect_true(grepl("Two-Group t-test", out, fixed = TRUE))
   }
 )
+
+
+# ------------------------------------------------------------
+# Gap 2: sensitivity-table reactive seeds from default grid
+# ------------------------------------------------------------
+shiny::testServer(
+  create_generic_test_server,
+  args = list(
+    id = "ttest_2groups",
+    test_spec = registry$ttest_2groups
+  ),
+  expr = {
+    session$setInputs(
+      solve_for      = "power",
+      sample_size    = 100,
+      allocation     = "equal",
+      ratio          = 1,
+      dropout        = 0.10,
+      effect_method  = "cohens_d",
+      cohens_d_es    = c(0.2, 1.0),
+      type1          = 0.05,
+      onesided       = FALSE
+    )
+
+    df <- sensitivity_table_df()
+    expect_true(is.data.frame(df))
+    # Seeded from default_effect_grid$cohens_d (3 rows)
+    expect_equal(nrow(df), 3L)
+    expect_true(all(c("effect_size", "n_total_enrolled_p80",
+                      "n_total_enrolled_p90") %in% names(df)))
+    # Required N is monotonically decreasing in effect size.
+    expect_true(all(diff(df$n_total_enrolled_p80) < 0))
+    # 90%-power N exceeds 80%-power N for every row.
+    expect_true(all(df$n_total_enrolled_p90 > df$n_total_enrolled_p80))
+  }
+)
+
+
+# ------------------------------------------------------------
+# .df_to_markdown produces a parseable markdown table
+# ------------------------------------------------------------
+md <- .df_to_markdown(
+  data.frame(A = c(1.234, 5.678), B = c("x", "y")),
+  caption = "Test"
+)
+expect_true(grepl("**Test**", md, fixed = TRUE))
+expect_true(grepl("| A | B |", md, fixed = TRUE))
+expect_true(grepl("|---|---|", md, fixed = TRUE))
