@@ -177,6 +177,91 @@ create_generic_test_ui <- function(test_id) {
           shiny::downloadButton(ns("download_report"), "Download Report")
         )
       )
+    ),
+
+    # Gap 1: methods-section paragraph generator. Single full-width
+    # card with a verbatim paragraph and a clipboard-copy button.
+    # Inputs feeding it (effect-source citation, sensitivity factor,
+    # sex-paragraph toggle) live in the sidebar's Advanced Settings.
+    bslib::card(
+      bslib::card_header(
+        shiny::div(
+          class = "d-flex justify-content-between align-items-center",
+          shiny::span(
+            bsicons::bs_icon("file-earmark-text"),
+            " Methods paragraph"
+          ),
+          shiny::actionButton(
+            ns("copy_methods_paragraph"),
+            label = "Copy",
+            class = "btn btn-sm btn-outline-primary",
+            onclick = sprintf(
+              paste0(
+                "navigator.clipboard.writeText(",
+                "document.getElementById('%s').innerText); ",
+                "this.innerText='Copied'; ",
+                "setTimeout(function(b){b.innerText='Copy';}, 1500, this);"
+              ),
+              ns("methods_paragraph_text")
+            )
+          )
+        )
+      ),
+      bslib::card_body(
+        shiny::tags$small(
+          class = "text-muted",
+          "Paste-ready Glueck-Muller-shaped paragraph for the NIH ",
+          "Statistical Design and Power attachment or an ICH E9 ",
+          "§3.5 sample-size statement. Reflects the lower end of ",
+          "the effect-size range (most conservative)."
+        ),
+        shiny::tags$div(
+          style = "white-space: pre-wrap; line-height: 1.5; padding: 0.5rem; background: #f8f9fa; border-radius: 4px; margin-top: 0.5rem;",
+          shiny::textOutput(ns("methods_paragraph_text"),
+                            inline = FALSE)
+        )
+      )
+    ),
+
+    # Gap 2: sensitivity table. The Effect-size column (column 0)
+    # is editable; double-click a cell to override and the four
+    # N columns recompute. Default rows seed from the registry's
+    # `default_effect_grid` for the active effect-size method.
+    bslib::card(
+      bslib::card_header(
+        shiny::div(
+          class = "d-flex justify-content-between align-items-center",
+          shiny::span(
+            bsicons::bs_icon("table"),
+            " Sensitivity table"
+          ),
+          shiny::div(
+            shiny::downloadButton(
+              ns("download_sensitivity_csv"),
+              label = "CSV",
+              class = "btn btn-sm btn-outline-secondary me-1"
+            ),
+            shiny::downloadButton(
+              ns("download_sensitivity_md"),
+              label = "Markdown",
+              class = "btn btn-sm btn-outline-secondary"
+            )
+          )
+        )
+      ),
+      bslib::card_body(
+        shiny::tags$small(
+          class = "text-muted",
+          "Required N at 80% and 90% power across a plausible ",
+          "range of effect sizes (§2.1 Layout 1). Double-click ",
+          "an Effect-size cell to override the row; the table ",
+          "recomputes."
+        ),
+        shiny::tags$div(
+          style = "margin-top: 0.5rem;",
+          DT::DTOutput(ns("sensitivity_table"))
+        )
+      )
     )
   )
 }

@@ -443,6 +443,267 @@ power_table <- function(test, effect_grid = NULL,
   do.call(rbind.data.frame, c(rows, list(stringsAsFactors = FALSE)))
 }
 
+#' Format a data frame as a markdown table
+#'
+#' Minimal markdown-table formatter for the sensitivity-table
+#' download (Gap 2) and the multi-aim aggregator (Gap 3).
+#' Rounds numeric columns to a reasonable number of significant
+#' digits for narrative use; leaves character columns untouched.
+#'
+#' @param df A data frame.
+#' @param caption Optional caption rendered above the table.
+#'
+#' @return A single character string with embedded newlines.
+#'
+#' @keywords internal
+.df_to_markdown <- function(df, caption = NULL) {
+  if (nrow(df) == 0) return("")
+
+  fmt <- function(x) {
+    if (is.numeric(x)) {
+      ifelse(is.na(x), "—",
+             ifelse(abs(x - round(x)) < 1e-6,
+                    format(round(x), big.mark = ",", trim = TRUE),
+                    formatC(x, digits = 3, format = "g")))
+    } else {
+      as.character(x)
+    }
+  }
+
+  cols  <- names(df)
+  body  <- vapply(seq_len(nrow(df)), function(i) {
+    paste0("| ", paste(vapply(cols, function(c) fmt(df[[c]][i]),
+                              character(1)),
+                       collapse = " | "), " |")
+  }, character(1))
+
+  header <- paste0("| ", paste(cols, collapse = " | "), " |")
+  align  <- paste0("|", paste(rep("---", length(cols)),
+                              collapse = "|"), "|")
+
+  out <- c(if (!is.null(caption)) paste0("**", caption, "**\n"),
+           header, align, body)
+  paste(out, collapse = "\n")
+}
+
+#' Render a methods-section paragraph from a calc_context
+#'
+#' Produces the Glueck-Muller-shaped paragraph that pastes into an
+#' NIH proposal's Statistical Design and Power attachment or an
+#' ICH E9 §3.5 sample-size statement. Composes seven sentences:
+#' (1) test + outcome, (2) effect-size assumption with citation,
+#' (3) alpha + power + required N, (4) dropout inflation,
+#' (5) sensitivity sentence (ICH E9 §3.5; if `sensitivity_factor`
+#' < 1), (6) software citation, (7) sex-as-biological-variable
+#' paragraph (NIH rigor; if `include_sex_paragraph`).
+#'
+#' Each `calc_context` field is consumed at most once so the
+#' function is safe to call repeatedly. Sentences for which the
+#' relevant field is missing are dropped silently rather than
+#' producing "(NA)" placeholders in the output.
+#'
+#' @param ctx A `calc_context` returned by `power_calc()` or
+#'   `.build_calc_context()`.
+#'
+#' @return A single character string, paragraph-shaped (no
+#'   embedded newlines).
+#'
+#' @keywords internal
+.effect_method_phrase <- function(method) {
+  switch(method,
+    cohens_d          = "Cohen's d",
+    cohens_f          = "Cohen's f",
+    correlation       = "the correlation coefficient r",
+    hazard_ratio      = "the hazard ratio",
+    odds_ratio        = "the odds ratio",
+    relative_risk     = "the relative risk",
+    difference        = "the proportion difference",
+    proportions       = "the treatment-arm proportion",
+    percent_reduction = "the percent reduction",
+    active_change     = "the treatment-arm change",
+    slope_diff        = "the slope difference",
+    discordant        = "the discordant-pair probability",
+    prop_range        = "the highest-dose proportion",
+    method
+  )
+}
+
+.render_methods_paragraph <- function(ctx) {
+  ss <- ctx$sample_sizes
+
+  # Numeric formatters that round defensively for narrative use.
+  pct  <- function(x) sprintf("%.0f%%", x * 100)
+  num0 <- function(x) format(round(x), big.mark = ",")
+  num2 <- function(x) {
+    if (is.na(x)) "NA" else sprintf("%.2f", x)
+  }
+  num3 <- function(x) {
+    if (is.na(x)) "NA" else format(signif(x, 3), drop0trailing = TRUE)
+  }
+  trim_period <- function(x) sub("\\.+\\s*$", "", x)
+
+  alpha_str <- num3(ctx$alpha)
+  alt_str   <- if (identical(ctx$alternative, "two.sided")) {
+    "two-sided"
+  } else {
+    "one-sided"
+  }
+
+  # Sample-size mode if the user supplied a target_power;
+  # otherwise power mode. The S3 phrasing flips accordingly.
+  is_ss_mode <- !is.null(ctx$target_power)
+
+  citation_clause <- if (nzchar(ctx$effect_source %||% "")) {
+    if (nzchar(ctx$effect_doi %||% "")) {
+      sprintf("(%s; %s)", ctx$effect_source, ctx$effect_doi)
+    } else {
+      sprintf("(%s)", ctx$effect_source)
+    }
+  } else {
+    "(pilot data, citation pending)"
+  }
+
+  # Sentence 1: planned analysis.
+  s1 <- sprintf("We plan to use a %s as the primary analysis.",
+                ctx$test_name)
+
+  # Sentence 2: effect-size assumption + citation.
+  effect_label <- .effect_method_phrase(ctx$effect_method %||% "")
+  if (!is.na(ctx$effect_size_std) &&
+      !isTRUE(all.equal(ctx$effect_size_std, ctx$effect_size))) {
+    s2 <- sprintf(
+      paste0("Based on prior data %s, we assume %s = %s ",
+             "(standardised: %s)."),
+      citation_clause, effect_label,
+      num3(ctx$effect_size),
+      num2(ctx$effect_size_std)
+    )
+  } else {
+    s2 <- sprintf(
+      "Based on prior data %s, we assume %s = %s.",
+      citation_clause, effect_label, num3(ctx$effect_size)
+    )
+  }
+
+  # Sentence 3: alpha + power + N (phrasing flips by mode).
+  if (is_ss_mode) {
+    power_str <- pct(ctx$target_power)
+    if (ss$n_arms == 1L) {
+      s3 <- sprintf(
+        paste0("For α=%s (%s) and a target power of %s, ",
+               "%s evaluable participants are required."),
+        alpha_str, alt_str, power_str,
+        num0(ss$n_total_evaluable)
+      )
+    } else {
+      s3 <- sprintf(
+        paste0("For α=%s (%s) and a target power of %s, ",
+               "%s evaluable participants per arm are required ",
+               "(%s total)."),
+        alpha_str, alt_str, power_str,
+        num0(ss$n_per_arm_evaluable[1]),
+        num0(ss$n_total_evaluable)
+      )
+    }
+  } else {
+    achieved_str <- if (!is.na(ctx$achieved_power %||% NA_real_)) {
+      pct(ctx$achieved_power)
+    } else {
+      "NA"
+    }
+    if (ss$n_arms == 1L) {
+      s3 <- sprintf(
+        paste0("With %s evaluable participants and α=%s (%s), ",
+               "the achieved power is %s."),
+        num0(ss$n_total_evaluable), alpha_str, alt_str, achieved_str
+      )
+    } else {
+      s3 <- sprintf(
+        paste0("With %s evaluable participants per arm (%s total) ",
+               "and α=%s (%s), the achieved power is %s."),
+        num0(ss$n_per_arm_evaluable[1]),
+        num0(ss$n_total_evaluable),
+        alpha_str, alt_str, achieved_str
+      )
+    }
+  }
+
+  # Sentence 4: dropout inflation (skip if dropout = 0).
+  s4 <- if (!is.null(ss$dropout) && ss$dropout > 0) {
+    if (ss$n_arms == 1L) {
+      sprintf(
+        paste0("Accounting for %s dropout, total enrolment will be ",
+               "%s."),
+        pct(ss$dropout), num0(ss$n_total_enrolled)
+      )
+    } else {
+      sprintf(
+        paste0("Accounting for %s dropout, total enrolment will be ",
+               "%s (%s per arm)."),
+        pct(ss$dropout),
+        num0(ss$n_total_enrolled),
+        num0(ss$n_per_arm_enrolled[1])
+      )
+    }
+  } else {
+    ""
+  }
+
+  # Sentence 5: sensitivity scenario (Gap 6).
+  s5 <- if (!is.null(ctx$sensitivity_factor) &&
+            ctx$sensitivity_factor < 1 &&
+            !is.na(ctx$effect_size_std)) {
+    smaller_std <- ctx$effect_size_std * ctx$sensitivity_factor
+    smaller_raw <- ctx$effect_size      * ctx$sensitivity_factor
+    pct_smaller <- round((1 - ctx$sensitivity_factor) * 100)
+
+    # Recompute achieved power at the smaller effect.
+    reg <- get_power_test_registry()
+    test_spec <- reg[[ctx$test_id]]
+    achieved_smaller <- if (is.null(test_spec)) {
+      NA_real_
+    } else {
+      .compute_power(test_spec, ss, smaller_std,
+                     alpha = ctx$alpha,
+                     alternative = ctx$alternative)
+    }
+
+    if (is.na(achieved_smaller)) {
+      ""
+    } else {
+      sprintf(
+        paste0("If the true effect is %d%% smaller (e.g. %s on the ",
+               "native scale), the achieved power at the proposed ",
+               "sample size drops to %s."),
+        pct_smaller, num3(smaller_raw), pct(achieved_smaller)
+      )
+    }
+  } else {
+    ""
+  }
+
+  # Sentence 6: software + formula citation.
+  s6 <- sprintf(
+    paste0("Power was computed using zzpower (Thomas, R.G. 2026); ",
+           "the calculation follows %s."),
+    trim_period(ctx$formula_citation)
+  )
+
+  # Sentence 7: sex-as-biological-variable paragraph (Gap 12).
+  s7 <- if (isTRUE(ctx$include_sex_paragraph)) {
+    paste0("Recruitment will be stratified to ensure approximately ",
+           "equal representation of male and female participants. ",
+           "Sex-disaggregated secondary analyses will be conducted; ",
+           "the primary analysis is not powered for a ",
+           "sex × treatment interaction.")
+  } else {
+    ""
+  }
+
+  parts <- c(s1, s2, s3, s4, s5, s6, s7)
+  paste(parts[nzchar(parts)], collapse = " ")
+}
+
 #' Get the complete test registry
 #'
 #' @return List of all available power tests with their configurations

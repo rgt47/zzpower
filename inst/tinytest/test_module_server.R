@@ -276,3 +276,68 @@ for (f in required_fields) {
 
 # Unknown test id raises.
 expect_error(power_calc("not_a_test", sample_size = 100, effect_size = 0.5))
+
+
+# ------------------------------------------------------------
+# Gap 1: methods-paragraph generator
+# ------------------------------------------------------------
+
+# Renderer alone produces a paragraph from a manually-built ctx.
+ctx <- power_calc("ttest_2groups",
+                  sample_size = 100, effect_size = 0.5,
+                  effect_method = "cohens_d", dropout = 0.10)
+ctx$effect_source         <- "Smith et al. 2019, JAMA, n=30"
+ctx$sensitivity_factor    <- 0.7
+ctx$include_sex_paragraph <- TRUE
+
+para <- .render_methods_paragraph(ctx)
+expect_true(nchar(para) > 200)                       # not truncated
+expect_true(grepl("Two-Group t-test", para, fixed = TRUE))
+expect_true(grepl("Smith et al. 2019", para, fixed = TRUE))
+expect_true(grepl("Cohen's d", para, fixed = TRUE))
+expect_true(grepl("α=0.05", para))             # alpha shown
+expect_true(grepl("evaluable participants", para, fixed = TRUE))
+expect_true(grepl("dropout", para, fixed = TRUE))
+expect_true(grepl("smaller", para, fixed = TRUE))   # sensitivity sentence
+expect_true(grepl("zzpower", para, fixed = TRUE))
+expect_true(grepl("sex × treatment", para))    # sex paragraph
+
+# Sex paragraph drops out when the toggle is off.
+ctx$include_sex_paragraph <- FALSE
+para_no_sex <- .render_methods_paragraph(ctx)
+expect_false(grepl("sex × treatment", para_no_sex))
+
+# Sensitivity sentence drops out when factor is NULL.
+ctx$sensitivity_factor <- NULL
+para_no_sens <- .render_methods_paragraph(ctx)
+expect_false(grepl("smaller", para_no_sens, fixed = TRUE))
+
+# In-server reactive renders the paragraph as a Shiny output.
+shiny::testServer(
+  create_generic_test_server,
+  args = list(
+    id = "ttest_2groups",
+    test_spec = registry$ttest_2groups
+  ),
+  expr = {
+    session$setInputs(
+      solve_for      = "power",
+      sample_size    = 100,
+      allocation     = "equal",
+      ratio          = 1,
+      dropout        = 0.10,
+      effect_method  = "cohens_d",
+      cohens_d_es    = c(0.2, 1.0),
+      type1          = 0.05,
+      onesided       = FALSE,
+      effect_source  = "Test Citation 2026",
+      effect_doi     = "",
+      sensitivity_factor    = 0.7,
+      include_sex_paragraph = TRUE
+    )
+    out <- output$methods_paragraph_text
+    expect_true(nchar(out) > 200)
+    expect_true(grepl("Test Citation 2026", out, fixed = TRUE))
+    expect_true(grepl("Two-Group t-test", out, fixed = TRUE))
+  }
+)

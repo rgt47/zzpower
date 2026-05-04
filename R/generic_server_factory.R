@@ -305,6 +305,226 @@ create_generic_test_server <- function(id, test_spec,
       cache = "session"
     )
 
+    # ===== METHODS PARAGRAPH (Gap 1) =====
+    # Build a calc_context using the user's currently-selected
+    # design + the *lower end* of the effect-size range (the most
+    # conservative assumption, which produces the largest N).
+    # Then thread in the Wave 1 provenance fields and render the
+    # Glueck-Muller-shaped paragraph.
+    methods_paragraph_ctx <- shiny::reactive({
+      shiny::req(is_valid())
+
+      spec   <- test_spec
+      method <- input$effect_method %||% spec$effect_size_methods[1]
+      method_params <- spec$effect_size_params[[method]]
+
+      es_min <- input[[paste0(method, "_es")]][1] %||%
+                  method_params$default_min
+
+      design <- .collect_params()
+      if (!is.null(method_params$requires)) {
+        for (param_name in names(method_params$requires)) {
+          val <- input[[paste0(method, "_", param_name)]]
+          if (!is.null(val)) design[[param_name]] <- val
+        }
+      }
+
+      alpha <- input$type1 %||% consts$TYPE1_DEFAULT
+      alternative <- if (isTRUE(input$onesided)) {
+        "one.sided"
+      } else {
+        "two.sided"
+      }
+
+      pc_args <- c(
+        list(
+          test          = spec$id,
+          effect_size   = es_min,
+          effect_method = method,
+          alpha         = alpha,
+          alternative   = alternative
+        ),
+        design[setdiff(names(design), "sample_size")]
+      )
+
+      if (solve_mode() == "sample_size") {
+        pc_args$target_power <- input$target_power %||% 0.80
+      } else {
+        pc_args$sample_size <- input$sample_size
+      }
+
+      ctx <- do.call(power_calc, pc_args)
+
+      ctx$effect_source         <- input$effect_source %||% ""
+      ctx$effect_doi            <- input$effect_doi %||% ""
+      ctx$sensitivity_factor    <- input$sensitivity_factor
+      ctx$include_sex_paragraph <- isTRUE(input$include_sex_paragraph)
+
+      ctx
+    })
+
+    output$methods_paragraph_text <- shiny::renderText({
+      ctx <- methods_paragraph_ctx()
+      .render_methods_paragraph(ctx)
+    })
+
+    # ===== SENSITIVITY TABLE (Gap 2) =====
+    # Editable effect-size column seeded from the registry's
+    # default_effect_grid; the four N columns recompute whenever
+    # the effect column or any design input changes.
+    sensitivity_grid    <- shiny::reactiveVal(NULL)
+    sensitivity_method  <- shiny::reactiveVal(NULL)
+
+    shiny::observe({
+      method <- input$effect_method %||%
+                  test_spec$effect_size_methods[1]
+      cur_method <- shiny::isolate(sensitivity_method())
+
+      # Re-seed when the test panel first opens or the user
+      # switches effect-size method (Cohen's d → difference, etc).
+      if (is.null(sensitivity_grid()) ||
+          !identical(cur_method, method)) {
+        seed <- test_spec$default_effect_grid[[method]] %||%
+                  c(0.2, 0.5, 0.8)
+        sensitivity_grid(as.numeric(seed))
+        sensitivity_method(method)
+      }
+    })
+
+    sensitivity_table_df <- shiny::reactive({
+      shiny::req(is_valid())
+      grid <- sensitivity_grid()
+      shiny::req(grid, length(grid) > 0)
+
+      method <- input$effect_method %||%
+                  test_spec$effect_size_methods[1]
+      method_params <- test_spec$effect_size_params[[method]]
+
+      design <- .collect_params()
+      if (!is.null(method_params$requires)) {
+        for (param_name in names(method_params$requires)) {
+          val <- input[[paste0(method, "_", param_name)]]
+          if (!is.null(val)) design[[param_name]] <- val
+        }
+      }
+
+      alpha <- input$type1 %||% consts$TYPE1_DEFAULT
+      alternative <- if (isTRUE(input$onesided)) {
+        "one.sided"
+      } else {
+        "two.sided"
+      }
+
+      args <- c(
+        list(
+          test             = test_spec$id,
+          effect_grid      = grid,
+          effect_method    = method,
+          power_thresholds = c(0.80, 0.90),
+          alpha            = alpha,
+          alternative      = alternative
+        ),
+        design[setdiff(names(design), "sample_size")]
+      )
+
+      tryCatch(do.call(power_table, args),
+               error = function(e) NULL)
+    })
+
+    output$sensitivity_table <- DT::renderDT({
+      df <- sensitivity_table_df()
+      shiny::req(df)
+
+      display <- data.frame(
+        `Effect size`        = df$effect_size,
+        `Standardised`       = round(df$effect_size_std, 3),
+        `N enrolled @ 80%`   = round(df$n_total_enrolled_p80),
+        `N evaluable @ 80%`  = round(df$n_total_evaluable_p80),
+        `N enrolled @ 90%`   = round(df$n_total_enrolled_p90),
+        `N evaluable @ 90%`  = round(df$n_total_evaluable_p90),
+        check.names = FALSE,
+        stringsAsFactors = FALSE
+      )
+
+      DT::datatable(
+        display,
+        editable = list(target = "cell",
+                        disable = list(columns = 1:5)),
+        options = list(
+          dom = "t", paging = FALSE,
+          searching = FALSE, info = FALSE,
+          columnDefs = list(
+            list(className = "dt-left",  targets = 0),
+            list(className = "dt-right", targets = 1:5)
+          )
+        ),
+        rownames = FALSE,
+        selection = "none"
+      )
+    })
+
+    shiny::observeEvent(input$sensitivity_table_cell_edit, {
+      edit <- input$sensitivity_table_cell_edit
+      grid <- sensitivity_grid()
+
+      # DT reports col == 0 for the (only editable) effect-size
+      # column; row is 0-indexed.
+      if (!is.null(edit) && identical(edit$col, 0L)) {
+        new_val <- suppressWarnings(as.numeric(edit$value))
+        idx <- edit$row + 1L
+        if (!is.na(new_val) && new_val > 0 &&
+            idx >= 1L && idx <= length(grid)) {
+          grid[idx] <- new_val
+          sensitivity_grid(grid)
+        }
+      }
+    })
+
+    output$download_sensitivity_csv <- shiny::downloadHandler(
+      filename = function() {
+        sprintf("zzpower_sensitivity_%s_%s.csv",
+                test_spec$id,
+                format(Sys.time(), "%Y%m%d_%H%M%S"))
+      },
+      content = function(file) {
+        df <- sensitivity_table_df()
+        if (is.null(df)) return(NULL)
+        utils::write.csv(df, file, row.names = FALSE)
+      }
+    )
+
+    output$download_sensitivity_md <- shiny::downloadHandler(
+      filename = function() {
+        sprintf("zzpower_sensitivity_%s_%s.md",
+                test_spec$id,
+                format(Sys.time(), "%Y%m%d_%H%M%S"))
+      },
+      content = function(file) {
+        df <- sensitivity_table_df()
+        if (is.null(df)) return(NULL)
+        # Caption with footnote per §2.3 conventions.
+        method <- input$effect_method %||%
+                    test_spec$effect_size_methods[1]
+        alt_str <- if (isTRUE(input$onesided)) {
+          "one-sided"
+        } else {
+          "two-sided"
+        }
+        cap <- sprintf(
+          paste0("Sample sizes required to achieve 80%% and 90%% ",
+                 "power across plausible effect sizes (%s). ",
+                 "Calculations assume a %s test, alpha = %s. ",
+                 "Computed using zzpower (Thomas, R.G. 2026); ",
+                 "method follows %s."),
+          method, alt_str,
+          format(input$type1 %||% 0.05),
+          test_spec$formula_citation %||% "—"
+        )
+        md <- .df_to_markdown(df, caption = cap)
+        writeLines(md, file)
+      }
+    )
+
     # ===== HEADLINE VALUE-BOX HELPERS =====
     .headline_es_label <- function(es_method) {
       switch(es_method %||% "",
