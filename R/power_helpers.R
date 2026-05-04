@@ -27,6 +27,7 @@
 #' tests for comparing survival distributions. Biometrika, 68(1),
 #' 316-319.
 #'
+#' @export
 #' @keywords internal
 logrank_power <- function(h, n1, n2, sig.level, alternative = "two.sided") {
   total_events <- n1 + n2
@@ -67,6 +68,7 @@ logrank_power <- function(h, n1, n2, sig.level, alternative = "two.sided") {
 #' Armitage P (1955). Tests for linear trends in proportions and
 #' frequencies. Biometrics, 11(3), 375-386.
 #'
+#' @export
 #' @keywords internal
 trend_power <- function(n, d, sig.level, alternative = "two.sided") {
   ncp <- n * d^2
@@ -104,6 +106,7 @@ trend_power <- function(n, d, sig.level, alternative = "two.sided") {
 #' proportions for the paired-sample design. Biometrics, 43(1),
 #' 207-211.
 #'
+#' @export
 #' @keywords internal
 mcnemar_power <- function(n, d, sig.level, alternative = "two.sided") {
   if (n <= 0 || d <= 0) return(list(power = NA))
@@ -140,6 +143,7 @@ mcnemar_power <- function(n, d, sig.level, alternative = "two.sided") {
 #' Diggle PJ, Heagerty P, Liang K-Y, Zeger SL (2002). Analysis of
 #' Longitudinal Data, 2nd ed. Oxford University Press, p. 29.
 #'
+#' @export
 #' @keywords internal
 mixed_model_power <- function(n, d, sig.level, alternative = "two.sided") {
   if (n <= 0 || d <= 0) return(list(power = NA))
