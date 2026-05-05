@@ -1430,6 +1430,20 @@ create_prop_2groups_spec <- function() {
         label = "Dropout Rate",
         min = 0, max = 0.5, default = 0.1, step = 0.05,
         description = "Expected dropout rate"
+      ),
+      hypothesis_type = list(
+        type = "radio",
+        label = "Hypothesis",
+        options = c("superiority", "non_inferiority"),
+        default = "superiority",
+        description = "Standard superiority vs FDA-style non-inferiority test (NI margin applies to the difference method)"
+      ),
+      ni_margin = list(
+        type = "numeric",
+        label = "Non-inferiority Margin (proportion-difference scale)",
+        min = 0, max = 0.3, default = 0.10, step = 0.01,
+        condition = "hypothesis_type == 'non_inferiority'",
+        description = "Largest proportion difference still considered non-inferior; FDA convention is alpha=0.025 one-sided"
       )
     ),
 
@@ -1454,12 +1468,23 @@ create_prop_2groups_spec <- function() {
 
     standardize = function(effect_sizes, method, params) {
       baseline <- params$baseline %||% 0.5
+      # Gap 8: non-inferiority (difference method only). The slider
+      # represents the assumed true proportion difference under the
+      # alternative (often 0 -- treatments equivalent on the
+      # proportion scale); the standardised effect for power adds
+      # the NI margin and converts to Cohen's h via the same
+      # `diff_to_cohens_h` pipeline as superiority. NI for the
+      # multiplicative methods (odds_ratio, relative_risk) requires
+      # margins on those native scales and is left for a follow-up.
+      is_ni  <- identical(params$hypothesis_type, "non_inferiority")
+      margin <- if (is_ni) params$ni_margin %||% 0 else 0
+
       switch(method,
         "proportions" = sapply(effect_sizes, function(p1) {
           prop_to_cohens_h(p1, params$p2 %||% 0.3)
         }),
         "difference" = sapply(effect_sizes, function(d) {
-          diff_to_cohens_h(d, baseline)
+          diff_to_cohens_h(d + margin, baseline)
         }),
         "odds_ratio" = sapply(effect_sizes, function(or) {
           or_to_cohens_h(or, baseline)

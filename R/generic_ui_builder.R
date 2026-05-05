@@ -141,55 +141,30 @@ create_generic_test_ui <- function(test_id) {
       bslib::card(
         full_screen = TRUE,
         height = "420px",
-        bslib::card_header("Results"),
-        bslib::card_body(
-          fillable = TRUE,
-          min_height = "320px",
-          DT::DTOutput(ns("results_table"))
-        )
-      )
-    ),
-
-    bslib::layout_columns(
-      col_widths = c(6, 6),
-      bslib::card(
-        height = "260px",
         bslib::card_header("Study Summary"),
         bslib::card_body(
-          min_height = "180px",
+          min_height = "320px",
           shiny::uiOutput(ns("summary"))
-        )
-      ),
-      bslib::card(
-        height = "260px",
-        bslib::card_header("Generate Report"),
-        bslib::card_body(
-          shiny::radioButtons(
-            ns("report_format"), "Format",
-            choices = c(
-              "Text" = "text",
-              "HTML" = "html",
-              "PDF"  = "pdf",
-              "Word" = "word"
-            ),
-            inline = TRUE
-          ),
-          shiny::downloadButton(ns("download_report"), "Download Report")
         )
       )
     ),
 
-    # Gap 2: sensitivity table. The Effect-size column (column 0)
-    # is editable; double-click a cell to override and the four
-    # N columns recompute. Default rows seed from the registry's
-    # `default_effect_grid` for the active effect-size method.
+    # Combined results-and-sensitivity table. Each row is one
+    # plausible effect size (editable, add/delete supported);
+    # columns deliver both directions of the power-vs-N
+    # relationship in a single grid:
+    #   - Power @ proposed N       (forward: given the slider's N,
+    #                               what is the achieved power?)
+    #   - N evaluable / enrolled @ 80% and @ 90%   (inverse: what
+    #                               total N is required for these
+    #                               target powers?)
     bslib::card(
       bslib::card_header(
         shiny::div(
           class = "d-flex justify-content-between align-items-center",
           shiny::span(
             bsicons::bs_icon("table"),
-            " Sensitivity table"
+            " Sample-size & power table"
           ),
           shiny::div(
             shiny::actionButton(
@@ -222,12 +197,14 @@ create_generic_test_ui <- function(test_id) {
           class = "small text-muted",
           shiny::p(
             shiny::strong("What this table shows: "),
-            "the total sample size required to achieve the listed ",
-            "power across a plausible range of effect sizes. ",
-            "Reviewers cite this kind of sensitivity analysis when ",
-            "your assumed effect size is uncertain. Edit, add, or ",
-            "delete rows to match the range of effect sizes ",
-            "reported in your prior literature."
+            "for each effect size, both the achieved power at the ",
+            "current slider's total N (forward question) and the ",
+            "total N required to reach 80% or 90% power ",
+            "(inverse question). Reviewers cite this kind of ",
+            "sensitivity analysis when the assumed effect size is ",
+            "uncertain. Edit, add, or delete rows to match the ",
+            "range of effect sizes reported in your prior ",
+            "literature."
           ),
           shiny::p(
             shiny::strong("Columns: "),
@@ -237,6 +214,8 @@ create_generic_test_ui <- function(test_id) {
             shiny::tags$code("Standardised"),
             " is the same effect on the universal scale used by ",
             "the power formula. ",
+            shiny::tags$code("Power @ proposed N"),
+            " is the achieved power at the slider's total N. ",
             shiny::tags$code("N evaluable"),
             " is the analyzable sample size after losses to ",
             "follow-up (the value the power calculation uses); ",
@@ -251,7 +230,7 @@ create_generic_test_ui <- function(test_id) {
             shiny::strong("How to edit: "),
             "double-click a cell in the ",
             shiny::tags$code("Effect size"), " column to override ",
-            "it; the four N columns recompute. ",
+            "it; the rest of the row recomputes. ",
             shiny::tags$code("Add row"),
             " inserts a new effect-size value at the median; ",
             shiny::tags$code("Delete selected"),
@@ -265,32 +244,49 @@ create_generic_test_ui <- function(test_id) {
       )
     ),
 
-    # Gap 1: methods-section paragraph generator. Last card on the
-    # page, collapsed by default. Click "Show / Hide" to toggle the
-    # paragraph body. The intro inside explains in plain language
-    # what the paragraph is for and how to use it; reviewers should
-    # not paste the generated text verbatim without editing.
+    # Combined output card. One radio chooses what the user wants
+    # to take away (a draft methods paragraph for a grant proposal,
+    # or a full report including the table and reproducibility
+    # script); the conditional UI below switches accordingly.
+    # Replaces the previous "Generate Report" + "Methods
+    # paragraph" pair of cards.
     bslib::card(
       bslib::card_header(
-        shiny::div(
-          class = "d-flex justify-content-between align-items-center",
-          shiny::span(
-            bsicons::bs_icon("file-earmark-text"),
-            " Draft methods paragraph"
+        shiny::span(
+          bsicons::bs_icon("download"),
+          " Generate output"
+        )
+      ),
+      bslib::card_body(
+        shiny::radioButtons(
+          ns("output_type"), label = NULL,
+          choices = c(
+            "Methods paragraph (for a grant proposal; preview + copy + download)" = "methods",
+            "Full report (text / HTML / PDF / Word)" = "report"
           ),
+          selected = "methods"
+        ),
+
+        # Methods paragraph branch -- preview is collapsed by
+        # default; Show toggles, Copy puts it on the clipboard,
+        # Download writes it as Markdown.
+        shiny::conditionalPanel(
+          condition = sprintf("input['%s'] == 'methods'",
+                              ns("output_type")),
           shiny::div(
+            class = "d-flex justify-content-end mb-2",
             shiny::tags$button(
               type = "button",
               class = "btn btn-sm btn-outline-primary me-1",
               id = ns("toggle_methods_btn"),
-              "Show",
+              "Show preview",
               onclick = sprintf(
                 paste0(
                   "var b = document.getElementById('%s'); ",
                   "var hidden = (b.style.display === 'none' ",
                   "|| b.style.display === ''); ",
                   "b.style.display = hidden ? 'block' : 'none'; ",
-                  "this.innerText = hidden ? 'Hide' : 'Show';"
+                  "this.innerText = hidden ? 'Hide preview' : 'Show preview';"
                 ),
                 ns("methods_body")
               )
@@ -298,7 +294,7 @@ create_generic_test_ui <- function(test_id) {
             shiny::actionButton(
               ns("copy_methods_paragraph"),
               label = "Copy",
-              class = "btn btn-sm btn-outline-primary",
+              class = "btn btn-sm btn-outline-primary me-1",
               onclick = sprintf(
                 paste0(
                   "navigator.clipboard.writeText(",
@@ -308,106 +304,128 @@ create_generic_test_ui <- function(test_id) {
                 ),
                 ns("methods_paragraph_text")
               )
-            )
-          )
-        )
-      ),
-      bslib::card_body(
-        shiny::tags$div(
-          id = ns("methods_body"),
-          style = "display: none;",
-          shiny::tags$div(
-            class = "alert alert-info small",
-            shiny::p(
-              shiny::strong("What this is: "),
-              "the text at the bottom is a ", shiny::strong("draft"),
-              " sample-size statement assembled from your current ",
-              "inputs. The wording follows what NIH reviewers ",
-              "expect (the Statistical Design and Power section of ",
-              "the Human Subjects form) and what regulatory ",
-              "guidelines require (ICH E9, the international ",
-              "standard for clinical-trial statistics). ",
-              "It is taken nearly verbatim from those guidance ",
-              "documents with your slider values filled in."
             ),
-            shiny::p(
-              shiny::strong("How to use it: "),
-              "treat this as a starting point, not finished prose. ",
-              "Edit it to match your study's terminology, your ",
-              "primary outcome, and the direction of your effect. ",
-              "Replace ",
-              shiny::tags$em("\"pilot data, citation pending\""),
-              " by entering your effect-size source in the ",
-              shiny::tags$em("Effect-Size Source"),
-              " text box under ",
-              shiny::tags$em("Advanced Settings"),
-              " in the sidebar. Adjust the sensitivity-multiplier ",
-              "and sex-as-biological-variable controls to match ",
-              "the conventions of your funding agency."
+            shiny::downloadButton(
+              ns("download_methods_md"),
+              label = "Download (.md)",
+              class = "btn btn-sm btn-outline-primary"
             )
           ),
-
-          # Reference boilerplate -- verbatim guidance excerpts
-          # so the user can see what is stock language vs.
-          # what has been filled in for them.
-          shiny::tags$h6(
-            class = "text-muted small mt-3 mb-2",
-            "Source guidance (verbatim)"
-          ),
-          shiny::tags$blockquote(
-            class = "small text-muted",
-            style = paste0("font-style: italic; ",
-                           "border-left: 3px solid #dee2e6; ",
-                           "padding-left: 0.75rem; ",
-                           "margin-left: 0; margin-bottom: 0.75rem;"),
-            shiny::tags$strong("NIH Statistical Design and Power form (PHS 398, Forms-I): "),
-            "\"Specify the number of subjects you expect to enroll, ",
-            "the expected effect size, the power, and the ",
-            "statistical methods you will use with respect to each ",
-            "outcome measure you listed in 4.3 Outcome Measures. ",
-            "You will need to show that your methods for sample ",
-            "size and data analysis are appropriate given your ",
-            "plans for assignment of participants and delivery of ",
-            "interventions. For trials that randomize groups or ",
-            "deliver interventions to groups, special methods are ",
-            "required.\""
-          ),
-          shiny::tags$blockquote(
-            class = "small text-muted",
-            style = paste0("font-style: italic; ",
-                           "border-left: 3px solid #dee2e6; ",
-                           "padding-left: 0.75rem; ",
-                           "margin-left: 0; margin-bottom: 0.75rem;"),
-            shiny::tags$strong("ICH E9 Sec. 3.5 (Statistical Principles for Clinical Trials): "),
-            "\"Using the usual method for determining the ",
-            "appropriate sample size, the following items should be ",
-            "specified: a primary variable, the test statistic, the ",
-            "null hypothesis, the alternative ('working') ",
-            "hypothesis at the chosen dose(s), the probability of ",
-            "erroneously rejecting the null hypothesis (the type I ",
-            "error), and the probability of erroneously failing to ",
-            "reject the null hypothesis (the type II error), as ",
-            "well as the approach to dealing with treatment ",
-            "withdrawals and protocol violations. ",
-            "It is important to investigate the sensitivity of the ",
-            "sample size estimate to a variety of deviations from ",
-            "these assumptions and this may be facilitated by ",
-            "providing a range of sample sizes appropriate for a ",
-            "reasonable range of deviations from assumptions.\""
-          ),
-
-          shiny::tags$hr(class = "my-2"),
-          shiny::tags$h6(
-            class = "small mt-3 mb-2",
-            "Your draft, with current inputs filled in"
-          ),
           shiny::tags$div(
-            style = paste0("white-space: pre-wrap; line-height: 1.5; ",
-                           "padding: 0.75rem; background: #f8f9fa; ",
-                           "border-radius: 4px;"),
-            shiny::textOutput(ns("methods_paragraph_text"),
-                              inline = FALSE)
+            id = ns("methods_body"),
+            style = "display: none;",
+            shiny::tags$div(
+              class = "alert alert-info small",
+              shiny::p(
+                shiny::strong("What this is: "),
+                "the text below is a ", shiny::strong("draft"),
+                " sample-size statement assembled from your current ",
+                "inputs. The wording follows what NIH reviewers ",
+                "expect (the Statistical Design and Power section ",
+                "of the Human Subjects form) and what regulatory ",
+                "guidelines require (ICH E9, the international ",
+                "standard for clinical-trial statistics). ",
+                "It is taken nearly verbatim from those guidance ",
+                "documents with your slider values filled in."
+              ),
+              shiny::p(
+                shiny::strong("How to use it: "),
+                "treat this as a starting point, not finished ",
+                "prose. Edit it to match your study's terminology, ",
+                "your primary outcome, and the direction of your ",
+                "effect. Replace ",
+                shiny::tags$em("\"pilot data, citation pending\""),
+                " by entering your effect-size source in the ",
+                shiny::tags$em("Effect-Size Source"),
+                " text box under ",
+                shiny::tags$em("Advanced Settings"),
+                " in the sidebar. Adjust the sensitivity-multiplier ",
+                "and sex-as-biological-variable controls to match ",
+                "the conventions of your funding agency."
+              )
+            ),
+
+            # Reference boilerplate so the user can see which
+            # parts are stock language vs. filled-in values.
+            shiny::tags$h6(
+              class = "text-muted small mt-3 mb-2",
+              "Source guidance (verbatim)"
+            ),
+            shiny::tags$blockquote(
+              class = "small text-muted",
+              style = paste0("font-style: italic; ",
+                             "border-left: 3px solid #dee2e6; ",
+                             "padding-left: 0.75rem; ",
+                             "margin-left: 0; margin-bottom: 0.75rem;"),
+              shiny::tags$strong("NIH Statistical Design and Power form (PHS 398, Forms-I): "),
+              "\"Specify the number of subjects you expect to ",
+              "enroll, the expected effect size, the power, and ",
+              "the statistical methods you will use with respect ",
+              "to each outcome measure you listed in 4.3 Outcome ",
+              "Measures. You will need to show that your methods ",
+              "for sample size and data analysis are appropriate ",
+              "given your plans for assignment of participants and ",
+              "delivery of interventions. For trials that ",
+              "randomize groups or deliver interventions to ",
+              "groups, special methods are required.\""
+            ),
+            shiny::tags$blockquote(
+              class = "small text-muted",
+              style = paste0("font-style: italic; ",
+                             "border-left: 3px solid #dee2e6; ",
+                             "padding-left: 0.75rem; ",
+                             "margin-left: 0; margin-bottom: 0.75rem;"),
+              shiny::tags$strong("ICH E9 Sec. 3.5 (Statistical Principles for Clinical Trials): "),
+              "\"Using the usual method for determining the ",
+              "appropriate sample size, the following items should ",
+              "be specified: a primary variable, the test ",
+              "statistic, the null hypothesis, the alternative ",
+              "('working') hypothesis at the chosen dose(s), the ",
+              "probability of erroneously rejecting the null ",
+              "hypothesis (the type I error), and the probability ",
+              "of erroneously failing to reject the null ",
+              "hypothesis (the type II error), as well as the ",
+              "approach to dealing with treatment withdrawals and ",
+              "protocol violations. It is important to investigate ",
+              "the sensitivity of the sample size estimate to a ",
+              "variety of deviations from these assumptions and ",
+              "this may be facilitated by providing a range of ",
+              "sample sizes appropriate for a reasonable range of ",
+              "deviations from assumptions.\""
+            ),
+
+            shiny::tags$hr(class = "my-2"),
+            shiny::tags$h6(
+              class = "small mt-3 mb-2",
+              "Your draft, with current inputs filled in"
+            ),
+            shiny::tags$div(
+              style = paste0("white-space: pre-wrap; ",
+                             "line-height: 1.5; padding: 0.75rem; ",
+                             "background: #f8f9fa; ",
+                             "border-radius: 4px;"),
+              shiny::textOutput(ns("methods_paragraph_text"),
+                                inline = FALSE)
+            )
           )
+        ),
+
+        # Full-report branch -- format selector + download.
+        shiny::conditionalPanel(
+          condition = sprintf("input['%s'] == 'report'",
+                              ns("output_type")),
+          shiny::radioButtons(
+            ns("report_format"), "Format",
+            choices = c(
+              "Text" = "text",
+              "HTML" = "html",
+              "PDF"  = "pdf",
+              "Word" = "word"
+            ),
+            inline = TRUE
+          ),
+          shiny::downloadButton(ns("download_report"),
+                                "Download Report")
         )
       )
     ),
