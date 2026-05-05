@@ -1054,11 +1054,36 @@ create_generic_test_server <- function(id, test_spec,
     })
 
     # ===== STUDY SUMMARY =====
-    .summary_dt_row <- function(label, value) {
-      shiny::tagList(
-        shiny::tags$dt(class = "col-sm-5 text-muted small fw-normal",
-                        label),
-        shiny::tags$dd(class = "col-sm-7 small mb-1", value)
+    # Modernised key-value renderer: each row is a flex container
+    # with a subtle bottom-border separator, label/value pair in
+    # contrasting weights, tabular-nums numerics for vertical
+    # alignment of digits across rows.
+    .summary_row <- function(label, value) {
+      shiny::div(
+        class = paste(
+          "d-flex justify-content-between align-items-center",
+          "py-1"
+        ),
+        style = "border-bottom: 1px solid #f1f5f9;",
+        shiny::span(
+          class = "small text-muted",
+          style = "font-weight: 500;",
+          label
+        ),
+        shiny::span(
+          class = "small",
+          style = paste0(
+            "color: #0f172a; font-weight: 600; ",
+            "font-variant-numeric: tabular-nums;"
+          ),
+          value
+        )
+      )
+    }
+    .summary_section <- function(title) {
+      shiny::div(
+        class = "mt-3 mb-1 zzpower-section-label",
+        title
       )
     }
 
@@ -1077,11 +1102,12 @@ create_generic_test_server <- function(id, test_spec,
         "Solve for sample size"
       }
 
-      rows <- list(
-        .summary_dt_row("Test", test_spec$name),
-        .summary_dt_row("Mode", mode_label),
-        .summary_dt_row("Effect-size method", es_range$method),
-        .summary_dt_row(
+      # Section 1: design.
+      design_rows <- list(
+        .summary_row("Test", test_spec$name),
+        .summary_row("Mode", mode_label),
+        .summary_row("Effect-size method", es_range$method),
+        .summary_row(
           "Effect-size range",
           sprintf("%.3f to %.3f",
                    min(es_range$effect_sizes),
@@ -1089,37 +1115,51 @@ create_generic_test_server <- function(id, test_spec,
         )
       )
 
-      if (mode == "power") {
+      # Section 2: sample size (or target power in solve-N mode).
+      sample_rows <- if (mode == "power") {
         params <- shiny::req(study_parameters())
         if (!is.null(params$n1) && !is.null(params$n2)) {
-          rows <- c(rows, list(
-            .summary_dt_row("Group 1 (n)", sprintf("%.0f", params$n1)),
-            .summary_dt_row("Group 2 (n)", sprintf("%.0f", params$n2)),
-            .summary_dt_row("Total (N)",
-                             sprintf("%.0f", params$n1 + params$n2))
-          ))
+          list(
+            .summary_row("Group 1 (n)",
+                          format(round(params$n1), big.mark = ",")),
+            .summary_row("Group 2 (n)",
+                          format(round(params$n2), big.mark = ",")),
+            .summary_row("Total (N)",
+                          format(round(params$n1 + params$n2),
+                                  big.mark = ","))
+          )
         } else if (!is.null(params$n)) {
-          rows <- c(rows, list(
-            .summary_dt_row("Sample size (n)",
-                             sprintf("%.0f", params$n))
-          ))
+          list(
+            .summary_row("Sample size (n)",
+                          format(round(params$n), big.mark = ","))
+          )
+        } else {
+          list()
         }
       } else {
         target <- input$target_power %||% 0.80
-        rows <- c(rows, list(
-          .summary_dt_row("Target power",
-                           sprintf("%.0f%%", target * 100))
-        ))
+        list(
+          .summary_row("Target power",
+                        sprintf("%.0f%%", target * 100))
+        )
       }
 
-      rows <- c(rows, list(
-        .summary_dt_row("Type I error (alpha)",
-                         sprintf("%.4f", type1)),
-        .summary_dt_row("Test direction",
-                         if (one_sided) "One-sided" else "Two-sided")
-      ))
+      # Section 3: statistics.
+      stats_rows <- list(
+        .summary_row("Type I error (alpha)",
+                      sprintf("%.4g", type1)),
+        .summary_row("Test direction",
+                      if (one_sided) "One-sided" else "Two-sided")
+      )
 
-      shiny::tags$dl(class = "row mb-0", rows)
+      shiny::tagList(
+        .summary_section("Design"),
+        design_rows,
+        .summary_section("Sample size"),
+        sample_rows,
+        .summary_section("Statistics"),
+        stats_rows
+      )
     })
 
     # ===== TYPST INSTALL PROMPT =====
