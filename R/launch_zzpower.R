@@ -96,74 +96,90 @@ launch_zzpower <- function(..., launch.browser = TRUE,
   hero_panel <- bslib::nav_panel(
     value = "home",
     title = NULL,
+    # Hero strip: lighter, modern slate gradient with a soft
+    # diagonal sheen. The amber wordmark and warm-cream tagline
+    # carry forward but on a less institutional ground.
     shiny::div(
       style = paste0(
-        "background: linear-gradient(135deg, #182B49 0%, #00629B 100%);",
-        "padding: 2rem 1rem 2.5rem 1rem; text-align: center;",
-        "margin: -1rem -1rem 0 -1rem; position: relative;"
+        "background: linear-gradient(135deg, #1e293b 0%, #334155 60%, #475569 100%);",
+        "padding: 2.5rem 1.5rem 3rem 1.5rem; text-align: center;",
+        "margin: -1rem -1rem 0 -1rem; position: relative;",
+        "border-bottom: 1px solid #e2e8f0;"
       ),
       shiny::img(
         src = "zzpower-assets/ucsd-logo-white.png",
         style = paste0(
-          "position: absolute; top: 1.2rem; right: 1.5rem;",
-          "height: 30px; opacity: 0.9;"
+          "position: absolute; top: 1.5rem; right: 1.75rem;",
+          "height: 28px; opacity: 0.85;"
         ),
         alt = "UC San Diego"
       ),
       shiny::img(
         src = "zzpower-assets/hex-zzpower.png",
-        style = "height: 120px; margin-bottom: 1rem;",
+        style = "height: 96px; margin-bottom: 1rem;",
         alt = "zzpower hex sticker"
       ),
       shiny::h1(
-        style = "color: #FFCD00; font-weight: 700; margin-bottom: 0.5rem;",
+        style = paste0(
+          "color: #FFCD00; font-weight: 700; margin-bottom: 0.75rem; ",
+          "font-size: 2.5rem; letter-spacing: -0.02em;"
+        ),
         "zzpower"
       ),
       shiny::p(
-        style = "color: #F5F0E6; font-size: 1.1rem; margin-bottom: 0;",
+        style = paste0(
+          "color: #f1f5f9; font-size: 1.05rem; ",
+          "margin-bottom: 0.75rem; max-width: 720px; ",
+          "margin-left: auto; margin-right: auto; ",
+          "line-height: 1.5;"
+        ),
         "Interactive power analysis and sample size",
         "calculations for clinical trial designs"
+      ),
+      # Stats tagline lives in the hero now (was clipped at the
+      # very bottom of the page before).
+      shiny::p(
+        style = paste0(
+          "color: #cbd5e1; font-size: 0.85rem; ",
+          "letter-spacing: 0.04em; margin-bottom: 0;"
+        ),
+        sprintf("%d statistical tests", length(test_ids)),
+        " · Multiple effect-size methods · Downloadable reports"
       )
     ),
 
     shiny::div(
-      class = "container-fluid py-4",
+      class = "container py-4",
+      style = "max-width: 1200px;",
 
       lapply(names(test_categories), function(category) {
         cat_ids <- intersect(test_categories[[category]], test_ids)
         if (length(cat_ids) == 0) return(NULL)
-        bg <- category_bg[[category]] %||% "#f0f0f0"
 
         shiny::tagList(
           shiny::h6(
-            class = "mt-4 mb-3",
-            style = "font-weight: 700; color: #182B49; text-transform: uppercase;
-                     letter-spacing: 0.05em; font-size: 0.8rem;",
+            class = "zzpower-section-label",
             category
           ),
           bslib::layout_columns(
+            # Grid of three columns at lg breakpoint regardless of
+            # category size, so a one-card category does not
+            # stretch its lone card across the full width.
             col_widths = bslib::breakpoints(
               sm = rep(12, length(cat_ids)),
               md = rep(6, length(cat_ids)),
-              lg = if (length(cat_ids) <= 4) {
-                rep(12 %/% length(cat_ids), length(cat_ids))
-              } else {
-                rep(3, length(cat_ids))
-              }
+              lg = rep(4, length(cat_ids))
             ),
             !!!lapply(cat_ids, function(tid) {
               spec <- registry[[tid]]
-              clr <- card_colors[tid] %||% "#182B49"
+              clr <- card_colors[tid] %||% "#334155"
               bslib::card(
                 style = paste0(
-                  "cursor: pointer;",
-                  "border-left: 4px solid ", clr, ";",
-                  "border-top: none; border-right: none; border-bottom: none;",
-                  "background-color: ", bg, ";",
-                  "transition: transform 0.15s, box-shadow 0.15s;",
-                  "min-height: 130px;"
+                  "cursor: pointer; ",
+                  "border-left: 4px solid ", clr, " !important; ",
+                  "min-height: 132px;"
                 ),
-                class = "shadow-sm zzpower-launcher-card",
+                class = "zzpower-launcher-card",
                 id = paste0("card_", tid),
                 role = "button",
                 tabindex = "0",
@@ -182,32 +198,52 @@ launch_zzpower <- function(..., launch.browser = TRUE,
                   spec$name
                 ),
                 onmouseenter = paste0(
-                  "this.style.transform='translateY(-3px)';",
-                  "this.style.boxShadow='0 6px 20px rgba(0,0,0,.15)';"
+                  "this.style.transform='translateY(-2px)';",
+                  "this.style.boxShadow='0 8px 24px rgba(15,23,42,0.10)';"
                 ),
                 onmouseleave = paste0(
                   "this.style.transform='';",
                   "this.style.boxShadow='';"
                 ),
                 bslib::card_body(
-                  class = "text-center d-flex flex-column justify-content-center py-3",
+                  class = "py-3 px-4",
                   shiny::div(
-                    class = "mb-2",
-                    bsicons::bs_icon(
-                      spec$icon %||% "calculator",
-                      size = "1.5em",
-                      style = paste0("color: ", clr, ";")
+                    style = paste0(
+                      "display: flex; align-items: flex-start; ",
+                      "gap: 0.85rem;"
+                    ),
+                    shiny::div(
+                      style = paste0(
+                        "flex-shrink: 0; width: 40px; height: 40px; ",
+                        "border-radius: 10px; ",
+                        "background: ", clr, "14; ",
+                        "display: flex; align-items: center; ",
+                        "justify-content: center;"
+                      ),
+                      bsicons::bs_icon(
+                        spec$icon %||% "calculator",
+                        size = "1.25em",
+                        style = paste0("color: ", clr, ";")
+                      )
+                    ),
+                    shiny::div(
+                      style = "flex: 1; min-width: 0;",
+                      shiny::p(
+                        class = "fw-semibold mb-1",
+                        style = paste0(
+                          "font-size: 0.95rem; color: #0f172a; ",
+                          "line-height: 1.3;"
+                        ),
+                        spec$name
+                      ),
+                      shiny::p(
+                        class = "mb-0 text-muted",
+                        style = paste0(
+                          "font-size: 0.78rem; line-height: 1.45;"
+                        ),
+                        spec$description
+                      )
                     )
-                  ),
-                  shiny::p(
-                    class = "fw-bold mb-1",
-                    style = "font-size: 0.85rem; color: #182B49;",
-                    spec$name
-                  ),
-                  shiny::p(
-                    class = "mb-0",
-                    style = "font-size: 0.75rem; color: #747678;",
-                    spec$description
                   )
                 )
               )
@@ -216,15 +252,9 @@ launch_zzpower <- function(..., launch.browser = TRUE,
         )
       }),
 
-      shiny::div(
-        class = "text-center mt-4",
-        style = "color: #747678; font-size: 0.8rem;",
-        shiny::p(
-          paste(length(test_ids), "statistical tests"),
-          " | Multiple effect size methods",
-          " | Downloadable reports"
-        )
-      )
+      # Tagline moved into the hero strip; bottom of the hero
+      # panel just leaves breathing room.
+      shiny::div(class = "mb-4")
     )
   )
 
