@@ -2,7 +2,7 @@
 % Please edit documentation in R/power_test_registry.R
 \name{get_power_test_registry}
 \alias{get_power_test_registry}
-\title{Power Test Registry}
+\title{Get the complete test registry}
 \usage{
 get_power_test_registry()
 }
@@ -10,13 +10,6 @@ get_power_test_registry()
 List of all available power tests with their configurations
 }
 \description{
-Centralized registry defining all available power analysis tests.
-Each entry defines the parameters, effect size methods, and power calculation
-for a specific statistical test.
+Get the complete test registry
 }
-\keyword{Get}
-\keyword{complete}
 \keyword{internal}
-\keyword{registry}
-\keyword{test}
-\keyword{the}

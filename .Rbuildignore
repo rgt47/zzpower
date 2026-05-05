@@ -14,3 +14,6 @@
 ^\.claude$
 ^\.gitignore$
 ^CODE_OF_CONDUCT\.md$
+^CONTRIBUTING\.md$
+^Rplots\.pdf$
+^_pkgdown\.yml$

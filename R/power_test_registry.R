@@ -70,7 +70,7 @@
 #' builder, Gap 9 reproducibility script, Gap 3 multi-aim aggregator)
 #' reads its values from a calc_context. Building the context once
 #' from inputs and consuming it from many places replaces what
-#' would otherwise be eleven specs × five output-paste sites.
+#' would otherwise be eleven specs x five output-paste sites.
 #'
 #' This is the structural shape consumed by the programmatic API
 #' (`power_calc()`, Gap 10) and the Wave 2 generators. Field
@@ -283,7 +283,7 @@
 #' @param test Character test id (one of `names(get_power_test_registry())`)
 #'   or a test_spec list returned by the registry.
 #' @param sample_size Total enrolled sample size. Optional in
-#'   sample-size mode (`target_power` supplied) — left NULL the
+#'   sample-size mode (`target_power` supplied) -- left NULL the
 #'   function solves for required N via bisection.
 #' @param effect_size Effect size on the native scale of the chosen
 #'   `effect_method` (e.g. raw difference for `"difference"`,
@@ -387,7 +387,7 @@ power_calc <- function(test, sample_size = NULL, effect_size,
 
 #' Sample-size sensitivity table for a test
 #'
-#' Produces the §2.1 Layout 1 sensitivity table: rows = effect-size
+#' Produces the Sec.2.1 Layout 1 sensitivity table: rows = effect-size
 #' grid, columns = required N at each power threshold (typically
 #' 0.80 and 0.90). The artifact most often pasted directly into
 #' an NIH proposal.
@@ -483,7 +483,7 @@ power_table <- function(test, effect_grid = NULL,
 
   fmt <- function(x) {
     if (is.numeric(x)) {
-      ifelse(is.na(x), "—",
+      ifelse(is.na(x), "--",
              ifelse(abs(x - round(x)) < 1e-6,
                     format(round(x), big.mark = ",", trim = TRUE),
                     formatC(x, digits = 3, format = "g")))
@@ -508,27 +508,12 @@ power_table <- function(test, effect_grid = NULL,
   paste(out, collapse = "\n")
 }
 
-#' Render a methods-section paragraph from a calc_context
+#' Humanise an effect-size method id for narrative use
 #'
-#' Produces the Glueck-Muller-shaped paragraph that pastes into an
-#' NIH proposal's Statistical Design and Power attachment or an
-#' ICH E9 §3.5 sample-size statement. Composes seven sentences:
-#' (1) test + outcome, (2) effect-size assumption with citation,
-#' (3) alpha + power + required N, (4) dropout inflation,
-#' (5) sensitivity sentence (ICH E9 §3.5; if `sensitivity_factor`
-#' < 1), (6) software citation, (7) sex-as-biological-variable
-#' paragraph (NIH rigor; if `include_sex_paragraph`).
+#' @param method One of the `effect_size_methods` ids declared in
+#'   the test registry (`"cohens_d"`, `"hazard_ratio"`, etc.).
 #'
-#' Each `calc_context` field is consumed at most once so the
-#' function is safe to call repeatedly. Sentences for which the
-#' relevant field is missing are dropped silently rather than
-#' producing "(NA)" placeholders in the output.
-#'
-#' @param ctx A `calc_context` returned by `power_calc()` or
-#'   `.build_calc_context()`.
-#'
-#' @return A single character string, paragraph-shaped (no
-#'   embedded newlines).
+#' @return A short noun phrase suitable for a methods paragraph.
 #'
 #' @keywords internal
 .effect_method_phrase <- function(method) {
@@ -550,6 +535,29 @@ power_table <- function(test, effect_grid = NULL,
   )
 }
 
+#' Render a methods-section paragraph from a calc_context
+#'
+#' Produces the Glueck-Muller-shaped paragraph that pastes into an
+#' NIH proposal's Statistical Design and Power attachment or an
+#' ICH E9 Sec. 3.5 sample-size statement. Composes seven sentences:
+#' (1) test + outcome, (2) effect-size assumption with citation,
+#' (3) alpha + power + required N, (4) dropout inflation,
+#' (5) sensitivity sentence (ICH E9 Sec. 3.5; if `sensitivity_factor`
+#' < 1), (6) software citation, (7) sex-as-biological-variable
+#' paragraph (NIH rigor; if `include_sex_paragraph`).
+#'
+#' Each `calc_context` field is consumed at most once so the
+#' function is safe to call repeatedly. Sentences for which the
+#' relevant field is missing are dropped silently rather than
+#' producing "(NA)" placeholders in the output.
+#'
+#' @param ctx A `calc_context` returned by `power_calc()` or
+#'   `.build_calc_context()`.
+#'
+#' @return A single character string, paragraph-shaped (no
+#'   embedded newlines).
+#'
+#' @keywords internal
 .render_methods_paragraph <- function(ctx) {
   ss <- ctx$sample_sizes
 
@@ -622,14 +630,14 @@ power_table <- function(test, effect_grid = NULL,
     power_str <- pct(ctx$target_power)
     if (ss$n_arms == 1L) {
       s3 <- sprintf(
-        paste0("For α=%s%s (%s) and a target power of %s, ",
+        paste0("For alpha=%s%s (%s) and a target power of %s, ",
                "%s evaluable participants are required."),
         alpha_str, alpha_note, alt_str, power_str,
         num0(ss$n_total_evaluable)
       )
     } else {
       s3 <- sprintf(
-        paste0("For α=%s%s (%s) and a target power of %s, ",
+        paste0("For alpha=%s%s (%s) and a target power of %s, ",
                "%s evaluable participants per arm are required ",
                "(%s total)."),
         alpha_str, alpha_note, alt_str, power_str,
@@ -645,7 +653,7 @@ power_table <- function(test, effect_grid = NULL,
     }
     if (ss$n_arms == 1L) {
       s3 <- sprintf(
-        paste0("With %s evaluable participants and α=%s%s (%s), ",
+        paste0("With %s evaluable participants and alpha=%s%s (%s), ",
                "the achieved power is %s."),
         num0(ss$n_total_evaluable),
         alpha_str, alpha_note, alt_str, achieved_str
@@ -653,7 +661,7 @@ power_table <- function(test, effect_grid = NULL,
     } else {
       s3 <- sprintf(
         paste0("With %s evaluable participants per arm (%s total) ",
-               "and α=%s%s (%s), the achieved power is %s."),
+               "and alpha=%s%s (%s), the achieved power is %s."),
         num0(ss$n_per_arm_evaluable[1]),
         num0(ss$n_total_evaluable),
         alpha_str, alpha_note, alt_str, achieved_str
@@ -728,7 +736,7 @@ power_table <- function(test, effect_grid = NULL,
            "equal representation of male and female participants. ",
            "Sex-disaggregated secondary analyses will be conducted; ",
            "the primary analysis is not powered for a ",
-           "sex × treatment interaction.")
+           "sex x treatment interaction.")
   } else {
     ""
   }
@@ -748,7 +756,7 @@ power_table <- function(test, effect_grid = NULL,
 #' For pwr-backed tests the script calls `pwr::pwr.<test>(...)`
 #' directly with literal numeric arguments. For zzpower's custom
 #' helpers (logrank_power, mcnemar_power, mixed_model_power,
-#' trend_power) the script calls `zzpower::<helper>(...)` — those
+#' trend_power) the script calls `zzpower::<helper>(...)` -- those
 #' are exported precisely so this script works.
 #'
 #' @param ctx A calc_context returned by `power_calc()`.
@@ -874,7 +882,7 @@ power_table <- function(test, effect_grid = NULL,
 #' Specific Aim), plus optional metadata (study name, target
 #' agency). Use `add_aim()` to append entries and
 #' `format_multi_aim_df()` / `multi_aim_markdown()` /
-#' `multi_aim_csv()` to render the §2.5 Layout 4 study-level
+#' `multi_aim_csv()` to render the Sec.2.5 Layout 4 study-level
 #' table for an NIH proposal.
 #'
 #' @param study_name Optional study identifier for the table
@@ -938,7 +946,7 @@ add_aim <- function(study, ctx, name = NULL, outcome = NULL) {
 
 #' Format a multi-aim study as a tidy data frame
 #'
-#' Produces the §2.5 Layout 4 study-level table: one row per aim
+#' Produces the Sec.2.5 Layout 4 study-level table: one row per aim
 #' with Outcome, Test, Effect size, Alpha, Power, N evaluable,
 #' N enrolled, and a `binding` flag identifying the row with the
 #' largest enrolled N (the aim that drives the overall study
@@ -1161,7 +1169,7 @@ create_ttest_2groups_spec <- function() {
         label = "Non-inferiority Margin",
         min = 0, max = 5, default = 0.2, step = 0.05,
         condition = "hypothesis_type == 'non_inferiority'",
-        description = "Margin in the same units as the effect-size slider; FDA convention is α=0.025 one-sided"
+        description = "Margin in the same units as the effect-size slider; FDA convention is alpha=0.025 one-sided"
       )
     ),
 
@@ -1388,7 +1396,7 @@ create_prop_2groups_spec <- function() {
     icon = "percent",
     power_function = pwr::pwr.2p2n.test,
     effect_size_methods = c("proportions", "difference", "odds_ratio", "relative_risk"),
-    formula_citation = "Cohen J (1988). Statistical Power Analysis for the Behavioral Sciences, 2nd ed., Lawrence Erlbaum, ch. 6 (Cohen's h, two-proportion test; ex. 6.1 p. 198, ex. 6.3 p. 200, ex. 6.7 p. 207). Effect size h = 2·asin(√p1) − 2·asin(√p2) is Fisher's variance-stabilising arcsine transform (Fisher 1922). Implementation: pwr::pwr.2p2n.test (Champely 2020).",
+    formula_citation = "Cohen J (1988). Statistical Power Analysis for the Behavioral Sciences, 2nd ed., Lawrence Erlbaum, ch. 6 (Cohen's h, two-proportion test; ex. 6.1 p. 198, ex. 6.3 p. 200, ex. 6.7 p. 207). Effect size h = 2*asin(sqrt(p1)) - 2*asin(sqrt(p2)) is Fisher's variance-stabilising arcsine transform (Fisher 1922). Implementation: pwr::pwr.2p2n.test (Champely 2020).",
     default_effect_grid = list(
       difference    = c(0.05, 0.10, 0.15, 0.20),
       odds_ratio    = c(1.25, 1.50, 2.00, 3.00),
@@ -1503,7 +1511,7 @@ create_correlation_spec <- function() {
     icon = "diagram-2",
     power_function = pwr::pwr.r.test,
     effect_size_methods = c("correlation"),
-    formula_citation = "Cohen J (1988). Statistical Power Analysis for the Behavioral Sciences, 2nd ed., Lawrence Erlbaum, ch. 3 (Pearson r; ex. 3.1 p. 96, ex. 3.4 p. 208). Uses Fisher's Z' transform (Fisher 1915) with bias correction; pwr::pwr.r.test applies a one-sided correction that diverges from Cohen 1988 p. 546 — see pwr docs for the exact form. Implementation: pwr::pwr.r.test (Champely 2020), modified bias correction by Jeffrey Gill.",
+    formula_citation = "Cohen J (1988). Statistical Power Analysis for the Behavioral Sciences, 2nd ed., Lawrence Erlbaum, ch. 3 (Pearson r; ex. 3.1 p. 96, ex. 3.4 p. 208). Uses Fisher's Z' transform (Fisher 1915) with bias correction; pwr::pwr.r.test applies a one-sided correction that diverges from Cohen 1988 p. 546 -- see pwr docs for the exact form. Implementation: pwr::pwr.r.test (Champely 2020), modified bias correction by Jeffrey Gill.",
     default_effect_grid = list(correlation = c(0.10, 0.30, 0.50)),
     paragraph_template = NULL,
     repro_call         = "pwr::pwr.r.test",
@@ -1895,7 +1903,7 @@ create_anova_oneway_spec <- function() {
 
     # Gap 11: Bonferroni-aware alpha. When the user plans
     # `n_pairwise_contrasts` post-hoc pairwise comparisons, divide
-    # α by that count so the omnibus F is solved at the
+    # alpha by that count so the omnibus F is solved at the
     # family-wise-controlled level. The omnibus F itself does not
     # need a Bonferroni correction; this readout is conservative
     # (more N than strictly needed for the omnibus) but supports
@@ -2150,14 +2158,14 @@ create_mixed_model_spec <- function() {
 #'
 #' Two-group cluster-randomized trial with a continuous outcome.
 #' Uses Cohen's d on the per-arm effective sample size, where the
-#' design effect DE = 1 + (m̄ − 1) × ICC inflates the variance.
+#' design effect DE = 1 + (m_bar - 1) x ICC inflates the variance.
 #' The user enters total participants (across both arms); the
 #' power function consumes the effective N = N / DE.
 #'
 #' Modeled after the cluster-RCT design in NCI sample R01
 #' R01CA177592 (Mohile et al., reducing chemotherapy toxicity in
 #' older adults; see grant-proposals-sample-size-practice.md
-#' §1.4 for the exemplar paragraph). NIH cluster-randomized
+#' Sec.1.4 for the exemplar paragraph). NIH cluster-randomized
 #' trials require this adjustment per the "special methods are
 #' required" clause for trials that randomize groups.
 #'
@@ -2170,7 +2178,7 @@ create_cluster_rct_spec <- function() {
     icon = "diagram-3",
     power_function = pwr::pwr.t2n.test,
     effect_size_methods = c("cohens_d", "difference"),
-    formula_citation = "Cohen J (1988) ch. 2 (Cohen's d) with design-effect inflation DE = 1 + (m̄ − 1) × ICC (Donner & Klar 2000, Design and Analysis of Cluster Randomization Trials in Health Research, Arnold). Implementation: pwr::pwr.t2n.test on N_eff = N / DE.",
+    formula_citation = "Cohen J (1988) ch. 2 (Cohen's d) with design-effect inflation DE = 1 + (m_bar - 1) x ICC (Donner & Klar 2000, Design and Analysis of Cluster Randomization Trials in Health Research, Arnold). Implementation: pwr::pwr.t2n.test on N_eff = N / DE.",
     default_effect_grid = list(
       cohens_d   = c(0.2, 0.5, 0.8),
       difference = c(2, 5, 8)
@@ -2276,7 +2284,7 @@ create_cluster_rct_spec <- function() {
 #'
 #' Two-group cluster-randomized trial with a binary outcome.
 #' Cohen's h on the per-arm effective sample size; design effect
-#' inflates variance via DE = 1 + (m̄ − 1) × ICC.
+#' inflates variance via DE = 1 + (m_bar - 1) x ICC.
 #'
 #' @keywords internal
 create_cluster_prop_spec <- function() {
@@ -2287,7 +2295,7 @@ create_cluster_prop_spec <- function() {
     icon = "diagram-3-fill",
     power_function = pwr::pwr.2p2n.test,
     effect_size_methods = c("difference", "odds_ratio"),
-    formula_citation = "Cohen J (1988) ch. 6 (Cohen's h) with design-effect inflation DE = 1 + (m̄ − 1) × ICC (Donner & Klar 2000). Implementation: pwr::pwr.2p2n.test on N_eff = N / DE.",
+    formula_citation = "Cohen J (1988) ch. 6 (Cohen's h) with design-effect inflation DE = 1 + (m_bar - 1) x ICC (Donner & Klar 2000). Implementation: pwr::pwr.2p2n.test on N_eff = N / DE.",
     default_effect_grid = list(
       difference = c(0.05, 0.10, 0.15),
       odds_ratio = c(1.5, 2.0, 3.0)
@@ -2399,7 +2407,7 @@ create_cluster_logrank_spec <- function() {
     icon = "hourglass-bottom",
     power_function = logrank_power,
     effect_size_methods = c("hazard_ratio"),
-    formula_citation = "Schoenfeld DA (1981) Biometrika 68(1) 316-319, with design-effect inflation DE = 1 + (m̄ − 1) × ICC (Donner & Klar 2000). Implementation: zzpower::logrank_power on expected events × event_prob, divided by DE.",
+    formula_citation = "Schoenfeld DA (1981) Biometrika 68(1) 316-319, with design-effect inflation DE = 1 + (m_bar - 1) x ICC (Donner & Klar 2000). Implementation: zzpower::logrank_power on expected events x event_prob, divided by DE.",
     default_effect_grid = list(hazard_ratio = c(0.50, 0.65, 0.75)),
     paragraph_template = NULL,
     repro_call         = "zzpower::logrank_power",

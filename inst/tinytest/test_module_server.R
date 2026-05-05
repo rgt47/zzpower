@@ -295,17 +295,17 @@ expect_true(nchar(para) > 200)                       # not truncated
 expect_true(grepl("Two-Group t-test", para, fixed = TRUE))
 expect_true(grepl("Smith et al. 2019", para, fixed = TRUE))
 expect_true(grepl("Cohen's d", para, fixed = TRUE))
-expect_true(grepl("α=0.05", para))             # alpha shown
+expect_true(grepl("alpha=0.05", para, fixed = TRUE))  # alpha shown
 expect_true(grepl("evaluable participants", para, fixed = TRUE))
 expect_true(grepl("dropout", para, fixed = TRUE))
 expect_true(grepl("smaller", para, fixed = TRUE))   # sensitivity sentence
 expect_true(grepl("zzpower", para, fixed = TRUE))
-expect_true(grepl("sex × treatment", para))    # sex paragraph
+expect_true(grepl("sex x treatment", para, fixed = TRUE))  # sex paragraph
 
 # Sex paragraph drops out when the toggle is off.
 ctx$include_sex_paragraph <- FALSE
 para_no_sex <- .render_methods_paragraph(ctx)
-expect_false(grepl("sex × treatment", para_no_sex))
+expect_false(grepl("sex x treatment", para_no_sex, fixed = TRUE))
 
 # Sensitivity sentence drops out when factor is NULL.
 ctx$sensitivity_factor <- NULL
@@ -463,3 +463,64 @@ expect_false(is.null(ctx_back))
 expect_equal(ctx_back$test_id, "ttest_2groups")
 expect_equal(ctx_back$alpha, 0.05)
 expect_equal(ctx_back$alternative, "two.sided")
+
+
+# ------------------------------------------------------------
+# Gap 3: multi-aim aggregation
+# ------------------------------------------------------------
+
+# Empty study returns an empty data frame with the right columns.
+study0 <- multi_aim_study()
+df0 <- format_multi_aim_df(study0)
+expect_equal(nrow(df0), 0)
+expect_true(all(c("Aim", "Outcome", "Test", "Effect size",
+                  "Alpha", "Power", "N evaluable", "N enrolled",
+                  "Binding") %in% names(df0)))
+
+# Add three aims; binding is the row with max N enrolled.
+study <- multi_aim_study(study_name = "Test study")
+study <- add_aim(study,
+  power_calc("ttest_2groups", target_power = 0.80,
+             effect_size = 0.5, effect_method = "cohens_d",
+             dropout = 0.10),
+  name = "Aim A", outcome = "Continuous outcome")
+study <- add_aim(study,
+  power_calc("logrank", target_power = 0.80,
+             effect_size = 0.65, effect_method = "hazard_ratio",
+             dropout = 0.10, event_prob = 0.7),
+  name = "Aim B", outcome = "Survival")
+study <- add_aim(study,
+  power_calc("correlation", target_power = 0.80,
+             effect_size = 0.30, effect_method = "correlation",
+             dropout = 0),
+  name = "Aim C", outcome = "Correlation")
+
+df <- format_multi_aim_df(study)
+expect_equal(nrow(df), 3)
+expect_equal(df$Aim, c("Aim A", "Aim B", "Aim C"))
+expect_equal(sum(df$Binding), 1L)  # exactly one binding row
+expect_equal(which.max(df[["N enrolled"]]),
+             which(df$Binding))
+
+# Markdown output mentions binding asterisk and study name.
+md <- multi_aim_markdown(study)
+expect_true(grepl("Test study", md, fixed = TRUE))
+expect_true(grepl("`*` is the binding aim", md, fixed = TRUE))
+expect_true(grepl(" \\* \\|", md))   # asterisk after binding aim cell
+
+# CSV string contains all rows.
+csv_str <- multi_aim_csv(study)
+expect_true(grepl("Aim A", csv_str, fixed = TRUE))
+expect_true(grepl("Aim B", csv_str, fixed = TRUE))
+expect_true(grepl("Aim C", csv_str, fixed = TRUE))
+
+# CSV file write returns the path.
+tmp <- tempfile(fileext = ".csv")
+ret <- multi_aim_csv(study, file = tmp)
+expect_equal(ret, tmp)
+expect_true(file.exists(tmp))
+unlink(tmp)
+
+# add_aim rejects bad inputs.
+expect_error(add_aim(list(), study$aims[[1]]))
+expect_error(add_aim(study, "not a ctx"))

@@ -7,10 +7,11 @@
 .render_generic_report_binary(report_data, test_spec, fmt)
 }
 \value{
-Path to the rendered file, or `NULL` if `rmarkdown` is
-  not installed or rendering fails.
+Path to the rendered file, or `NULL` if no rendering
+  backend is installed or rendering fails.
 }
 \description{
-Render the markdown report to PDF or Word
+For PDF, prefer Typst (no TeX install needed, fast). Fall back to
+rmarkdown's xelatex pipeline if Typst is unavailable.
 }
 \keyword{internal}

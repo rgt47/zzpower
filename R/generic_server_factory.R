@@ -381,7 +381,7 @@ create_generic_test_server <- function(id, test_spec,
       cur_method <- shiny::isolate(sensitivity_method())
 
       # Re-seed when the test panel first opens or the user
-      # switches effect-size method (Cohen's d → difference, etc).
+      # switches effect-size method (Cohen's d -> difference, etc).
       if (is.null(sensitivity_grid()) ||
           !identical(cur_method, method)) {
         seed <- test_spec$default_effect_grid[[method]] %||%
@@ -502,7 +502,7 @@ create_generic_test_server <- function(id, test_spec,
       content = function(file) {
         df <- sensitivity_table_df()
         if (is.null(df)) return(NULL)
-        # Caption with footnote per §2.3 conventions.
+        # Caption with footnote per Sec.2.3 conventions.
         method <- input$effect_method %||%
                     test_spec$effect_size_methods[1]
         alt_str <- if (isTRUE(input$onesided)) {
@@ -518,7 +518,7 @@ create_generic_test_server <- function(id, test_spec,
                  "method follows %s."),
           method, alt_str,
           format(input$type1 %||% 0.05),
-          test_spec$formula_citation %||% "—"
+          test_spec$formula_citation %||% "--"
         )
         md <- .df_to_markdown(df, caption = cap)
         writeLines(md, file)
@@ -1175,7 +1175,7 @@ create_generic_test_server <- function(id, test_spec,
   }
 
   # In sample-size mode the report does not carry a single
-  # sample_sizes row — synthesise one at the smallest required N
+  # sample_sizes row -- synthesise one at the smallest required N
   # for the lower-end effect.
   if (is.null(ss) && !is.null(pr) && "required_n" %in% names(pr)) {
     j <- which.min(abs(pr$standardized_es - es_std))

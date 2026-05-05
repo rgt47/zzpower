@@ -212,7 +212,7 @@ create_generic_test_ui <- function(test_id) {
           class = "text-muted",
           "Paste-ready Glueck-Muller-shaped paragraph for the NIH ",
           "Statistical Design and Power attachment or an ICH E9 ",
-          "§3.5 sample-size statement. Reflects the lower end of ",
+          "Sec.3.5 sample-size statement. Reflects the lower end of ",
           "the effect-size range (most conservative)."
         ),
         shiny::tags$div(
@@ -253,7 +253,7 @@ create_generic_test_ui <- function(test_id) {
         shiny::tags$small(
           class = "text-muted",
           "Required N at 80% and 90% power across a plausible ",
-          "range of effect sizes (§2.1 Layout 1). Double-click ",
+          "range of effect sizes (Sec.2.1 Layout 1). Double-click ",
           "an Effect-size cell to override the row; the table ",
           "recomputes."
         ),
@@ -265,7 +265,7 @@ create_generic_test_ui <- function(test_id) {
     ),
 
     # Per-panel formula citation footnote. Pulled from
-    # test_spec$formula_citation (populated in Wave 1) — one
+    # test_spec$formula_citation (populated in Wave 1) -- one
     # italic line below all the cards, above the global page
     # footer. Surfaces the methods-paper citation for the
     # currently-viewed test so reviewers reading the panel do
@@ -535,8 +535,8 @@ build_advanced_settings <- function(ns) {
     shiny::tags$small(
       class = "text-muted",
       "Used to compute power if the true effect is smaller than ",
-      "the headline (e.g. 0.7 → 30% smaller). Reported in the ",
-      "methods paragraph per ICH E9 §3.5."
+      "the headline (e.g. 0.7 -> 30% smaller). Reported in the ",
+      "methods paragraph per ICH E9 Sec.3.5."
     ),
 
     # Gap 12: sex-as-biological-variable paragraph toggle.

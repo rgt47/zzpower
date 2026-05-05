@@ -1,7 +1,7 @@
 Package: zzpower
 Type: Package
 Title: Interactive Power Analysis Calculator for Clinical Trial Designs
-Version: 0.7.0
+Version: 1.0.0
 Authors@R:
     person("Ronald 'Ryy' G", "Thomas", , "rgthomas@ucsd.edu", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0003-1686-4965"))

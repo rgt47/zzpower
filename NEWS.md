@@ -1,3 +1,62 @@
+# zzpower v1.0.0 (in development)
+
+## Wave 5: multi-aim aggregation (Gap 3, programmatic)
+
+The roadmap's Gap 3 calls for a study-level table assembling
+multiple Specific Aims into one §2.5 Layout 4 table. This
+release ships the **algorithmic core** as exported R functions;
+the Shiny nav-panel + URL-bookmarking UI is deferred to v1.1.x
+(it was the bulk of the 24h estimate).
+
+### New programmatic API
+
+* `multi_aim_study(study_name)` — initialise an empty study
+  object. Returns a `multi_aim_study` (S3) carrying optional
+  metadata and an aims list.
+* `add_aim(study, ctx, name, outcome)` — append one
+  `calc_context` (from `power_calc()`) per call. Accumulates
+  aims for the study.
+* `format_multi_aim_df(study)` — produce a tidy data frame
+  with columns Aim, Outcome, Test, Effect size, Alpha, Power,
+  N evaluable, N enrolled, Binding. The `Binding` column flags
+  the row whose enrolled N is the largest — the aim that
+  drives the overall study size.
+* `multi_aim_markdown(study)` — render the table as a
+  paste-ready Markdown block with §2.3-style caption, "Aim *"
+  asterisk on the binding row, and a one-line legend below.
+* `multi_aim_csv(study, file)` — return the table as a CSV
+  string (when `file = NULL`) or write it to disk. Reviewers
+  paste straight into Excel.
+
+### Worked example: reconstructing the Mohile R01 multi-aim table
+
+```r
+study <- multi_aim_study(study_name = "Reducing Chemo Toxicity")
+study <- add_aim(study,
+  power_calc("cluster_prop", target_power = 0.80,
+             effect_size = -0.13, effect_method = "difference",
+             m_cluster = 39, icc = 0.10, baseline = 0.46,
+             dropout = 0.10),
+  name = "Primary",
+  outcome = "Grade 3-5 chemo toxicity within 3 months")
+study <- add_aim(study,
+  power_calc("logrank", target_power = 0.80,
+             effect_size = 0.511, effect_method = "hazard_ratio",
+             event_prob = 0.7, dropout = 0.10),
+  name = "Secondary 1",
+  outcome = "6-month survival")
+multi_aim_markdown(study)
+```
+
+### Deferred (v1.1.x)
+
+* Shiny nav-panel "Multi-aim study" with `enableBookmarking('url')`
+  for shareable URL state, "Add this aim to study" buttons on
+  each test panel, in-app delete/rename, etc.
+* The programmatic API ships the data structures and rendering
+  logic that the nav-panel will consume; the deferred work is
+  pure UI plumbing.
+
 # zzpower v0.7.0 (in development)
 
 ## Wave 4: design coverage (Gaps 7, 8, 11)
