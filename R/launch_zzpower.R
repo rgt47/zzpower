@@ -61,7 +61,10 @@ launch_zzpower <- function(..., launch.browser = TRUE,
     trend_prop       = "#C69214",
     mixed_model      = "#00C6D7",
     logrank          = "#747678",
-    correlation      = "#6E963B"
+    correlation      = "#6E963B",
+    cluster_rct      = "#1B5E20",
+    cluster_prop     = "#33691E",
+    cluster_logrank  = "#827717"
   )
 
   test_categories <- list(
@@ -76,14 +79,18 @@ launch_zzpower <- function(..., launch.browser = TRUE,
     ),
     "Association" = c(
       "correlation"
+    ),
+    "Cluster-Randomized Designs" = c(
+      "cluster_rct", "cluster_prop", "cluster_logrank"
     )
   )
 
   category_bg <- c(
-    "Continuous Outcomes"     = "#cdd8e8",
-    "Binary Outcomes"         = "#fef3c7",
-    "Longitudinal & Survival" = "#c0ddd6",
-    "Association"             = "#d8cce0"
+    "Continuous Outcomes"        = "#cdd8e8",
+    "Binary Outcomes"            = "#fef3c7",
+    "Longitudinal & Survival"    = "#c0ddd6",
+    "Association"                = "#d8cce0",
+    "Cluster-Randomized Designs" = "#d4e8d4"
   )
 
   hero_panel <- bslib::nav_panel(
@@ -146,7 +153,7 @@ launch_zzpower <- function(..., launch.browser = TRUE,
             ),
             !!!lapply(cat_ids, function(tid) {
               spec <- registry[[tid]]
-              clr <- card_colors[[tid]] %||% "#182B49"
+              clr <- card_colors[tid] %||% "#182B49"
               bslib::card(
                 style = paste0(
                   "cursor: pointer;",
@@ -240,7 +247,7 @@ launch_zzpower <- function(..., launch.browser = TRUE,
 
   test_panels <- lapply(test_ids, function(test_id) {
     test_spec <- registry[[test_id]]
-    clr <- card_colors[[test_id]] %||% "#2c3e50"
+    clr <- card_colors[test_id] %||% "#2c3e50"
     bslib::nav_panel(
       value = test_spec$name,
       title = NULL,
