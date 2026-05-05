@@ -367,6 +367,14 @@ create_generic_test_server <- function(id, test_spec,
       ctx <- methods_paragraph_ctx()
       .render_methods_paragraph(ctx)
     })
+    # The card body is initially `display: none` so the user can
+    # opt in via the Show button. By default Shiny suspends
+    # outputs that are hidden from view -- which leaves the box
+    # empty when the user finally clicks Show, since the JS
+    # display toggle does not fire Shiny's visibility detection.
+    # Force the renderer to run regardless.
+    shiny::outputOptions(output, "methods_paragraph_text",
+                         suspendWhenHidden = FALSE)
 
     # ===== SENSITIVITY TABLE (Gap 2) =====
     # Editable effect-size column seeded from the registry's
@@ -583,11 +591,6 @@ create_generic_test_server <- function(id, test_spec,
         ok <- results[!is.na(results$power), , drop = FALSE]
         if (nrow(ok) == 0L) return(NULL)
 
-        # Smallest effect at which the power curve crosses the
-        # 80% / 90% thresholds. NA when the curve never reaches.
-        cross80 <- which(ok$power >= 0.80)[1]
-        cross90 <- which(ok$power >= 0.90)[1]
-
         # Pull canonical totals + per-arm breakdown from the
         # already-canonicalized sample_sizes record (Gap 4).
         ss <- study_parameters()
@@ -595,16 +598,12 @@ create_generic_test_server <- function(id, test_spec,
         list(
           mode = "power",
           es_label = es_label,
-          es_at_80 = if (length(cross80) > 0L && !is.na(cross80)) {
-            ok$effect_size[cross80]
-          } else {
-            NA_real_
-          },
-          es_at_90 = if (length(cross90) > 0L && !is.na(cross90)) {
-            ok$effect_size[cross90]
-          } else {
-            NA_real_
-          },
+          # Linear interpolation gives the effect size where the
+          # curve crosses the threshold exactly; the headline
+          # value box reports this number, and the plot's gold/
+          # grey dots use the same value so the two agree.
+          es_at_80 = .threshold_crossing(ok, 0.80),
+          es_at_90 = .threshold_crossing(ok, 0.90),
           n_total          = ss$n_total_evaluable %||%
                               ss$n %||% NA_real_,
           n_per_arm        = ss$n_per_arm_evaluable,
@@ -705,6 +704,26 @@ create_generic_test_server <- function(id, test_spec,
     }
 
     # ===== PLOT OUTPUT =====
+    # Linearly interpolate the effect size at which the power
+    # curve crosses a target threshold (0.80, 0.90). Returns NA if
+    # the curve never reaches. Both the headline value-boxes and
+    # the plot annotations consume this so the reported number
+    # and the dot position agree, and the dot sits on both the
+    # curve and the threshold line.
+    .threshold_crossing <- function(df, threshold) {
+      df <- df[!is.na(df$power), , drop = FALSE]
+      if (nrow(df) == 0) return(NA_real_)
+      idx_above <- which(df$power >= threshold)
+      if (length(idx_above) == 0) return(NA_real_)
+      i2 <- idx_above[1]
+      if (i2 == 1L) return(df$effect_size[1])  # already at/above
+      i1 <- i2 - 1L
+      p1 <- df$power[i1]; p2 <- df$power[i2]
+      e1 <- df$effect_size[i1]; e2 <- df$effect_size[i2]
+      if (isTRUE(all.equal(p2, p1))) return(e1)
+      e1 + (threshold - p1) / (p2 - p1) * (e2 - e1)
+    }
+
     .build_power_ggplot <- function() {
       # Keep the previous plot on screen while inputs are in
       # transient flight. Only show the validation message if the
@@ -719,16 +738,15 @@ create_generic_test_server <- function(id, test_spec,
         results <- results[!is.na(results$power), , drop = FALSE]
         shiny::req(nrow(results) > 0, cancelOutput = TRUE)
 
-        # Identify the smallest effect size that reaches 80% (gold,
-        # primary) and 90% (gray, secondary) power thresholds.
-        cross_80 <- which(results$power >= 0.80)[1]
-        cross_90 <- which(results$power >= 0.90)[1]
+        # Linearly interpolate the actual curve-threshold crossing
+        # so the gold/grey dots sit on both the curve and the
+        # threshold line, not at the next grid point above.
+        x80 <- .threshold_crossing(results, 0.80)
+        x90 <- .threshold_crossing(results, 0.90)
 
-        layer_80 <- if (!is.na(cross_80) && length(cross_80)) {
-          x80 <- results$effect_size[cross_80]
-          y80 <- results$power[cross_80]
+        layer_80 <- if (!is.na(x80)) {
           df_80 <- data.frame(
-            x = x80, y = y80,
+            x = x80, y = 0.80,
             lbl = sprintf("80%% at %.3f", x80),
             stringsAsFactors = FALSE
           )
@@ -753,11 +771,9 @@ create_generic_test_server <- function(id, test_spec,
           list()
         }
 
-        layer_90 <- if (!is.na(cross_90) && length(cross_90)) {
-          x90 <- results$effect_size[cross_90]
-          y90 <- results$power[cross_90]
+        layer_90 <- if (!is.na(x90)) {
           df_90 <- data.frame(
-            x = x90, y = y90,
+            x = x90, y = 0.90,
             lbl = sprintf("90%% at %.3f", x90),
             stringsAsFactors = FALSE
           )

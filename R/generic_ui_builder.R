@@ -320,7 +320,7 @@ create_generic_test_ui <- function(test_id) {
             class = "alert alert-info small",
             shiny::p(
               shiny::strong("What this is: "),
-              "the text below is a ", shiny::strong("draft"),
+              "the text at the bottom is a ", shiny::strong("draft"),
               " sample-size statement assembled from your current ",
               "inputs. The wording follows what NIH reviewers ",
               "expect (the Statistical Design and Power section of ",
@@ -346,8 +346,65 @@ create_generic_test_ui <- function(test_id) {
               "the conventions of your funding agency."
             )
           ),
+
+          # Reference boilerplate -- verbatim guidance excerpts
+          # so the user can see what is stock language vs.
+          # what has been filled in for them.
+          shiny::tags$h6(
+            class = "text-muted small mt-3 mb-2",
+            "Source guidance (verbatim)"
+          ),
+          shiny::tags$blockquote(
+            class = "small text-muted",
+            style = paste0("font-style: italic; ",
+                           "border-left: 3px solid #dee2e6; ",
+                           "padding-left: 0.75rem; ",
+                           "margin-left: 0; margin-bottom: 0.75rem;"),
+            shiny::tags$strong("NIH Statistical Design and Power form (PHS 398, Forms-I): "),
+            "\"Specify the number of subjects you expect to enroll, ",
+            "the expected effect size, the power, and the ",
+            "statistical methods you will use with respect to each ",
+            "outcome measure you listed in 4.3 Outcome Measures. ",
+            "You will need to show that your methods for sample ",
+            "size and data analysis are appropriate given your ",
+            "plans for assignment of participants and delivery of ",
+            "interventions. For trials that randomize groups or ",
+            "deliver interventions to groups, special methods are ",
+            "required.\""
+          ),
+          shiny::tags$blockquote(
+            class = "small text-muted",
+            style = paste0("font-style: italic; ",
+                           "border-left: 3px solid #dee2e6; ",
+                           "padding-left: 0.75rem; ",
+                           "margin-left: 0; margin-bottom: 0.75rem;"),
+            shiny::tags$strong("ICH E9 Sec. 3.5 (Statistical Principles for Clinical Trials): "),
+            "\"Using the usual method for determining the ",
+            "appropriate sample size, the following items should be ",
+            "specified: a primary variable, the test statistic, the ",
+            "null hypothesis, the alternative ('working') ",
+            "hypothesis at the chosen dose(s), the probability of ",
+            "erroneously rejecting the null hypothesis (the type I ",
+            "error), and the probability of erroneously failing to ",
+            "reject the null hypothesis (the type II error), as ",
+            "well as the approach to dealing with treatment ",
+            "withdrawals and protocol violations. ",
+            "It is important to investigate the sensitivity of the ",
+            "sample size estimate to a variety of deviations from ",
+            "these assumptions and this may be facilitated by ",
+            "providing a range of sample sizes appropriate for a ",
+            "reasonable range of deviations from assumptions.\""
+          ),
+
+          shiny::tags$hr(class = "my-2"),
+          shiny::tags$h6(
+            class = "small mt-3 mb-2",
+            "Your draft, with current inputs filled in"
+          ),
           shiny::tags$div(
-            style = "white-space: pre-wrap; line-height: 1.5; padding: 0.5rem; background: #f8f9fa; border-radius: 4px; margin-top: 0.5rem;",
+            style = paste0("white-space: pre-wrap; line-height: 1.5; ",
+                           "padding: 0.75rem; background: #f8f9fa; ",
+                           "border-radius: 4px;"),
             shiny::textOutput(ns("methods_paragraph_text"),
                               inline = FALSE)
           )
