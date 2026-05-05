@@ -184,7 +184,14 @@ shiny::testServer(
     d <- headline_data()
     expect_false(is.null(d))
     expect_equal(d$mode, "power")
-    expect_true(d$max_power >= 0 && d$max_power <= 1)
+    # 80%- and 90%-threshold effect sizes are NA when the curve
+    # never reaches; otherwise positive scalars.
+    expect_true(is.na(d$es_at_80) ||
+                  (d$es_at_80 > 0 && d$es_at_80 < 5))
+    expect_true(is.na(d$es_at_90) ||
+                  (d$es_at_90 > 0 && d$es_at_90 < 5))
+    # Total N reads from the canonical 4-layer record.
+    expect_true(!is.na(d$n_total) && d$n_total > 0)
   }
 )
 

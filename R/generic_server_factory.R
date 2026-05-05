@@ -583,21 +583,33 @@ create_generic_test_server <- function(id, test_spec,
         ok <- results[!is.na(results$power), , drop = FALSE]
         if (nrow(ok) == 0L) return(NULL)
 
-        max_idx <- which.max(ok$power)
-        cross_idx <- which(ok$power >= 0.80)[1]
+        # Smallest effect at which the power curve crosses the
+        # 80% / 90% thresholds. NA when the curve never reaches.
+        cross80 <- which(ok$power >= 0.80)[1]
+        cross90 <- which(ok$power >= 0.90)[1]
+
+        # Pull canonical totals + per-arm breakdown from the
+        # already-canonicalized sample_sizes record (Gap 4).
+        ss <- study_parameters()
 
         list(
           mode = "power",
           es_label = es_label,
-          max_power = ok$power[max_idx],
-          max_power_es = ok$effect_size[max_idx],
-          es_at_80 = if (length(cross_idx) > 0L && !is.na(cross_idx)) {
-            ok$effect_size[cross_idx]
+          es_at_80 = if (length(cross80) > 0L && !is.na(cross80)) {
+            ok$effect_size[cross80]
           } else {
             NA_real_
           },
-          n_total = study_parameters()$n_total %||%
-            study_parameters()$n %||% NA_real_
+          es_at_90 = if (length(cross90) > 0L && !is.na(cross90)) {
+            ok$effect_size[cross90]
+          } else {
+            NA_real_
+          },
+          n_total          = ss$n_total_evaluable %||%
+                              ss$n %||% NA_real_,
+          n_per_arm        = ss$n_per_arm_evaluable,
+          n_arms           = ss$n_arms %||% 1L,
+          arm_labels       = ss$arm_labels
         )
       } else {
         results <- shiny::req(sample_size_results())
@@ -636,14 +648,14 @@ create_generic_test_server <- function(id, test_spec,
     output$headline_box2_title <- shiny::renderText({
       d <- shiny::req(headline_data(), cancelOutput = TRUE)
       if (is.null(d)) return("--")
-      if (d$mode == "power") "Maximum power in range" else "Largest N required"
+      if (d$mode == "power") "Effect size for 90% power" else "Largest N required"
     })
     output$headline_box2_value <- shiny::renderText({
       d <- shiny::req(headline_data(), cancelOutput = TRUE)
       if (is.null(d)) return("--")
       if (d$mode == "power") {
-        sprintf("%.1f%% (at %s = %.3f)",
-                d$max_power * 100, d$es_label, d$max_power_es)
+        if (is.na(d$es_at_90)) "Not reached" else
+          sprintf("%s = %.3f", d$es_label, d$es_at_90)
       } else {
         sprintf("N = %.0f (at %s = %.3f)",
                 d$n_max, d$es_label, d$n_max_es)
@@ -659,8 +671,17 @@ create_generic_test_server <- function(id, test_spec,
       d <- shiny::req(headline_data(), cancelOutput = TRUE)
       if (is.null(d)) return("--")
       if (d$mode == "power") {
-        if (is.na(d$n_total)) "(see inputs)" else
+        if (is.na(d$n_total)) return("(see inputs)")
+        # Two-arm tests show the per-arm split when the arms are
+        # unequal; single-N tests show just the total.
+        per <- d$n_per_arm
+        if (!is.null(per) && length(per) >= 2L &&
+            !isTRUE(all.equal(per[1], per[2]))) {
+          sprintf("N = %.0f (%.0f + %.0f)",
+                  d$n_total, per[1], per[2])
+        } else {
           sprintf("N = %.0f", d$n_total)
+        }
       } else {
         sprintf("%.0f%%", d$target_power * 100)
       }
