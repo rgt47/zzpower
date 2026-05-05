@@ -15,7 +15,9 @@ trend_power <- getFromNamespace("trend_power", "zzpower")
 registry <- get_power_test_registry()
 
 expect_true(is.list(registry))
-expect_equal(length(registry), 11)
+# Registry was 11 entries originally; Wave 4 / Gap 7 added three
+# cluster-RCT specs (cluster_rct, cluster_prop, cluster_logrank).
+expect_equal(length(registry), 14)
 
 expected_tests <- c(
   "ttest_2groups",
@@ -28,7 +30,10 @@ expected_tests <- c(
   "trend_prop",
   "anova_oneway",
   "mcnemar",
-  "mixed_model"
+  "mixed_model",
+  "cluster_rct",
+  "cluster_prop",
+  "cluster_logrank"
 )
 
 expect_equal(sort(names(registry)), sort(expected_tests))
@@ -354,9 +359,12 @@ spec <- registry$logrank
 params <- spec$sample_size_calc(list(
   sample_size = 200,
   event_prob = 0.5,
-  allocation = "equal"
+  allocation = "equal",
+  dropout = 0
 ))
 
+# logrank back-compat n1/n2 are expected EVENTS:
+# evaluable per arm 100, * event_prob 0.5 = 50.
 expect_equal(params$n1, 50)
 expect_equal(params$n2, 50)
 
@@ -420,7 +428,7 @@ registry <- get_power_test_registry()
 spec <- registry$fisher_exact
 
 params <- spec$sample_size_calc(list(
-  sample_size = 60, allocation = "equal"
+  sample_size = 60, allocation = "equal", dropout = 0
 ))
 
 expect_equal(params$n1, 30)
