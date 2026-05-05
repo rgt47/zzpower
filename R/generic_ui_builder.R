@@ -131,7 +131,18 @@ create_generic_test_ui <- function(test_id) {
       bslib::card(
         full_screen = TRUE,
         height = "420px",
-        bslib::card_header("Power Curve"),
+        bslib::card_header(
+          shiny::div(
+            class = "d-flex justify-content-between align-items-center",
+            shiny::span("Power Curve"),
+            shiny::downloadButton(
+              ns("download_plot_png"),
+              label = "PNG",
+              class = "btn btn-sm btn-outline-secondary",
+              icon = shiny::icon("image")
+            )
+          )
+        ),
         bslib::card_body(
           fillable = TRUE,
           min_height = "320px",

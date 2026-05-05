@@ -1010,6 +1010,30 @@ create_generic_test_server <- function(id, test_spec,
       }
     }
 
+    output$download_plot_png <- shiny::downloadHandler(
+      filename = function() {
+        sprintf("zzpower_plot_%s_%s.png",
+                test_spec$id,
+                format(Sys.time(), "%Y%m%d_%H%M%S"))
+      },
+      content = function(file) {
+        plot <- tryCatch(.build_power_ggplot(),
+                         error = function(e) NULL)
+        if (is.null(plot)) {
+          # Build a fallback empty plot rather than failing
+          # silently when the inputs are still in flight.
+          plot <- ggplot2::ggplot() +
+            ggplot2::annotate("text", x = 0, y = 0,
+                              label = "No plot available")
+        }
+        ggplot2::ggsave(
+          filename = file, plot = plot,
+          width = 8, height = 5, dpi = 300, bg = "white"
+        )
+      },
+      contentType = "image/png"
+    )
+
     output$power_plot <- shiny::renderPlot({
       .build_power_ggplot()
     })
