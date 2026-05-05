@@ -516,7 +516,24 @@ power_table <- function(test, effect_grid = NULL,
 #' @return A short noun phrase suitable for a methods paragraph.
 #'
 #' @keywords internal
-.effect_method_phrase <- function(method) {
+.effect_method_phrase <- function(method, test_id = NULL) {
+  # `difference` is reused across tests with two different
+  # meanings: a mean difference (continuous outcome -- ttest,
+  # mixed_model, cluster_rct) versus a proportion difference
+  # (binary outcome -- prop_2groups, cluster_prop). Disambiguate
+  # by test_id when supplied; default to a generic phrase.
+  if (identical(method, "difference") && !is.null(test_id)) {
+    if (test_id %in% c("ttest_2groups", "ttest_paired",
+                        "ttest_one_sample", "mixed_model",
+                        "cluster_rct")) {
+      return("the mean difference")
+    }
+    if (test_id %in% c("prop_2groups", "fisher_exact",
+                        "cluster_prop")) {
+      return("the proportion difference")
+    }
+  }
+
   switch(method,
     cohens_d          = "Cohen's d",
     cohens_f          = "Cohen's f",
@@ -524,7 +541,7 @@ power_table <- function(test, effect_grid = NULL,
     hazard_ratio      = "the hazard ratio",
     odds_ratio        = "the odds ratio",
     relative_risk     = "the relative risk",
-    difference        = "the proportion difference",
+    difference        = "the difference",
     proportions       = "the treatment-arm proportion",
     percent_reduction = "the percent reduction",
     active_change     = "the treatment-arm change",
@@ -608,7 +625,7 @@ power_table <- function(test, effect_grid = NULL,
                 ctx$test_name)
 
   # Sentence 2: effect-size assumption + citation.
-  effect_label <- .effect_method_phrase(ctx$effect_method %||% "")
+  effect_label <- .effect_method_phrase(ctx$effect_method %||% "", ctx$test_id)
   if (!is.na(ctx$effect_size_std) &&
       !isTRUE(all.equal(ctx$effect_size_std, ctx$effect_size))) {
     s2 <- sprintf(
@@ -741,7 +758,17 @@ power_table <- function(test, effect_grid = NULL,
     ""
   }
 
-  parts <- c(s1, s2, s3, s4, s5, s6, s7)
+  # Editorial note appended to every draft. Bracketed and
+  # italics-marked so the writer sees it clearly and removes it
+  # before pasting; ships in copy/download too so the reminder
+  # is impossible to miss.
+  s_note <- paste0(
+    "[Modify as appropriate for your study -- this paragraph is ",
+    "generated from the slider state and is meant as a starting ",
+    "point, not finished prose.]"
+  )
+
+  parts <- c(s1, s2, s3, s4, s5, s6, s7, s_note)
   paste(parts[nzchar(parts)], collapse = " ")
 }
 
@@ -985,7 +1012,7 @@ format_multi_aim_df <- function(study) {
   }
   effect_str <- vapply(study$aims, function(ctx) {
     sprintf("%s = %s",
-            .effect_method_phrase(ctx$effect_method %||% ""),
+            .effect_method_phrase(ctx$effect_method %||% "", ctx$test_id),
             formatC(ctx$effect_size, digits = 3, format = "g"))
   }, character(1))
   power_vals <- vapply(study$aims, function(ctx) {
@@ -1116,7 +1143,7 @@ get_power_test_registry <- function() {
 create_ttest_2groups_spec <- function() {
   list(
     id = "ttest_2groups",
-    name = "Two-Group t-test",
+    name = "Two-Sample t-test",
     description = "Independent samples t-test for continuous outcomes",
     icon = "bar-chart-line",
     power_function = pwr::pwr.t2n.test,
@@ -1531,7 +1558,7 @@ create_prop_2groups_spec <- function() {
 create_correlation_spec <- function() {
   list(
     id = "correlation",
-    name = "Correlation Test",
+    name = "Pearson Correlation Test",
     description = "Test for correlation between two variables",
     icon = "diagram-2",
     power_function = pwr::pwr.r.test,
@@ -1600,7 +1627,7 @@ create_correlation_spec <- function() {
 create_logrank_spec <- function() {
   list(
     id = "logrank",
-    name = "Survival Log-rank",
+    name = "Log-rank Test",
     description = "Log-rank test comparing two survival curves",
     icon = "hourglass-split",
     power_function = logrank_power,
@@ -1819,7 +1846,7 @@ create_fisher_exact_spec <- function() {
 create_trend_prop_spec <- function() {
   list(
     id = "trend_prop",
-    name = "Trend in Proportions",
+    name = "Cochran-Armitage Trend Test",
     description = "Cochran-Armitage test for dose-response trend",
     icon = "graph-up-arrow",
     power_function = trend_power,
@@ -2015,7 +2042,7 @@ create_anova_oneway_spec <- function() {
 create_mcnemar_spec <- function() {
   list(
     id = "mcnemar",
-    name = "McNemar Test",
+    name = "McNemar's Test",
     description = "Paired proportions (before-after binary outcomes)",
     icon = "arrow-left-right",
     power_function = mcnemar_power,
@@ -2198,7 +2225,7 @@ create_mixed_model_spec <- function() {
 create_cluster_rct_spec <- function() {
   list(
     id = "cluster_rct",
-    name = "Cluster-Randomized RCT (continuous)",
+    name = "Cluster-Randomized Trial (continuous)",
     description = "Cluster-randomized two-group trial with continuous outcome",
     icon = "diagram-3",
     power_function = pwr::pwr.t2n.test,
@@ -2315,7 +2342,7 @@ create_cluster_rct_spec <- function() {
 create_cluster_prop_spec <- function() {
   list(
     id = "cluster_prop",
-    name = "Cluster-Randomized RCT (proportion)",
+    name = "Cluster-Randomized Trial (proportion)",
     description = "Cluster-randomized two-group trial with binary outcome",
     icon = "diagram-3-fill",
     power_function = pwr::pwr.2p2n.test,

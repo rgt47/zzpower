@@ -65,7 +65,7 @@ registry <- get_power_test_registry()
 spec <- registry$ttest_2groups
 
 expect_equal(spec$id, "ttest_2groups")
-expect_equal(spec$name, "Two-Group t-test")
+expect_equal(spec$name, "Two-Sample t-test")
 expect_true("cohens_d" %in% spec$effect_size_methods)
 expect_true("sample_size" %in% names(spec$parameters))
 expect_true("dropout" %in% names(spec$parameters))
@@ -106,7 +106,7 @@ registry <- get_power_test_registry()
 spec <- registry$correlation
 
 expect_equal(spec$id, "correlation")
-expect_equal(spec$name, "Correlation Test")
+expect_equal(spec$name, "Pearson Correlation Test")
 expect_true("correlation" %in% spec$effect_size_methods)
 
 
@@ -223,7 +223,7 @@ spec <- registry$ttest_2groups
 
 report_data <- list(
   test_id = "ttest_2groups",
-  test_name = "Two-Group t-test",
+  test_name = "Two-Sample t-test",
   format = "text",
   timestamp = Sys.time(),
   r_version = "4.0.0",
@@ -250,7 +250,7 @@ expect_true(is.character(report_text))
 expect_true(length(report_text) > 0)
 # Flatten the list to check content
 report_content <- paste(report_text, collapse = "\n")
-expect_true(grepl("Two-Group t-test", report_content))
+expect_true(grepl("Two-Sample t-test", report_content))
 
 
 registry <- get_power_test_registry()
@@ -258,7 +258,7 @@ spec <- registry$ttest_2groups
 
 report_data <- list(
   test_id = "ttest_2groups",
-  test_name = "Two-Group t-test",
+  test_name = "Two-Sample t-test",
   format = "html",
   timestamp = Sys.time(),
   r_version = "4.0.0",
@@ -333,7 +333,7 @@ registry <- get_power_test_registry()
 spec <- registry$logrank
 
 expect_equal(spec$id, "logrank")
-expect_equal(spec$name, "Survival Log-rank")
+expect_equal(spec$name, "Log-rank Test")
 expect_true("hazard_ratio" %in% spec$effect_size_methods)
 expect_true("sample_size" %in% names(spec$parameters))
 expect_true("event_prob" %in% names(spec$parameters))
@@ -431,7 +431,7 @@ registry <- get_power_test_registry()
 spec <- registry$trend_prop
 
 expect_equal(spec$id, "trend_prop")
-expect_equal(spec$name, "Trend in Proportions")
+expect_equal(spec$name, "Cochran-Armitage Trend Test")
 expect_true("prop_range" %in% spec$effect_size_methods)
 expect_true("sample_size" %in% names(spec$parameters))
 expect_true("n_groups" %in% names(spec$parameters))

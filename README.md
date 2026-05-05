@@ -80,7 +80,7 @@ The application includes 5 statistical tests via a scalable plugin architecture:
 
 | Test | Use Case | Effect Size |
 |:-----|:---------|:------------|
-| Two-Group t-test | Parallel RCT designs | Cohen's d, % reduction |
+| Two-Sample t-test | Parallel RCT designs | Cohen's d, % reduction |
 | Paired t-test | Before-after designs | Standardized difference |
 | One-Sample t-test | Single-group vs reference | Cohen's d |
 | Two Proportions | Binary outcomes | Proportions, OR, RR |

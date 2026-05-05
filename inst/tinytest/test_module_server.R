@@ -299,7 +299,7 @@ ctx$include_sex_paragraph <- TRUE
 
 para <- .render_methods_paragraph(ctx)
 expect_true(nchar(para) > 200)                       # not truncated
-expect_true(grepl("Two-Group t-test", para, fixed = TRUE))
+expect_true(grepl("Two-Sample t-test", para, fixed = TRUE))
 expect_true(grepl("Smith et al. 2019", para, fixed = TRUE))
 expect_true(grepl("Cohen's d", para, fixed = TRUE))
 expect_true(grepl("alpha=0.05", para, fixed = TRUE))  # alpha shown
@@ -345,7 +345,7 @@ shiny::testServer(
     out <- output$methods_paragraph_text
     expect_true(nchar(out) > 200)
     expect_true(grepl("Test Citation 2026", out, fixed = TRUE))
-    expect_true(grepl("Two-Group t-test", out, fixed = TRUE))
+    expect_true(grepl("Two-Sample t-test", out, fixed = TRUE))
   }
 )
 

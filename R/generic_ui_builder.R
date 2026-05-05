@@ -351,9 +351,10 @@ create_generic_test_ui <- function(test_id) {
                 shiny::strong("What this is: "),
                 "the text below is a ", shiny::strong("draft"),
                 " sample-size statement assembled from your current ",
-                "inputs. The wording follows what NIH reviewers ",
-                "expect (the Statistical Design and Power section ",
-                "of the Human Subjects form) and what regulatory ",
+                "inputs. The wording follows what NIH reviewer ",
+                "instructions advise (the Statistical Design and ",
+                "Power section of the Human Subjects form) and ",
+                "what regulatory ",
                 "guidelines require (ICH E9, the international ",
                 "standard for clinical-trial statistics). ",
                 "It is taken nearly verbatim from those guidance ",
@@ -428,7 +429,8 @@ create_generic_test_ui <- function(test_id) {
             shiny::tags$hr(class = "my-2"),
             shiny::tags$h6(
               class = "small mt-3 mb-2",
-              "Your draft, with current inputs filled in"
+              "Your draft (review and modify each sentence as ",
+              "appropriate for your study)"
             ),
             shiny::tags$div(
               style = paste0("white-space: pre-wrap; ",
@@ -437,6 +439,14 @@ create_generic_test_ui <- function(test_id) {
                              "border-radius: 4px;"),
               shiny::textOutput(ns("methods_paragraph_text"),
                                 inline = FALSE)
+            ),
+            shiny::tags$p(
+              class = "small text-muted mt-2 mb-0",
+              shiny::tags$em(
+                "Modify as appropriate before pasting into your ",
+                "proposal -- the generated wording is a starting ",
+                "point, not finished prose."
+              )
             )
           )
         ),
