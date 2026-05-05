@@ -179,50 +179,6 @@ create_generic_test_ui <- function(test_id) {
       )
     ),
 
-    # Gap 1: methods-section paragraph generator. Single full-width
-    # card with a verbatim paragraph and a clipboard-copy button.
-    # Inputs feeding it (effect-source citation, sensitivity factor,
-    # sex-paragraph toggle) live in the sidebar's Advanced Settings.
-    bslib::card(
-      bslib::card_header(
-        shiny::div(
-          class = "d-flex justify-content-between align-items-center",
-          shiny::span(
-            bsicons::bs_icon("file-earmark-text"),
-            " Methods paragraph"
-          ),
-          shiny::actionButton(
-            ns("copy_methods_paragraph"),
-            label = "Copy",
-            class = "btn btn-sm btn-outline-primary",
-            onclick = sprintf(
-              paste0(
-                "navigator.clipboard.writeText(",
-                "document.getElementById('%s').innerText); ",
-                "this.innerText='Copied'; ",
-                "setTimeout(function(b){b.innerText='Copy';}, 1500, this);"
-              ),
-              ns("methods_paragraph_text")
-            )
-          )
-        )
-      ),
-      bslib::card_body(
-        shiny::tags$small(
-          class = "text-muted",
-          "Paste-ready Glueck-Muller-shaped paragraph for the NIH ",
-          "Statistical Design and Power attachment or an ICH E9 ",
-          "Sec.3.5 sample-size statement. Reflects the lower end of ",
-          "the effect-size range (most conservative)."
-        ),
-        shiny::tags$div(
-          style = "white-space: pre-wrap; line-height: 1.5; padding: 0.5rem; background: #f8f9fa; border-radius: 4px; margin-top: 0.5rem;",
-          shiny::textOutput(ns("methods_paragraph_text"),
-                            inline = FALSE)
-        )
-      )
-    ),
-
     # Gap 2: sensitivity table. The Effect-size column (column 0)
     # is editable; double-click a cell to override and the four
     # N columns recompute. Default rows seed from the registry's
@@ -236,6 +192,18 @@ create_generic_test_ui <- function(test_id) {
             " Sensitivity table"
           ),
           shiny::div(
+            shiny::actionButton(
+              ns("sensitivity_add_row"),
+              label = "Add row",
+              class = "btn btn-sm btn-outline-secondary me-1",
+              icon = shiny::icon("plus")
+            ),
+            shiny::actionButton(
+              ns("sensitivity_delete_row"),
+              label = "Delete selected",
+              class = "btn btn-sm btn-outline-secondary me-1",
+              icon = shiny::icon("trash")
+            ),
             shiny::downloadButton(
               ns("download_sensitivity_csv"),
               label = "CSV",
@@ -250,16 +218,139 @@ create_generic_test_ui <- function(test_id) {
         )
       ),
       bslib::card_body(
-        shiny::tags$small(
-          class = "text-muted",
-          "Required N at 80% and 90% power across a plausible ",
-          "range of effect sizes (Sec.2.1 Layout 1). Double-click ",
-          "an Effect-size cell to override the row; the table ",
-          "recomputes."
+        shiny::div(
+          class = "small text-muted",
+          shiny::p(
+            shiny::strong("What this table shows: "),
+            "the total sample size required to achieve the listed ",
+            "power across a plausible range of effect sizes. ",
+            "Reviewers cite this kind of sensitivity analysis when ",
+            "your assumed effect size is uncertain. Edit, add, or ",
+            "delete rows to match the range of effect sizes ",
+            "reported in your prior literature."
+          ),
+          shiny::p(
+            shiny::strong("Columns: "),
+            shiny::tags$code("Effect size"),
+            " is the assumed effect on the native scale (e.g. ",
+            "Cohen's d, hazard ratio); ",
+            shiny::tags$code("Standardised"),
+            " is the same effect on the universal scale used by ",
+            "the power formula. ",
+            shiny::tags$code("N evaluable"),
+            " is the analyzable sample size after losses to ",
+            "follow-up (the value the power calculation uses); ",
+            shiny::tags$code("N enrolled"),
+            " is the larger ITT count you actually recruit, ",
+            "inflated for the dropout rate set in the sidebar. ",
+            "Each pair (",
+            shiny::tags$code("@ 80%"), ", ", shiny::tags$code("@ 90%"),
+            ") is computed at that target power."
+          ),
+          shiny::p(
+            shiny::strong("How to edit: "),
+            "double-click a cell in the ",
+            shiny::tags$code("Effect size"), " column to override ",
+            "it; the four N columns recompute. ",
+            shiny::tags$code("Add row"),
+            " inserts a new effect-size value at the median; ",
+            shiny::tags$code("Delete selected"),
+            " removes the row(s) you've clicked to highlight."
+          )
         ),
         shiny::tags$div(
           style = "margin-top: 0.5rem;",
           DT::DTOutput(ns("sensitivity_table"))
+        )
+      )
+    ),
+
+    # Gap 1: methods-section paragraph generator. Last card on the
+    # page, collapsed by default. Click "Show / Hide" to toggle the
+    # paragraph body. The intro inside explains in plain language
+    # what the paragraph is for and how to use it; reviewers should
+    # not paste the generated text verbatim without editing.
+    bslib::card(
+      bslib::card_header(
+        shiny::div(
+          class = "d-flex justify-content-between align-items-center",
+          shiny::span(
+            bsicons::bs_icon("file-earmark-text"),
+            " Draft methods paragraph"
+          ),
+          shiny::div(
+            shiny::tags$button(
+              type = "button",
+              class = "btn btn-sm btn-outline-primary me-1",
+              id = ns("toggle_methods_btn"),
+              "Show",
+              onclick = sprintf(
+                paste0(
+                  "var b = document.getElementById('%s'); ",
+                  "var hidden = (b.style.display === 'none' ",
+                  "|| b.style.display === ''); ",
+                  "b.style.display = hidden ? 'block' : 'none'; ",
+                  "this.innerText = hidden ? 'Hide' : 'Show';"
+                ),
+                ns("methods_body")
+              )
+            ),
+            shiny::actionButton(
+              ns("copy_methods_paragraph"),
+              label = "Copy",
+              class = "btn btn-sm btn-outline-primary",
+              onclick = sprintf(
+                paste0(
+                  "navigator.clipboard.writeText(",
+                  "document.getElementById('%s').innerText); ",
+                  "this.innerText='Copied'; ",
+                  "setTimeout(function(b){b.innerText='Copy';}, 1500, this);"
+                ),
+                ns("methods_paragraph_text")
+              )
+            )
+          )
+        )
+      ),
+      bslib::card_body(
+        shiny::tags$div(
+          id = ns("methods_body"),
+          style = "display: none;",
+          shiny::tags$div(
+            class = "alert alert-info small",
+            shiny::p(
+              shiny::strong("What this is: "),
+              "the text below is a ", shiny::strong("draft"),
+              " sample-size statement assembled from your current ",
+              "inputs. The wording follows what NIH reviewers ",
+              "expect (the Statistical Design and Power section of ",
+              "the Human Subjects form) and what regulatory ",
+              "guidelines require (ICH E9, the international ",
+              "standard for clinical-trial statistics). ",
+              "It is taken nearly verbatim from those guidance ",
+              "documents with your slider values filled in."
+            ),
+            shiny::p(
+              shiny::strong("How to use it: "),
+              "treat this as a starting point, not finished prose. ",
+              "Edit it to match your study's terminology, your ",
+              "primary outcome, and the direction of your effect. ",
+              "Replace ",
+              shiny::tags$em("\"pilot data, citation pending\""),
+              " by entering your effect-size source in the ",
+              shiny::tags$em("Effect-Size Source"),
+              " text box under ",
+              shiny::tags$em("Advanced Settings"),
+              " in the sidebar. Adjust the sensitivity-multiplier ",
+              "and sex-as-biological-variable controls to match ",
+              "the conventions of your funding agency."
+            )
+          ),
+          shiny::tags$div(
+            style = "white-space: pre-wrap; line-height: 1.5; padding: 0.5rem; background: #f8f9fa; border-radius: 4px; margin-top: 0.5rem;",
+            shiny::textOutput(ns("methods_paragraph_text"),
+                              inline = FALSE)
+          )
         )
       )
     ),

@@ -438,10 +438,10 @@ create_generic_test_server <- function(id, test_spec,
       display <- data.frame(
         `Effect size`        = df$effect_size,
         `Standardised`       = round(df$effect_size_std, 3),
-        `N enrolled @ 80%`   = round(df$n_total_enrolled_p80),
         `N evaluable @ 80%`  = round(df$n_total_evaluable_p80),
-        `N enrolled @ 90%`   = round(df$n_total_enrolled_p90),
+        `N enrolled @ 80%`   = round(df$n_total_enrolled_p80),
         `N evaluable @ 90%`  = round(df$n_total_evaluable_p90),
+        `N enrolled @ 90%`   = round(df$n_total_enrolled_p90),
         check.names = FALSE,
         stringsAsFactors = FALSE
       )
@@ -453,22 +453,33 @@ create_generic_test_server <- function(id, test_spec,
         options = list(
           dom = "t", paging = FALSE,
           searching = FALSE, info = FALSE,
+          # Disable sorting so DT's cell_edit$row matches the
+          # data-frame row index. With sorting enabled, clicking a
+          # column header reorders the visible rows but leaves the
+          # underlying `sensitivity_grid()` vector untouched, so an
+          # edit at visible row N would write to data row N -- a
+          # different effect-size value than the user clicked.
+          ordering = FALSE,
           columnDefs = list(
             list(className = "dt-left",  targets = 0),
             list(className = "dt-right", targets = 1:5)
           )
         ),
         rownames = FALSE,
-        selection = "none"
+        # Multi-row selection so the "Delete selected" button can
+        # target specific rows. Click a row to highlight; click
+        # again to deselect.
+        selection = list(mode = "multiple", target = "row")
       )
-    })
+    }, server = TRUE)
 
     shiny::observeEvent(input$sensitivity_table_cell_edit, {
       edit <- input$sensitivity_table_cell_edit
       grid <- sensitivity_grid()
 
       # DT reports col == 0 for the (only editable) effect-size
-      # column; row is 0-indexed.
+      # column; row is 0-indexed and (with `ordering = FALSE`)
+      # matches the data-row position in `grid`.
       if (!is.null(edit) && identical(edit$col, 0L)) {
         new_val <- suppressWarnings(as.numeric(edit$value))
         idx <- edit$row + 1L
@@ -478,6 +489,31 @@ create_generic_test_server <- function(id, test_spec,
           sensitivity_grid(grid)
         }
       }
+    })
+
+    shiny::observeEvent(input$sensitivity_add_row, {
+      grid <- sensitivity_grid()
+      # New row inserts at the median of existing values (slightly
+      # perturbed so it doesn't collide with an existing row); if
+      # the grid has only one row, double it; if empty, use 0.5.
+      new_val <- if (length(grid) >= 2L) {
+        stats::median(grid) * 1.05
+      } else if (length(grid) == 1L) {
+        grid[1] * 1.5
+      } else {
+        0.5
+      }
+      sensitivity_grid(c(grid, new_val))
+    })
+
+    shiny::observeEvent(input$sensitivity_delete_row, {
+      sel <- input$sensitivity_table_rows_selected
+      grid <- sensitivity_grid()
+      if (length(sel) == 0L) return()
+      keep <- setdiff(seq_along(grid), sel)
+      # Always keep at least one row so the table is non-empty.
+      if (length(keep) == 0L) keep <- 1L
+      sensitivity_grid(grid[keep])
     })
 
     output$download_sensitivity_csv <- shiny::downloadHandler(
