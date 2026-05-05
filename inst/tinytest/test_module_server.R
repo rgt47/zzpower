@@ -374,8 +374,10 @@ shiny::testServer(
 
     df <- sensitivity_table_df()
     expect_true(is.data.frame(df))
-    # Seeded from default_effect_grid$cohens_d (3 rows)
-    expect_equal(nrow(df), 3L)
+    # Seeded from default_effect_grid$cohens_d (3 base rows) +
+    # auto-augmented rows at 50%/80%/90%-power thresholds (up to
+    # 3 more, depending on whether the curve actually crosses).
+    expect_true(nrow(df) >= 3L && nrow(df) <= 6L)
     expect_true(all(c("effect_size", "n_total_enrolled_p80",
                       "n_total_enrolled_p90") %in% names(df)))
     # Required N is monotonically decreasing in effect size.

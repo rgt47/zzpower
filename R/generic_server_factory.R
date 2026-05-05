@@ -406,6 +406,57 @@ create_generic_test_server <- function(id, test_spec,
     sensitivity_grid    <- shiny::reactiveVal(NULL)
     sensitivity_method  <- shiny::reactiveVal(NULL)
 
+    # Helper: augment the registry's default_effect_grid with three
+    # rows derived from the current power curve -- the effect sizes
+    # at which power crosses 50%, 80%, and 90% at the slider's
+    # default N. The user gets a starting table that spans the
+    # decision-relevant range (~50% power up through saturated).
+    # Once seeded the rows behave like any other -- editable,
+    # deletable; the auto-augment runs only on first open or on a
+    # method switch.
+    .augment_seed_with_thresholds <- function(base, method) {
+      method_params <- test_spec$effect_size_params[[method]]
+      design <- shiny::isolate(.collect_params())
+      if (!is.null(method_params$requires)) {
+        for (param_name in names(method_params$requires)) {
+          val <- shiny::isolate(input[[paste0(method,
+                                              "_", param_name)]])
+          if (!is.null(val)) design[[param_name]] <- val
+        }
+      }
+      alpha <- shiny::isolate(input$type1) %||% consts$TYPE1_DEFAULT
+      alternative <- if (isTRUE(shiny::isolate(input$onesided))) {
+        "one.sided"
+      } else {
+        "two.sided"
+      }
+      ss <- test_spec$sample_size_calc(design)
+
+      base_min <- min(base, na.rm = TRUE)
+      base_max <- max(base, na.rm = TRUE)
+      grid <- seq(base_min * 0.4, base_max * 1.6,
+                   length.out = 60)
+
+      power_vec <- vapply(grid, function(eff) {
+        eff_std <- as.numeric(
+          test_spec$standardize(eff, method, design)
+        )
+        .compute_power(test_spec, ss, eff_std,
+                       alpha = alpha,
+                       alternative = alternative)
+      }, numeric(1))
+
+      df <- data.frame(effect_size = grid, power = power_vec)
+
+      d_50 <- .threshold_crossing(df, 0.50)
+      d_80 <- .threshold_crossing(df, 0.80)
+      d_90 <- .threshold_crossing(df, 0.90)
+
+      out <- c(base, d_50, d_80, d_90)
+      out <- out[!is.na(out) & is.finite(out)]
+      sort(unique(round(out, 3)))
+    }
+
     shiny::observe({
       method <- input$effect_method %||%
                   test_spec$effect_size_methods[1]
@@ -415,8 +466,12 @@ create_generic_test_server <- function(id, test_spec,
       # switches effect-size method (Cohen's d -> difference, etc).
       if (is.null(sensitivity_grid()) ||
           !identical(cur_method, method)) {
-        seed <- test_spec$default_effect_grid[[method]] %||%
+        base <- test_spec$default_effect_grid[[method]] %||%
                   c(0.2, 0.5, 0.8)
+        seed <- tryCatch(
+          .augment_seed_with_thresholds(base, method),
+          error = function(e) base
+        )
         sensitivity_grid(as.numeric(seed))
         sensitivity_method(method)
       }
