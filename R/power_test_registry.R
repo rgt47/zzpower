@@ -872,9 +872,22 @@ power_table <- function(test, effect_grid = NULL,
     "# Achieved power computed from result$power"
   }
 
+  # Defensive: legacy fixtures may pass a sample_sizes record
+  # missing the canonical n_total_enrolled. Fall back to summing
+  # per-arm enrolled counts, then to the raw `n` scalar.
+  enrolled_total <- ss$n_total_enrolled %||%
+                     sum(ss$n_per_arm_enrolled %||% NA_real_) %||%
+                     ss$n %||%
+                     NA_real_
+  enrolled_str <- if (is.numeric(enrolled_total) &&
+                      !is.na(enrolled_total)) {
+    format(round(enrolled_total), big.mark = ",")
+  } else {
+    "(not specified)"
+  }
   enrolled_comment <- sprintf(
     "# Total enrolled: %s (with %.0f%% dropout)",
-    format(round(ss$n_total_enrolled), big.mark = ","),
+    enrolled_str,
     (ss$dropout %||% 0) * 100
   )
 
