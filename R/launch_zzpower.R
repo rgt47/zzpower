@@ -265,46 +265,138 @@ launch_zzpower <- function(..., launch.browser = TRUE,
   ui <- bslib::page_fillable(
     theme = bslib::bs_theme(
       version = 5,
-      primary = "#182B49",
-      secondary = "#747678",
-      success = "#6E963B",
-      info = "#00629B",
-      warning = "#C69214",
-      danger = "#FC8900",
-      bg = "#FFFFFF",
-      fg = "#182B49",
-      "navbar-bg" = "#182B49"
+      # Refined palette: warm slate over institutional navy,
+      # softer neutrals, body sans = Inter for a contemporary feel.
+      primary   = "#334155",   # slate-700
+      secondary = "#64748b",   # slate-500
+      success   = "#15803d",   # green-700
+      info      = "#0891b2",   # cyan-600
+      warning   = "#b45309",   # amber-700
+      danger    = "#b91c1c",   # red-700
+      bg        = "#fafaf9",   # warm off-white
+      fg        = "#1e293b",   # slate-800
+      base_font = bslib::font_google("Inter"),
+      heading_font = bslib::font_google("Inter"),
+      "navbar-bg" = "#1e293b",
+      "card-border-color"  = "#e2e8f0",
+      "card-cap-bg"        = "#ffffff",
+      "card-bg"            = "#ffffff",
+      "border-radius"      = "10px",
+      "border-radius-sm"   = "8px",
+      "border-radius-lg"   = "14px"
     ),
     title = "zzpower - Statistical Power Analysis Calculator",
     shiny::tags$head(
       shiny::tags$style(shiny::HTML(
-        ".zzpower-launcher-card:focus { ",
-        "  outline: 3px solid #00629B; ",
-        "  outline-offset: 2px; ",
+        # Soft page background + breathing room.
+        "body { ",
+        "  background: #fafaf9; ",
+        "  color: #1e293b; ",
         "}",
+        # Cards: lighter borders, soft shadow, rounded corners,
+        # a smooth hover lift on launcher cards.
+        ".card { ",
+        "  border: 1px solid #e2e8f0 !important; ",
+        "  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04); ",
+        "  border-radius: 12px; ",
+        "}",
+        ".card-header { ",
+        "  background: #ffffff !important; ",
+        "  border-bottom: 1px solid #f1f5f9 !important; ",
+        "  font-weight: 600; ",
+        "  letter-spacing: 0.01em; ",
+        "}",
+        # Launcher cards on the hero panel.
+        ".zzpower-launcher-card { ",
+        "  border-radius: 12px !important; ",
+        "  transition: transform 0.18s ease, ",
+        "              box-shadow 0.18s ease; ",
+        "}",
+        ".zzpower-launcher-card:focus, ",
         ".zzpower-launcher-card:focus-visible { ",
-        "  outline: 3px solid #00629B; ",
+        "  outline: 3px solid #0891b2; ",
         "  outline-offset: 2px; ",
         "}",
-        # Lock the busy-pulse bar to the very top of the viewport
-        # so it overlays rather than pushing content down.
-        ".shiny-busy-indicator-pulse, .shiny-busy-indicator { ",
-        "  position: fixed !important; ",
-        "  top: 0; left: 0; right: 0; ",
-        "  z-index: 10000; ",
-        "}",
-        # Prevent value-box text outputs from collapsing to zero
-        # height while their content is recalculating.
-        ".bslib-value-box .shiny-text-output:empty::before { ",
-        "  content: '\\00a0'; ",
-        "}",
-        # Lock value-box dimensions so the recalculating state
-        # cannot expand them.
+        # Value boxes: lighter typography, less aggressive
+        # backgrounds, larger value font.
         ".bslib-value-box { ",
         "  height: 120px !important; ",
         "  min-height: 120px !important; ",
         "  max-height: 120px !important; ",
         "  overflow: hidden; ",
+        "  border-radius: 12px !important; ",
+        "}",
+        ".bslib-value-box .value-box-title { ",
+        "  font-weight: 500; ",
+        "  font-size: 0.85rem; ",
+        "  letter-spacing: 0.02em; ",
+        "  opacity: 0.95; ",
+        "}",
+        ".bslib-value-box .value-box-value { ",
+        "  font-weight: 700; ",
+        "  font-size: 1.7rem; ",
+        "  letter-spacing: -0.01em; ",
+        "}",
+        ".bslib-value-box .shiny-text-output:empty::before { ",
+        "  content: '\\00a0'; ",
+        "}",
+        # DT table: cleaner typographic rhythm.
+        "table.dataTable { ",
+        "  font-size: 0.92rem; ",
+        "  border-spacing: 0 !important; ",
+        "}",
+        "table.dataTable thead th { ",
+        "  background: #f8fafc; ",
+        "  border-bottom: 2px solid #cbd5e1 !important; ",
+        "  font-weight: 600; ",
+        "  font-size: 0.82rem; ",
+        "  letter-spacing: 0.03em; ",
+        "  text-transform: uppercase; ",
+        "  color: #475569; ",
+        "}",
+        "table.dataTable tbody td { ",
+        "  border-top: 1px solid #f1f5f9 !important; ",
+        "  padding: 0.6rem 0.75rem !important; ",
+        "}",
+        # Numeric columns get a tabular-nums treatment so digits
+        # align vertically across rows.
+        "table.dataTable tbody td.dt-right { ",
+        "  font-variant-numeric: tabular-nums; ",
+        "  color: #334155; ",
+        "}",
+        # Sidebar: subtler border + accordion typography.
+        ".bslib-sidebar-layout > .sidebar { ",
+        "  background: #ffffff; ",
+        "  border-right: 1px solid #e2e8f0 !important; ",
+        "}",
+        ".accordion-button { ",
+        "  font-weight: 600; ",
+        "  font-size: 0.95rem; ",
+        "  letter-spacing: 0.01em; ",
+        "}",
+        # Section dividers in the test panel.
+        ".zzpower-section-label { ",
+        "  font-size: 0.78rem; ",
+        "  font-weight: 600; ",
+        "  text-transform: uppercase; ",
+        "  letter-spacing: 0.07em; ",
+        "  color: #64748b; ",
+        "  margin: 1.25rem 0 0.5rem 0; ",
+        "}",
+        # Lock the busy-pulse bar to the top of the viewport.
+        ".shiny-busy-indicator-pulse, .shiny-busy-indicator { ",
+        "  position: fixed !important; ",
+        "  top: 0; left: 0; right: 0; ",
+        "  z-index: 10000; ",
+        "}",
+        # Buttons: tighter, slightly softer.
+        ".btn { ",
+        "  border-radius: 8px; ",
+        "  font-weight: 500; ",
+        "}",
+        ".btn-sm { ",
+        "  font-size: 0.82rem; ",
+        "  padding: 0.3rem 0.65rem; ",
         "}"
       ))
     ),

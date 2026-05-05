@@ -193,48 +193,50 @@ create_generic_test_ui <- function(test_id) {
         )
       ),
       bslib::card_body(
-        shiny::div(
-          class = "small text-muted",
-          shiny::p(
-            shiny::strong("What this table shows: "),
-            "for each effect size, both the achieved power at the ",
-            "current slider's total N (forward question) and the ",
-            "total N required to reach 80% or 90% power ",
-            "(inverse question). Reviewers cite this kind of ",
-            "sensitivity analysis when the assumed effect size is ",
-            "uncertain. Edit, add, or delete rows to match the ",
-            "range of effect sizes reported in your prior ",
-            "literature."
+        # Concise lead-in. The verbose three-paragraph guide that
+        # used to live here is collapsed behind a "How this works"
+        # disclosure so the table itself stays the visual focus.
+        shiny::tags$p(
+          class = "small text-muted mb-2",
+          "Each row is one assumed effect size. Columns answer ",
+          "both directions of the power question -- the achieved ",
+          "power at the slider's N, and the N required to reach ",
+          "80% or 90% power. Double-click an ", shiny::tags$code("Effect size"),
+          " cell to edit; use ", shiny::tags$code("Add row"), " / ",
+          shiny::tags$code("Delete selected"), " to curate."
+        ),
+        shiny::tags$details(
+          class = "small text-muted mb-3",
+          shiny::tags$summary(
+            style = "cursor: pointer; color: #475569;",
+            shiny::tags$em("How this works (column glossary)")
           ),
-          shiny::p(
-            shiny::strong("Columns: "),
-            shiny::tags$code("Effect size"),
-            " is the assumed effect on the native scale (e.g. ",
-            "Cohen's d, hazard ratio); ",
-            shiny::tags$code("Standardised"),
-            " is the same effect on the universal scale used by ",
-            "the power formula. ",
-            shiny::tags$code("Power @ proposed N"),
-            " is the achieved power at the slider's total N. ",
-            shiny::tags$code("N evaluable"),
-            " is the analyzable sample size after losses to ",
-            "follow-up (the value the power calculation uses); ",
-            shiny::tags$code("N enrolled"),
-            " is the larger ITT count you actually recruit, ",
-            "inflated for the dropout rate set in the sidebar. ",
-            "Each pair (",
-            shiny::tags$code("@ 80%"), ", ", shiny::tags$code("@ 90%"),
-            ") is computed at that target power."
-          ),
-          shiny::p(
-            shiny::strong("How to edit: "),
-            "double-click a cell in the ",
-            shiny::tags$code("Effect size"), " column to override ",
-            "it; the rest of the row recomputes. ",
-            shiny::tags$code("Add row"),
-            " inserts a new effect-size value at the median; ",
-            shiny::tags$code("Delete selected"),
-            " removes the row(s) you've clicked to highlight."
+          shiny::tags$div(
+            style = "padding: 0.5rem 0.75rem; margin-top: 0.5rem; border-left: 3px solid #e2e8f0; background: #f8fafc; border-radius: 6px;",
+            shiny::p(
+              shiny::tags$code("Effect size"),
+              " - the assumed effect on the native scale ",
+              "(e.g. Cohen's d, hazard ratio).",
+              shiny::tags$br(),
+              shiny::tags$code("Standardised"),
+              " - the same effect on the universal scale the ",
+              "power formula consumes.",
+              shiny::tags$br(),
+              shiny::tags$code("Power @ proposed N"),
+              " - achieved power at the slider's total N.",
+              shiny::tags$br(),
+              shiny::tags$code("N evaluable"),
+              " - analyzable sample size after dropout (what the ",
+              "power calc uses).",
+              shiny::tags$br(),
+              shiny::tags$code("N enrolled"),
+              " - the larger ITT count you actually recruit, ",
+              "inflated for the dropout rate.",
+              shiny::tags$br(),
+              shiny::tags$code("@ 80%"), ", ",
+              shiny::tags$code("@ 90%"),
+              " - computed at that target power."
+            )
           )
         ),
         shiny::tags$div(
@@ -258,13 +260,31 @@ create_generic_test_ui <- function(test_id) {
         )
       ),
       bslib::card_body(
+        # Card-style chooser between the two output flavours,
+        # rendered as button-group toggles for tighter visual
+        # weight than a vertical radio stack.
         shiny::radioButtons(
           ns("output_type"), label = NULL,
-          choices = c(
-            "Methods paragraph (for a grant proposal; preview + copy + download)" = "methods",
-            "Full report (text / HTML / PDF / Word)" = "report"
+          choiceNames = list(
+            shiny::tagList(
+              shiny::tags$strong("Methods paragraph"),
+              shiny::tags$br(),
+              shiny::tags$small(class = "text-muted",
+                "Draft sample-size statement for a grant proposal"
+              )
+            ),
+            shiny::tagList(
+              shiny::tags$strong("Full report"),
+              shiny::tags$br(),
+              shiny::tags$small(class = "text-muted",
+                "Text, HTML, PDF or Word -- includes table + ",
+                "reproducibility script"
+              )
+            )
           ),
-          selected = "methods"
+          choiceValues = c("methods", "report"),
+          selected = "methods",
+          inline = FALSE
         ),
 
         # Methods paragraph branch -- preview is collapsed by

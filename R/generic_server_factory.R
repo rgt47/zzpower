@@ -547,8 +547,7 @@ create_generic_test_server <- function(id, test_spec,
       display <- data.frame(
         `Effect size`        = df$effect_size,
         `Standardised`       = round(df$effect_size_std, 3),
-        `Power @ proposed N` = sprintf("%.0f%%",
-                                        df$power_at_n * 100),
+        `Power @ proposed N` = df$power_at_n,
         `N evaluable @ 80%`  = round(df$n_total_evaluable_p80),
         `N enrolled @ 80%`   = round(df$n_total_enrolled_p80),
         `N evaluable @ 90%`  = round(df$n_total_evaluable_p90),
@@ -557,24 +556,44 @@ create_generic_test_server <- function(id, test_spec,
         stringsAsFactors = FALSE
       )
 
-      DT::datatable(
+      dt <- DT::datatable(
         display,
         editable = list(target = "cell",
                         disable = list(columns = 1:6)),
         options = list(
           dom = "t", paging = FALSE,
           searching = FALSE, info = FALSE,
-          # Sorting disabled so DT's cell_edit$row matches the
-          # data-frame row index in `sensitivity_grid()`.
           ordering = FALSE,
           columnDefs = list(
             list(className = "dt-left",  targets = 0),
-            list(className = "dt-right", targets = 1:6)
+            list(className = "dt-right", targets = 1:6),
+            # Power column is the single most-cited number;
+            # render slightly bolder so the eye lands there.
+            list(className = "dt-right fw-semibold", targets = 2)
           )
         ),
         rownames = FALSE,
         selection = list(mode = "multiple", target = "row")
       )
+
+      # Render the power column as a percent.
+      dt <- DT::formatPercentage(dt, "Power @ proposed N", 0)
+
+      # Visual cue: row tint based on achieved power -- amber when
+      # below 80%, green when at or above. The user spots which
+      # assumed effects the proposed N actually supports at a
+      # glance, which mirrors the gold/grey threshold annotations
+      # on the power curve.
+      dt <- DT::formatStyle(
+        dt, "Power @ proposed N",
+        target = "row",
+        backgroundColor = DT::styleInterval(
+          c(0.50, 0.80),
+          c("transparent", "#fef3c7", "#dcfce7")
+        )
+      )
+
+      dt
     }, server = TRUE)
 
     shiny::observeEvent(input$sensitivity_table_cell_edit, {
