@@ -1,11 +1,3 @@
-#' Power Test Registry
-#'
-#' Centralized registry defining all available power analysis tests.
-#' Each entry defines the parameters, effect size methods, and power calculation
-#' for a specific statistical test.
-#'
-#' @keywords internal
-
 #' Canonicalize a sample-size calculation result
 #'
 #' Converts per-arm enrolled counts plus a dropout rate into the

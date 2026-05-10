@@ -2,7 +2,7 @@
 % Please edit documentation in R/power_helpers.R
 \name{logrank_power}
 \alias{logrank_power}
-\title{Power Calculation Helper Functions}
+\title{Log-rank Test Power (Schoenfeld Formula)}
 \usage{
 logrank_power(h, n1, n2, sig.level, alternative = "two.sided")
 }
@@ -21,62 +21,15 @@ logrank_power(h, n1, n2, sig.level, alternative = "two.sided")
 List with \code{power} element
 }
 \description{
-Custom power calculation wrappers for tests not directly available
-in the pwr package. Each wrapper conforms to the interface expected
-by the generic server factory.
+Computes power for the log-rank test comparing two survival curves.
+Uses the Schoenfeld (1981) formula based on total expected events.
+Parameters n1 and n2 represent expected events per group (not raw
+sample sizes), as the event probability is applied in
+sample_size_calc before these values reach this function.
 }
 \references{
 Schoenfeld DA (1981). The asymptotic properties of nonparametric
 tests for comparing survival distributions. Biometrika, 68(1),
 316-319.
 }
-\keyword{(1981)}
-\keyword{(Schoenfeld}
-\keyword{(not}
-\keyword{Computes}
-\keyword{Formula)}
-\keyword{Log-rank}
-\keyword{Parameters}
-\keyword{Power}
-\keyword{Schoenfeld}
-\keyword{Test}
-\keyword{Uses}
-\keyword{and}
-\keyword{applied}
-\keyword{as}
-\keyword{based}
-\keyword{before}
-\keyword{comparing}
-\keyword{curves.}
-\keyword{event}
-\keyword{events}
-\keyword{events.}
-\keyword{expected}
-\keyword{for}
-\keyword{formula}
-\keyword{function.}
-\keyword{group}
-\keyword{in}
 \keyword{internal}
-\keyword{is}
-\keyword{log-rank}
-\keyword{n1}
-\keyword{n2}
-\keyword{on}
-\keyword{per}
-\keyword{power}
-\keyword{probability}
-\keyword{raw}
-\keyword{reach}
-\keyword{represent}
-\keyword{sample}
-\keyword{sample_size_calc}
-\keyword{sizes),}
-\keyword{survival}
-\keyword{test}
-\keyword{the}
-\keyword{these}
-\keyword{this}
-\keyword{total}
-\keyword{two}
-\keyword{values}

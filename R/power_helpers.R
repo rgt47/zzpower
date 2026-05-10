@@ -1,11 +1,3 @@
-#' Power Calculation Helper Functions
-#'
-#' Custom power calculation wrappers for tests not directly available
-#' in the pwr package. Each wrapper conforms to the interface expected
-#' by the generic server factory.
-#'
-#' @keywords internal
-
 #' Log-rank Test Power (Schoenfeld Formula)
 #'
 #' Computes power for the log-rank test comparing two survival curves.

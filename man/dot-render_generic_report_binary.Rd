@@ -11,7 +11,6 @@ Path to the rendered file, or `NULL` if no rendering
   backend is installed or rendering fails.
 }
 \description{
-For PDF, prefer Typst (no TeX install needed, fast). Fall back to
-rmarkdown's xelatex pipeline if Typst is unavailable.
+For PDF, render via rmarkdown's xelatex pipeline.
 }
 \keyword{internal}

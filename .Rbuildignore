@@ -17,3 +17,6 @@
 ^CONTRIBUTING\.md$
 ^Rplots\.pdf$
 ^_pkgdown\.yml$
+^\.zzcollab$
+^.*/\.zzcollab$
+^\.zzcollab_manifest\.json$

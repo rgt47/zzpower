@@ -4,7 +4,7 @@
 \alias{.effect_method_phrase}
 \title{Humanise an effect-size method id for narrative use}
 \usage{
-.effect_method_phrase(method)
+.effect_method_phrase(method, test_id = NULL)
 }
 \arguments{
 \item{method}{One of the `effect_size_methods` ids declared in

@@ -1,13 +1,3 @@
-#' Generic Server Factory for Power Analysis Tests
-#'
-#' Creates complete server logic for any power analysis test using
-#' shiny::moduleServer(). Each test tab runs as an independent module
-#' with auto-scoped input/output namespacing.
-#'
-#' @keywords internal
-#' @importFrom rlang .data
-#' @importFrom shiny reactiveValuesToList
-
 #' Create Module Server for a Power Analysis Test
 #'
 #' Registers all reactive expressions and output renderers for a
@@ -1186,112 +1176,6 @@ create_generic_test_server <- function(id, test_spec,
       )
     })
 
-    # ===== TYPST INSTALL PROMPT =====
-    # When the user switches report format to PDF, offer to install
-    # the 'typst' package (and its CLI binary) on the fly. Asking
-    # once per session is sufficient.
-    typst_prompt_shown <- shiny::reactiveVal(FALSE)
-
-    shiny::observeEvent(input$report_format, {
-      if (identical(input$report_format, "pdf") &&
-          !requireNamespace("typst", quietly = TRUE) &&
-          !isTRUE(typst_prompt_shown())) {
-        typst_prompt_shown(TRUE)
-        shiny::showModal(shiny::modalDialog(
-          title = "Install Typst for fast PDF rendering?",
-          easyClose = TRUE,
-          shiny::p(
-            "PDF reports use Typst, a modern typesetting engine.",
-            "The R package 'typst' is not yet installed."
-          ),
-          shiny::p(
-            "Click ", shiny::strong("Install"), " to fetch it from",
-            "CRAN and download the Typst CLI binary",
-            "(roughly 30 MB, ~1 minute). The Shiny session will",
-            "pause briefly during the install."
-          ),
-          shiny::p(
-            class = "text-muted small",
-            "If you skip, PDF will fall back to a LaTeX render",
-            "(requires tinytex / MacTeX). You can change this",
-            "decision later by re-selecting PDF."
-          ),
-          footer = shiny::tagList(
-            shiny::modalButton("Skip"),
-            shiny::actionButton(
-              ns("install_typst_now"),
-              "Install Typst",
-              class = "btn-primary",
-              icon = shiny::icon("download")
-            )
-          )
-        ))
-      }
-    }, ignoreInit = TRUE)
-
-    shiny::observeEvent(input$install_typst_now, {
-      shiny::removeModal()
-      shiny::withProgress(
-        message = "Installing typst R package...",
-        value = 0.1,
-        {
-          # Step 1: ensure a CRAN mirror is set.
-          repos <- getOption("repos")
-          if (is.null(repos) ||
-              identical(unname(repos["CRAN"]), "@CRAN@")) {
-            options(repos = c(CRAN = "https://cloud.r-project.org"))
-          }
-
-          ok_pkg <- tryCatch({
-            utils::install.packages("typst", quiet = TRUE)
-            requireNamespace("typst", quietly = TRUE)
-          }, error = function(e) {
-            message("install.packages('typst') failed: ", e$message)
-            FALSE
-          })
-
-          if (!ok_pkg) {
-            shiny::showNotification(
-              paste(
-                "Could not install the 'typst' R package.",
-                "PDF will fall back to LaTeX."
-              ),
-              type = "error", duration = 8
-            )
-            return(invisible(NULL))
-          }
-
-          shiny::setProgress(
-            value = 0.5,
-            message = "Downloading Typst CLI binary..."
-          )
-          ok_bin <- tryCatch({
-            typst::install_typst()
-            TRUE
-          }, error = function(e) {
-            message("typst::install_typst() failed: ", e$message)
-            FALSE
-          })
-
-          if (ok_bin) {
-            shiny::showNotification(
-              "Typst installed. PDF will use Typst from now on.",
-              type = "message", duration = 6
-            )
-          } else {
-            shiny::showNotification(
-              paste(
-                "Installed the R package but the Typst CLI",
-                "binary did not download. PDF will fall back",
-                "to LaTeX."
-              ),
-              type = "warning", duration = 8
-            )
-          }
-        }
-      )
-    })
-
     # ===== REPORT DOWNLOAD =====
     output$download_report <- shiny::downloadHandler(
       filename = function() {
@@ -1386,12 +1270,6 @@ create_generic_test_server <- function(id, test_spec,
   }
 }
 
-#' Markdown body suitable for rmarkdown rendering to PDF or Word
-#'
-#' Produces a self-contained markdown document. PDF uses
-#' `pdf_document` (requires LaTeX); Word uses `word_document`.
-#'
-#' @keywords internal
 #' Reshape the report_data list into a minimal calc_context
 #'
 #' The Wave 3 reproducibility-script renderer (`.render_repro_script`)
@@ -1574,192 +1452,21 @@ create_generic_test_server <- function(id, test_spec,
   paste(parts, collapse = "\n")
 }
 
-#' Typst source for PDF rendering
-#'
-#' Produces a self-contained Typst document. Typst is preferred over
-#' LaTeX for the PDF backend because it has no TeX-Live install
-#' burden and renders an order of magnitude faster.
-#'
-#' @keywords internal
-.format_generic_typst_report <- function(report_data, test_spec) {
-  esc <- function(s) {
-    s <- as.character(s)
-    s <- gsub("\\\\", "\\\\\\\\", s)
-    s <- gsub("\"", "\\\\\"", s)
-    s
-  }
-  ts <- format(report_data$timestamp, "%Y-%m-%d %H:%M:%S")
-  mode_label <- if (identical(report_data$solve_mode, "sample_size")) {
-    "Solve for sample size"
-  } else {
-    "Solve for power"
-  }
-
-  has_n1n2 <- !is.null(report_data$sample_sizes$n1) &&
-              !is.null(report_data$sample_sizes$n2)
-  has_n   <- !is.null(report_data$sample_sizes$n)
-
-  size_block <- if (has_n1n2) {
-    sprintf(paste(
-      "- *Group 1 (n1):* %.0f",
-      "- *Group 2 (n2):* %.0f",
-      "- *Total (N):* %.0f",
-      sep = "\n"
-    ),
-    report_data$sample_sizes$n1,
-    report_data$sample_sizes$n2,
-    report_data$sample_sizes$n1 + report_data$sample_sizes$n2)
-  } else if (has_n) {
-    sprintf("- *Sample size (n):* %.0f", report_data$sample_sizes$n)
-  } else {
-    "_(Sample-size search results below.)_"
-  }
-
-  table_rows <- vapply(
-    seq_len(nrow(report_data$power_results)),
-    function(i) {
-      r <- report_data$power_results[i, ]
-      power_col <- if ("power" %in% names(r)) {
-        sprintf("%.4f", r$power)
-      } else if ("required_n" %in% names(r)) {
-        if (is.na(r$required_n)) "--" else
-          sprintf("%.0f (N)", r$required_n)
-      } else {
-        "--"
-      }
-      sprintf("  [%.4f], [%.4f], [%s],",
-               r$effect_size, r$standardized_es, power_col)
-    },
-    character(1)
-  )
-
-  src <- c(
-    sprintf("#set document(title: \"Power Analysis Report: %s\")",
-             esc(test_spec$name)),
-    "#set page(margin: 0.9in, numbering: \"1\")",
-    "#set text(size: 11pt)",
-    "#set par(justify: true, leading: 0.65em)",
-    "#show heading.where(level: 1): set text(size: 18pt, weight: \"bold\")",
-    "#show heading.where(level: 2): set text(size: 13pt, weight: \"bold\")",
-    "",
-    sprintf("= Power Analysis Report: %s", esc(test_spec$name)),
-    "",
-    sprintf("*Generated:* %s \\", ts),
-    sprintf("*R version:* %s \\", esc(report_data$r_version)),
-    sprintf("*Solve mode:* %s", mode_label),
-    "",
-    "== Test specification",
-    "",
-    sprintf("- *Test type:* %s", esc(test_spec$name)),
-    sprintf("- *Description:* %s", esc(test_spec$description)),
-    "",
-    "== Effect-size method",
-    "",
-    sprintf("- *Method:* %s", esc(report_data$effect_size_range$method)),
-    sprintf("- *Range:* %.4f to %.4f",
-             min(report_data$effect_size_range$effect_sizes),
-             max(report_data$effect_size_range$effect_sizes)),
-    "",
-    "== Sample size",
-    "",
-    size_block,
-    "",
-    "== Statistical parameters",
-    "",
-    sprintf("- *Type I error (alpha):* %.4f", report_data$type1_error),
-    sprintf("- *Test direction:* %s",
-             if (isTRUE(report_data$one_sided)) "One-sided" else
-               "Two-sided"),
-    "",
-    "== Power-analysis results",
-    "",
-    "#table(",
-    "  columns: 3,",
-    "  align: right,",
-    "  stroke: 0.4pt,",
-    "  [*Effect Size*], [*Standardized*], [*Power*],",
-    table_rows,
-    ")",
-    ""
-  )
-
-  # Gap 9: reproducibility R script. Typst raw blocks need
-  # explicit escaping; emit as a raw block with `lang: "r"`.
-  ctx <- .report_data_to_ctx(report_data)
-  if (!is.null(ctx)) {
-    repro <- .render_repro_script(ctx, fence = FALSE)
-    if (nzchar(repro)) {
-      src <- c(src,
-        "== Reproducibility script",
-        "",
-        paste0("Run this block in a fresh R session with `pwr` ",
-               "(and, for non-pwr tests, `zzpower`) installed to ",
-               "reproduce the headline calculation."),
-        "",
-        "#raw(",
-        sprintf("  \"%s\",", esc(repro)),
-        "  lang: \"r\",",
-        "  block: true",
-        ")",
-        ""
-      )
-    }
-  }
-
-  src <- c(src,
-    "#line(length: 100%, stroke: 0.4pt + gray)",
-    "",
-    sprintf(
-      "#text(size: 9pt, fill: gray.darken(40%%))[#emph[Citation:] %s]",
-      esc(.zzpower_citation_line())
-    )
-  )
-
-  paste(src, collapse = "\n")
-}
-
 #' Render the markdown report to PDF or Word
 #'
-#' For PDF, prefer Typst (no TeX install needed, fast). Fall back to
-#' rmarkdown's xelatex pipeline if Typst is unavailable.
+#' For PDF, render via rmarkdown's xelatex pipeline.
 #'
 #' @return Path to the rendered file, or `NULL` if no rendering
 #'   backend is installed or rendering fails.
 #' @keywords internal
 .render_generic_report_binary <- function(report_data, test_spec, fmt) {
   if (fmt == "pdf") {
-    pdf_path <- .render_pdf_via_typst(report_data, test_spec)
-    if (!is.null(pdf_path)) return(pdf_path)
-    return(.render_pdf_via_latex(report_data, test_spec))
+    return(.render_via_rmarkdown(report_data, test_spec, "pdf"))
   }
   if (fmt == "word") {
     return(.render_via_rmarkdown(report_data, test_spec, "word"))
   }
   NULL
-}
-
-#' @keywords internal
-.render_pdf_via_typst <- function(report_data, test_spec) {
-  if (!requireNamespace("typst", quietly = TRUE)) {
-    return(NULL)
-  }
-  src <- .format_generic_typst_report(report_data, test_spec)
-  src_file <- tempfile(fileext = ".typ")
-  out_file <- tempfile(fileext = ".pdf")
-  writeLines(src, src_file)
-
-  tryCatch({
-    typst::typst_compile(src_file, output = out_file)
-    out_file
-  }, error = function(e) {
-    message("typst render failed: ", e$message)
-    NULL
-  })
-}
-
-#' @keywords internal
-.render_pdf_via_latex <- function(report_data, test_spec) {
-  .render_via_rmarkdown(report_data, test_spec, "pdf")
 }
 
 #' @keywords internal

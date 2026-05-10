@@ -1,10 +1,3 @@
-#' Proportion Effect Size Conversions
-#'
-#' Helper functions to convert between different effect size representations
-#' for two-proportion comparisons (pwr.2p2n.test).
-#'
-#' @keywords internal
-
 #' Calculate Cohen's h from Two Proportions
 #'
 #' Cohen's h is the standardized difference between two proportions:

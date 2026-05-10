@@ -2,7 +2,7 @@
 % Please edit documentation in R/generic_server_factory.R
 \name{create_generic_test_server}
 \alias{create_generic_test_server}
-\title{Generic Server Factory for Power Analysis Tests}
+\title{Create Module Server for a Power Analysis Test}
 \usage{
 create_generic_test_server(
   id,
@@ -21,8 +21,7 @@ create_generic_test_server(
 The return value of moduleServer() (called for side effects)
 }
 \description{
-Creates complete server logic for any power analysis test using
-shiny::moduleServer(). Each test tab runs as an independent module
-with auto-scoped input/output namespacing.
+Registers all reactive expressions and output renderers for a
+single test tab via moduleServer(). Input IDs are automatically
+scoped by the module namespace.
 }
-\keyword{internal}

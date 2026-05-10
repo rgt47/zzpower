@@ -2,56 +2,15 @@
 % Please edit documentation in R/generic_server_factory.R
 \name{.report_data_to_ctx}
 \alias{.report_data_to_ctx}
-\title{Markdown body suitable for rmarkdown rendering to PDF or Word}
+\title{Reshape the report_data list into a minimal calc_context}
 \usage{
 .report_data_to_ctx(report_data)
 }
 \description{
-Produces a self-contained markdown document. PDF uses
-`pdf_document` (requires LaTeX); Word uses `word_document`.
+The Wave 3 reproducibility-script renderer (`.render_repro_script`)
+consumes a calc_context. Reports already have all the same
+information in the report_data list shape, so this helper just
+rewires the names. Returns NULL if the report lacks the data
+needed (e.g. sample-size mode with no closed-form sample_sizes).
 }
-\keyword{(`.render_repro_script`)}
-\keyword{(e.g.}
-\keyword{3}
-\keyword{NULL}
-\keyword{Reports}
-\keyword{Reshape}
-\keyword{Returns}
-\keyword{The}
-\keyword{Wave}
-\keyword{a}
-\keyword{all}
-\keyword{already}
-\keyword{calc_context}
-\keyword{calc_context.}
-\keyword{closed-form}
-\keyword{consumes}
-\keyword{data}
-\keyword{have}
-\keyword{helper}
-\keyword{if}
-\keyword{in}
-\keyword{information}
 \keyword{internal}
-\keyword{into}
-\keyword{just}
-\keyword{lacks}
-\keyword{list}
-\keyword{minimal}
-\keyword{mode}
-\keyword{names.}
-\keyword{needed}
-\keyword{no}
-\keyword{renderer}
-\keyword{report}
-\keyword{report_data}
-\keyword{reproducibility-script}
-\keyword{rewires}
-\keyword{same}
-\keyword{sample-size}
-\keyword{sample_sizes).}
-\keyword{shape,}
-\keyword{so}
-\keyword{the}
-\keyword{this}
-\keyword{with}

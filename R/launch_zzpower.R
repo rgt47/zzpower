@@ -144,7 +144,7 @@ launch_zzpower <- function(..., launch.browser = TRUE,
           "letter-spacing: 0.04em; margin-bottom: 0;"
         ),
         sprintf("%d statistical tests", length(test_ids)),
-        " · Multiple effect-size methods · Downloadable reports"
+        " | Multiple effect-size methods | Downloadable reports"
       )
     ),
 

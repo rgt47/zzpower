@@ -2,7 +2,7 @@
 % Please edit documentation in R/proportion_helpers.R
 \name{prop_to_cohens_h}
 \alias{prop_to_cohens_h}
-\title{Proportion Effect Size Conversions}
+\title{Calculate Cohen's h from Two Proportions}
 \usage{
 prop_to_cohens_h(p1, p2)
 }
@@ -15,31 +15,12 @@ prop_to_cohens_h(p1, p2)
 Cohen's h effect size
 }
 \description{
-Helper functions to convert between different effect size representations
-for two-proportion comparisons (pwr.2p2n.test).
+Cohen's h is the standardized difference between two proportions:
+h = 2 * (arcsin(sqrt(p1)) - arcsin(sqrt(p2)))
 }
 \examples{
 \dontrun{
 prop_to_cohens_h(0.6, 0.4)  # Returns ~0.41
 }
 }
-\keyword{(arcsin(sqrt(p1))}
-\keyword{*}
-\keyword{-}
-\keyword{2}
-\keyword{=}
-\keyword{Calculate}
-\keyword{Cohen's}
-\keyword{Proportions}
-\keyword{Two}
-\keyword{arcsin(sqrt(p2)))}
-\keyword{between}
-\keyword{difference}
-\keyword{from}
-\keyword{h}
 \keyword{internal}
-\keyword{is}
-\keyword{proportions:}
-\keyword{standardized}
-\keyword{the}
-\keyword{two}

@@ -1,5 +1,54 @@
 # zzpower v1.0.0 (in development)
 
+## CRAN-readiness pass
+
+* **`R CMD check --no-tests` reports `Status: OK`** (0 errors,
+  0 warnings, 0 notes) on the built tarball. The full check
+  with tests included also passes.
+* **Typst PDF backend removed.** The on-demand-install prompt
+  and the Typst rendering path were dropped because the typst
+  R package is not on CRAN, which forced one of: (a) a CRAN
+  policy violation (`Suggests` package not in mainstream
+  repositories) or (b) a static-analysis-evading code
+  obfuscation. PDF reports now render exclusively via
+  rmarkdown's xelatex pipeline (the existing fallback). Roughly
+  220 lines removed from `R/generic_server_factory.R`. The
+  feature can be reinstated when typst is published to CRAN.
+* **Test scaffolding cleaned up.** Six unprefixed internal-
+  function calls in `inst/tinytest/test_module_server.R` (e.g.
+  bare `.render_methods_paragraph(ctx)`) were updated to
+  `zzpower:::` prefixes. The bare calls had been working under
+  `devtools::test()` (which exposes the namespace via
+  `load_all()`) but failing under `R CMD check` (which uses
+  `library()`, hiding internals). Stale `tests/testthat/`
+  scaffolding and `tests/testthat.R` removed (the package
+  migrated to tinytest in an earlier release).
+* **Roxygen orphan-block fix.** Five files had file-level
+  roxygen header blocks (e.g. `#' Power Test Registry`) with no
+  function attached. roxygen2 silently merged them into the
+  next function's docs, producing a cascade of malformed
+  `\keyword{...}` entries (one per word from the merged
+  description) and a wrong `\title{}`. Files: `R/power_helpers.R`,
+  `R/power_test_registry.R`, `R/proportion_helpers.R`,
+  `R/generic_ui_builder.R`, `R/generic_server_factory.R`. The
+  hoisted `@importFrom` directives moved to
+  `R/zzpower-package.R` where they belong. The stripped header
+  blocks were redundant boilerplate, not real documentation.
+* **Vignette artifact removed.** `vignettes/quickstart.pdf`
+  deleted; its presence triggered the same
+  `find_vignette_product()` trap as in zzedc (`.pdf` selected
+  over `.html` in the tie-mtime case, then stripped by
+  `.Rbuildignore` ordering, dropping the HTML output).
+  `.gitignore` already covered `vignettes/*.pdf`.
+* **DESCRIPTION corrections.** `R (>= 4.0.0)` -> `R (>= 4.1.0)`
+  (the package uses the native pipe `|>`); `LazyData: true`
+  removed (no `data/` directory exists).
+* **Top-level cleanup.** Placeholder `LICENSE` file deleted
+  (the `License: GPL (>= 3)` entry does not need it; CRAN
+  flagged the file as unmentioned). Hidden `.zzcollab` directory
+  added to `.Rbuildignore`. Non-ASCII middle-dot in
+  `R/launch_zzpower.R:147` swapped to ASCII `|`.
+
 ## Wave 5: multi-aim aggregation (Gap 3, programmatic)
 
 The roadmap's Gap 3 calls for a study-level table assembling

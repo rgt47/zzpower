@@ -67,5 +67,5 @@ Champely, S. (2020). pwr: Basic Functions for Power Analysis. R package.
 }
 }
 \author{
-Ronald "Ryy" G. Thomas
+Ronald G. Thomas
 }

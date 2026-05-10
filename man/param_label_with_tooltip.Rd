@@ -2,7 +2,7 @@
 % Please edit documentation in R/generic_ui_builder.R
 \name{param_label_with_tooltip}
 \alias{param_label_with_tooltip}
-\title{Generic UI Builder}
+\title{Wrap a parameter label with an info-icon tooltip}
 \usage{
 param_label_with_tooltip(param_spec)
 }
@@ -15,8 +15,8 @@ A character or `tagList` suitable as the `label` argument
   of `shiny::sliderInput`, `shiny::numericInput`, etc.
 }
 \description{
-Dynamically generates UI for any power analysis test based on
-registry definition. All inputs are built statically at UI
-construction time to avoid renderUI invalidation loops.
+If the parameter spec includes a `description`, the label is
+followed by a small info-circle icon that shows the description on
+hover. If not, the label is returned plain.
 }
 \keyword{internal}

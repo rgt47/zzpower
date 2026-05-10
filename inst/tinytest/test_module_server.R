@@ -297,7 +297,7 @@ ctx$effect_source         <- "Smith et al. 2019, JAMA, n=30"
 ctx$sensitivity_factor    <- 0.7
 ctx$include_sex_paragraph <- TRUE
 
-para <- .render_methods_paragraph(ctx)
+para <- zzpower:::.render_methods_paragraph(ctx)
 expect_true(nchar(para) > 200)                       # not truncated
 expect_true(grepl("Two-Sample t-test", para, fixed = TRUE))
 expect_true(grepl("Smith et al. 2019", para, fixed = TRUE))
@@ -311,12 +311,12 @@ expect_true(grepl("sex x treatment", para, fixed = TRUE))  # sex paragraph
 
 # Sex paragraph drops out when the toggle is off.
 ctx$include_sex_paragraph <- FALSE
-para_no_sex <- .render_methods_paragraph(ctx)
+para_no_sex <- zzpower:::.render_methods_paragraph(ctx)
 expect_false(grepl("sex x treatment", para_no_sex, fixed = TRUE))
 
 # Sensitivity sentence drops out when factor is NULL.
 ctx$sensitivity_factor <- NULL
-para_no_sens <- .render_methods_paragraph(ctx)
+para_no_sens <- zzpower:::.render_methods_paragraph(ctx)
 expect_false(grepl("smaller", para_no_sens, fixed = TRUE))
 
 # In-server reactive renders the paragraph as a Shiny output.
@@ -391,7 +391,7 @@ shiny::testServer(
 # ------------------------------------------------------------
 # .df_to_markdown produces a parseable markdown table
 # ------------------------------------------------------------
-md <- .df_to_markdown(
+md <- zzpower:::.df_to_markdown(
   data.frame(A = c(1.234, 5.678), B = c("x", "y")),
   caption = "Test"
 )
@@ -408,7 +408,7 @@ expect_true(grepl("|---|---|", md, fixed = TRUE))
 ctx <- power_calc("ttest_2groups",
                   sample_size = 100, effect_size = 0.5,
                   effect_method = "cohens_d", dropout = 0.10)
-script <- .render_repro_script(ctx)
+script <- zzpower:::.render_repro_script(ctx)
 expect_true(nchar(script) > 100)
 expect_true(grepl("library(pwr)", script, fixed = TRUE))
 expect_true(grepl("pwr::pwr.t2n.test", script, fixed = TRUE))
@@ -426,7 +426,7 @@ ctx2 <- power_calc("logrank",
                    sample_size = 200, effect_size = 0.6,
                    effect_method = "hazard_ratio",
                    dropout = 0.10, event_prob = 0.7)
-script2 <- .render_repro_script(ctx2)
+script2 <- zzpower:::.render_repro_script(ctx2)
 expect_true(grepl("library(zzpower)", script2, fixed = TRUE))
 expect_true(grepl("zzpower::logrank_power", script2, fixed = TRUE))
 
@@ -435,7 +435,7 @@ expect_true(grepl("Achieved power:", script, fixed = TRUE))
 expect_true(grepl("Total enrolled:", script, fixed = TRUE))
 
 # Markdown fence wrapper.
-script_fenced <- .render_repro_script(ctx, fence = TRUE)
+script_fenced <- zzpower:::.render_repro_script(ctx, fence = TRUE)
 expect_true(startsWith(script_fenced, "```r\n"))
 expect_true(endsWith(script_fenced, "\n```"))
 
@@ -445,7 +445,7 @@ for (id in names(registry)) {
     sample_size   = 100,
     effect_size   = registry[[id]]$default_effect_grid[[1]][2] %||% 0.5,
     effect_method = registry[[id]]$effect_size_methods[1])
-  s <- .render_repro_script(ctx_i)
+  s <- zzpower:::.render_repro_script(ctx_i)
   expect_true(nchar(s) > 50,
               info = sprintf("%s repro script empty", id))
   expect_true(grepl(registry[[id]]$repro_call, s, fixed = TRUE),
@@ -467,7 +467,7 @@ report_data <- list(
   type1_error = 0.05,
   one_sided = FALSE
 )
-ctx_back <- .report_data_to_ctx(report_data)
+ctx_back <- zzpower:::.report_data_to_ctx(report_data)
 expect_false(is.null(ctx_back))
 expect_equal(ctx_back$test_id, "ttest_2groups")
 expect_equal(ctx_back$alpha, 0.05)

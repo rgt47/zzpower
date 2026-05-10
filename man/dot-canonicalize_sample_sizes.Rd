@@ -2,7 +2,7 @@
 % Please edit documentation in R/power_test_registry.R
 \name{.canonicalize_sample_sizes}
 \alias{.canonicalize_sample_sizes}
-\title{Power Test Registry}
+\title{Canonicalize a sample-size calculation result}
 \usage{
 .canonicalize_sample_sizes(per_arm_enrolled, dropout = 0, arm_labels = NULL)
 }
@@ -20,58 +20,12 @@ display. Defaults to "Sample" for one arm, "Group i" otherwise.}
 Named list with the canonical fields plus legacy shims.
 }
 \description{
-Centralized registry defining all available power analysis tests.
-Each entry defines the parameters, effect size methods, and power calculation
-for a specific statistical test.
+Converts per-arm enrolled counts plus a dropout rate into the
+canonical four-layer record (`n_per_arm_evaluable`,
+`n_per_arm_enrolled`, `n_total_evaluable`, `n_total_enrolled`)
+that every grant-writing artifact (Gaps 1, 2, 3, 9) reads from.
+Back-compat scalars (`n`, `n1`, `n2`, `n1_itt`, `n2_itt`, `k`)
+are populated so consumers that read the legacy keys keep
+working unchanged.
 }
-\keyword{(Gaps}
-\keyword{(`n_per_arm_evaluable`,}
-\keyword{(`n`,}
-\keyword{1,}
-\keyword{2,}
-\keyword{3,}
-\keyword{9)}
-\keyword{Back-compat}
-\keyword{Canonicalize}
-\keyword{Converts}
-\keyword{`k`)}
-\keyword{`n1_itt`,}
-\keyword{`n1`,}
-\keyword{`n2_itt`,}
-\keyword{`n2`,}
-\keyword{`n_per_arm_enrolled`,}
-\keyword{`n_total_enrolled`)}
-\keyword{`n_total_evaluable`,}
-\keyword{a}
-\keyword{are}
-\keyword{artifact}
-\keyword{calculation}
-\keyword{canonical}
-\keyword{consumers}
-\keyword{counts}
-\keyword{dropout}
-\keyword{enrolled}
-\keyword{every}
-\keyword{four-layer}
-\keyword{from.}
-\keyword{grant-writing}
 \keyword{internal}
-\keyword{into}
-\keyword{keep}
-\keyword{keys}
-\keyword{legacy}
-\keyword{per-arm}
-\keyword{plus}
-\keyword{populated}
-\keyword{rate}
-\keyword{read}
-\keyword{reads}
-\keyword{record}
-\keyword{result}
-\keyword{sample-size}
-\keyword{scalars}
-\keyword{so}
-\keyword{that}
-\keyword{the}
-\keyword{unchanged.}
-\keyword{working}

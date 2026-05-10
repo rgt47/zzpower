@@ -1,17 +1,3 @@
-#' Generic UI Builder
-#'
-#' Dynamically generates UI for any power analysis test based on
-#' registry definition. All inputs are built statically at UI
-#' construction time to avoid renderUI invalidation loops.
-#'
-#' @keywords internal
-#' @importFrom bslib layout_sidebar layout_columns sidebar card
-#'   card_header card_body
-#' @importFrom shiny NS sliderInput numericInput radioButtons
-#'   conditionalPanel checkboxInput plotOutput downloadButton
-#'   uiOutput verbatimTextOutput tagList
-#' @importFrom DT DTOutput
-
 #' Wrap a parameter label with an info-icon tooltip
 #'
 #' If the parameter spec includes a `description`, the label is

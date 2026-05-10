@@ -39,7 +39,7 @@
 #' launch_zzpower()
 #' }
 #'
-#' @author Ronald "Ryy" G. Thomas
+#' @author Ronald G. Thomas
 #'
 #' @references
 #' Cohen, J. (1988). Statistical Power Analysis for the Behavioral
@@ -61,6 +61,13 @@
 #' @docType package
 #' @name zzpower-package
 #' @aliases zzpower
+#' @importFrom bslib layout_sidebar layout_columns sidebar card
+#'   card_header card_body
+#' @importFrom shiny NS sliderInput numericInput radioButtons
+#'   conditionalPanel checkboxInput plotOutput downloadButton
+#'   uiOutput verbatimTextOutput tagList reactiveValuesToList
+#' @importFrom DT DTOutput
+#' @importFrom rlang .data
 "_PACKAGE"
 
 # Silence R CMD check NOTEs for the local data-frame columns used in
