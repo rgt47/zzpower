@@ -20,7 +20,7 @@ jobs:
       has_blog: ${{ steps.detect.outputs.has_blog }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Detect project features
         id: detect
@@ -44,7 +44,7 @@ jobs:
           test -f DESCRIPTION || { echo "Missing DESCRIPTION"; exit 1; }
 
       - name: Cache R packages
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: /usr/local/lib/R/site-library
           key: r-pkgs-${{ hashFiles('DESCRIPTION') }}
@@ -78,10 +78,10 @@ jobs:
     container: rocker/verse:latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Cache R packages
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: /usr/local/lib/R/site-library
           key: r-pkgs-${{ hashFiles('DESCRIPTION') }}
@@ -114,7 +114,7 @@ jobs:
     container: rocker/r-ver:latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Validate data structure
         run: |
@@ -140,7 +140,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: quarto-dev/quarto-actions/setup@v2
 
