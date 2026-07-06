@@ -31,7 +31,8 @@ zzpower’s registry pattern makes adding tests straightforward:
 1.  Create a test specification function (see `R/power_test_registry.R`)
     that returns a list with `id`, `name`, `pwr_function`, effect-size
     methods, and a `standardize()` callback.
-2.  Register the spec in `get_power_test_registry()`.
+2.  Register the spec in
+    [`get_power_test_registry()`](https://rgt47.github.io/zzpower/reference/get_power_test_registry.md).
 3.  Add specification tests to `tests/testthat/test-framework.R`
     exercising your effect-size methods and edge cases.
 4.  The framework auto-generates the UI tab, server logic, and reports.

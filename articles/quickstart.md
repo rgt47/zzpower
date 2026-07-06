@@ -33,7 +33,7 @@ different statistical tests.
 
 ## Supported Statistical Tests
 
-### Two-Group t-test (Independent Samples)
+### Two-Sample t-test (Independent Samples)
 
 For parallel-group clinical trial designs:
 
@@ -82,7 +82,7 @@ launch_zzpower()
 
 ### 2. Select Test Type
 
-Choose the appropriate tab for your study design (e.g., “Two-Group
+Choose the appropriate tab for your study design (e.g., “Two-Sample
 t-test”).
 
 ### 3. Set Sample Size

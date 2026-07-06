@@ -1,87 +1,70 @@
-# zzpower: Power Analysis Calculator for Two-Group Parallel Designs
+# zzpower: Interactive Power Analysis Calculator for Clinical Trials
 
-The zzpower package provides an interactive 'Shiny' application for
-power analysis and sample size calculations specifically designed for
-two-group parallel clinical trial designs. The application supports
-multiple effect size specifications, accounts for dropout rates and
-unequal group allocation ratios, and provides interactive visualizations
-with downloadable reports.
+The zzpower package provides an interactive 'Shiny' application covering
+eleven statistical tests via a registry/plugin architecture: two-group,
+paired, and one-sample t-tests; two-proportion comparisons; Pearson
+correlation; log-rank survival; Fisher's exact test; Cochran-Armitage
+trend; one-way ANOVA; McNemar's test for paired proportions; and a basic
+linear mixed-model power calculation. Each test supports multiple
+effect-size specifications, design parameters (alpha, allocation,
+dropout), and downloadable reports.
 
 ## Details
 
-A comprehensive 'Shiny' application for conducting power analysis and
-sample size calculations for two-group parallel clinical trial designs.
+A 'Shiny' application for power analysis and sample size calculations
+across a catalogue of statistical tests common in clinical trial design.
 
 ## Key Features
 
-- **Multiple Effect Size Methods:** Supports Cohen's d, percentage
-  reductions, difference in change scores, and treatment group changes
+- **Eleven statistical tests** via the
+  [`get_power_test_registry`](https://rgt47.github.io/zzpower/reference/get_power_test_registry.md)
+  registry, each rendered through a generic UI/server factory pair
+  ([`create_generic_test_ui`](https://rgt47.github.io/zzpower/reference/create_generic_test_ui.md),
+  [`create_generic_test_server`](https://rgt47.github.io/zzpower/reference/create_generic_test_server.md))
 
-- **Comprehensive Design Considerations:** Accounts for dropout rates,
-  drop-in rates, and unequal group allocation ratios
+- **Multiple effect-size methods** per test (Cohen's d, h, f, hazard
+  ratio, odds ratio, percent reduction, etc.)
 
-- **Interactive Visualizations:** Real-time power curves and detailed
-  results tables
+- **Sample-size and power solve modes:** compute power at a given N or N
+  required for target power
 
-- **Report Generation:** Downloadable reports in PDF, HTML, or Word
-  formats
+- **Interactive power curves** with reference lines and formatted result
+  tables (`DT`)
 
-- **Advanced Settings:** Configurable Type I error rates and one-sided
-  vs two-sided testing
+- **Downloadable reports** (text and HTML) summarising study design and
+  power calculation
+
+- **Design considerations:** dropout, drop-in, allocation ratio,
+  one-sided vs two-sided testing
 
 ## Getting Started
 
-To launch the interactive application, simply run:
+To launch the interactive application, run:
 
 
     library(zzpower)
     launch_zzpower()
-
-## Effect Size Methods
-
-The application supports four different approaches to specifying effect
-sizes:
-
-- **Standard Deviation Units (Cohen's d):**:
-
-  Direct specification of standardized effect sizes
-
-- **Percent Reduction:**:
-
-  Effect size specified as percentage reduction from placebo
-
-- **Difference in Change Scores:**:
-
-  Absolute difference between treatment groups in outcome units
-
-- **Change in Active Group:**:
-
-  Specifying the treatment group change directly
-
-## Sample Size Calculations
-
-The application calculates both intention-to-treat (ITT) and completer
-sample sizes, accounting for:
-
-- Expected dropout rates
-
-- Drop-in rates (control group receiving treatment)
-
-- Unequal randomization ratios between groups
 
 ## References
 
 Cohen, J. (1988). Statistical Power Analysis for the Behavioral Sciences
 (2nd ed.). Lawrence Erlbaum Associates.
 
+Schoenfeld, D. A. (1983). Sample-size formula for the proportional-
+hazards regression model. Biometrics, 39(2), 499-503.
+
+Champely, S. (2020). pwr: Basic Functions for Power Analysis. R package.
+
 ## See also
 
-- [`launch_zzpower`](https://rgt47.github.io/zzpower/reference/launch_zzpower.md) -
-  Launch the interactive application
+- [`launch_zzpower`](https://rgt47.github.io/zzpower/reference/launch_zzpower.md)
+  for the interactive application
 
-- [`pwr.t2n.test`](https://rdrr.io/pkg/pwr/man/pwr.t2n.test.html) -
-  Underlying power calculation function
+- [`get_power_test_registry`](https://rgt47.github.io/zzpower/reference/get_power_test_registry.md)
+  for the test registry
+
+- The pwr package for the underlying power-calculation primitives
 
 ## Author
 
-Ronald "Ryy" G. Thomas
+Ronald G. Thomas

@@ -1,7 +1,8 @@
 # Launch the zzpower Shiny Application
 
 This function launches the interactive 'Shiny' application for power
-analysis and sample size calculations for two-group parallel designs.
+analysis and sample size calculations using a registry of statistical
+tests. Each test runs as an independent Shiny module.
 
 ## Usage
 
@@ -35,17 +36,30 @@ No return value, launches the Shiny application
 
 ## Details
 
-The application provides interactive power analysis for two-group
-parallel clinical trial designs with the following features:
+The application provides interactive power analysis for multiple
+statistical tests:
 
-- Multiple effect size specifications (Cohen's d, percentage reduction,
-  difference in change scores, treatment group change)
+- Two-group t-tests (independent samples)
 
-- Accounts for dropout rates and unequal group allocation ratios
+- Paired t-tests
+
+- One-sample t-tests
+
+- Two proportions (binomial comparison)
+
+- Correlation tests
+
+- Survival log-rank test
+
+- Fisher's exact test
+
+- Cochran-Armitage trend in proportions
+
+- Multiple effect size specifications per test
 
 - Interactive power curves and detailed results tables
 
-- Downloadable reports in PDF, HTML, or Word formats
+- Downloadable reports in text or HTML formats
 
 ## Examples
 
