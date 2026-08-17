@@ -5,17 +5,19 @@
 #'
 #' @description
 #' The \pkg{zzpower} package provides an interactive 'Shiny' application
-#' covering eleven statistical tests via a registry/plugin architecture:
+#' covering fourteen statistical tests via a registry/plugin architecture:
 #' two-group, paired, and one-sample t-tests; two-proportion comparisons;
 #' Pearson correlation; log-rank survival; Fisher's exact test;
 #' Cochran-Armitage trend; one-way ANOVA; McNemar's test for paired
-#' proportions; and a basic linear mixed-model power calculation. Each
-#' test supports multiple effect-size specifications, design parameters
-#' (alpha, allocation, dropout), and downloadable reports.
+#' proportions; a basic linear mixed-model power calculation; and
+#' cluster-randomized variants of the continuous, proportion, and
+#' log-rank tests. Each test supports multiple effect-size
+#' specifications, design parameters (alpha, allocation, dropout), and
+#' downloadable reports.
 #'
 #' @section Key Features:
 #' \itemize{
-#'   \item \strong{Eleven statistical tests} via the
+#'   \item \strong{Fourteen statistical tests} via the
 #'     \code{\link{get_power_test_registry}} registry, each rendered through
 #'     a generic UI/server factory pair
 #'     (\code{\link{create_generic_test_ui}},
@@ -61,13 +63,10 @@
 #' @docType package
 #' @name zzpower-package
 #' @aliases zzpower
-#' @importFrom bslib layout_sidebar layout_columns sidebar card
-#'   card_header card_body
-#' @importFrom shiny NS sliderInput numericInput radioButtons
-#'   conditionalPanel checkboxInput plotOutput downloadButton
-#'   uiOutput verbatimTextOutput tagList reactiveValuesToList
+#' @importFrom bslib layout_sidebar layout_columns sidebar card card_header card_body
+#' @importFrom shiny NS sliderInput numericInput radioButtons conditionalPanel checkboxInput plotOutput downloadButton uiOutput verbatimTextOutput tagList reactiveValuesToList
 #' @importFrom DT DTOutput
-#' @importFrom rlang .data
+#' @importFrom rlang .data %||%
 "_PACKAGE"
 
 # Silence R CMD check NOTEs for the local data-frame columns used in

@@ -7,13 +7,15 @@
 \title{zzpower: Interactive Power Analysis Calculator for Clinical Trials}
 \description{
 The \pkg{zzpower} package provides an interactive 'Shiny' application
-covering eleven statistical tests via a registry/plugin architecture:
+covering fourteen statistical tests via a registry/plugin architecture:
 two-group, paired, and one-sample t-tests; two-proportion comparisons;
 Pearson correlation; log-rank survival; Fisher's exact test;
 Cochran-Armitage trend; one-way ANOVA; McNemar's test for paired
-proportions; and a basic linear mixed-model power calculation. Each
-test supports multiple effect-size specifications, design parameters
-(alpha, allocation, dropout), and downloadable reports.
+proportions; a basic linear mixed-model power calculation; and
+cluster-randomized variants of the continuous, proportion, and
+log-rank tests. Each test supports multiple effect-size
+specifications, design parameters (alpha, allocation, dropout), and
+downloadable reports.
 }
 \details{
 A 'Shiny' application for power analysis and sample size calculations
@@ -22,7 +24,7 @@ across a catalogue of statistical tests common in clinical trial design.
 \section{Key Features}{
 
 \itemize{
-  \item \strong{Eleven statistical tests} via the
+  \item \strong{Fourteen statistical tests} via the
     \code{\link{get_power_test_registry}} registry, each rendered through
     a generic UI/server factory pair
     (\code{\link{create_generic_test_ui}},

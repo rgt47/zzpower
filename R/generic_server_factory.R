@@ -1582,15 +1582,24 @@ create_generic_test_server <- function(id, test_spec,
     "",
     "POWER ANALYSIS RESULTS",
     "--------------------------------------------",
-    "Effect Size | Standardized | Power",
+    if ("required_n" %in% names(report_data$power_results)) {
+      "Effect Size | Standardized | Required N"
+    } else {
+      "Effect Size | Standardized | Power"
+    },
     "--------- | ----------- | -----"
   )
 
   for (i in seq_len(nrow(report_data$power_results))) {
     row <- report_data$power_results[i, ]
+    last_col <- if ("required_n" %in% names(row)) {
+      if (is.na(row$required_n)) "NA" else sprintf("%.0f", row$required_n)
+    } else {
+      sprintf("%.4f", row$power)
+    }
     lines <- c(lines,
-      sprintf("%.4f | %.4f | %.4f",
-        row$effect_size, row$standardized_es, row$power)
+      sprintf("%.4f | %.4f | %s",
+        row$effect_size, row$standardized_es, last_col)
     )
   }
 
@@ -1800,18 +1809,27 @@ create_generic_test_server <- function(id, test_spec,
         <tr>
           <th>Effect Size</th>
           <th>Standardized</th>
-          <th>Power</th>
+          <th>', if ("required_n" %in% names(report_data$power_results)) {
+                "Required N"
+              } else {
+                "Power"
+              }, '</th>
         </tr>
       </thead>
       <tbody>')
 
   for (i in seq_len(nrow(report_data$power_results))) {
     row <- report_data$power_results[i, ]
+    last_col <- if ("required_n" %in% names(row)) {
+      if (is.na(row$required_n)) "NA" else sprintf("%.0f", row$required_n)
+    } else {
+      sprintf("%.4f", row$power)
+    }
     html <- paste0(html, '
         <tr>
           <td>', sprintf("%.4f", row$effect_size), '</td>
           <td>', sprintf("%.4f", row$standardized_es), '</td>
-          <td>', sprintf("%.4f", row$power), '</td>
+          <td>', last_col, '</td>
         </tr>')
   }
 

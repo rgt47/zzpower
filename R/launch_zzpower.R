@@ -42,8 +42,7 @@
 #'
 #' @export
 #' @importFrom shiny shinyApp req actionLink observeEvent tags
-#' @importFrom bslib bs_theme page_fillable navset_hidden nav_panel
-#'   nav_panel_hidden layout_column_wrap nav_select
+#' @importFrom bslib bs_theme page_fillable navset_hidden nav_panel nav_panel_hidden layout_column_wrap nav_select
 launch_zzpower <- function(..., launch.browser = TRUE,
                            host = "127.0.0.1", port = NULL) {
 

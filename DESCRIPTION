@@ -14,7 +14,6 @@ Description: An interactive 'Shiny' application for power analysis and sample
     statisticians planning studies.
 License: GPL (>= 3)
 Encoding: UTF-8
-RoxygenNote: 7.3.3
 Depends:
     R (>= 4.1.0)
 Imports:
@@ -33,3 +32,4 @@ Suggests:
 URL: https://github.com/rgt47/zzpower
 BugReports: https://github.com/rgt47/zzpower/issues
 VignetteBuilder: knitr
+Config/roxygen2/version: 8.0.0

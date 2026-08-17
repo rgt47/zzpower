@@ -76,7 +76,7 @@ This package builds on several the following R packages:
 
 ## Supported Statistical Tests
 
-The application includes 5 statistical tests via a scalable plugin architecture:
+The application includes 14 statistical tests via a scalable plugin architecture:
 
 | Test | Use Case | Effect Size |
 |:-----|:---------|:------------|
@@ -85,6 +85,15 @@ The application includes 5 statistical tests via a scalable plugin architecture:
 | One-Sample t-test | Single-group vs reference | Cohen's d |
 | Two Proportions | Binary outcomes | Proportions, OR, RR |
 | Correlation | Bivariate relationships | Correlation r |
+| Log-rank | Survival comparisons | Hazard ratio |
+| Fisher's Exact | Small-sample binary outcomes | Odds ratio |
+| Cochran-Armitage Trend | Ordered categorical exposure | Trend in proportions |
+| One-Way ANOVA | Multi-group continuous outcomes | Cohen's f |
+| McNemar | Paired binary outcomes | Discordant-pair proportion |
+| Mixed Model | Basic linear mixed-model power | Effect size, ICC |
+| Cluster RCT | Cluster-randomized continuous outcomes | Effect size, ICC |
+| Cluster Proportions | Cluster-randomized binary outcomes | Proportions, ICC |
+| Cluster Log-rank | Cluster-randomized survival | Hazard ratio, ICC |
 
 ## Documentation
 

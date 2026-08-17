@@ -806,7 +806,13 @@ power_table <- function(test, effect_grid = NULL,
   # supplied one; otherwise the raw alpha.
   args <- list(sig.level = ctx$alpha_effective %||% ctx$alpha)
   if ("alternative" %in% fn_formals) {
-    args$alternative <- ctx$alternative
+    # pwr functions accept "two.sided" / "less" / "greater"; zzpower
+    # internally uses "one.sided". Mirror the mapping in
+    # .compute_power() so the rendered script uses the same
+    # alternative value that actually produced the result.
+    args$alternative <- switch(ctx$alternative,
+                               "one.sided" = "greater",
+                               ctx$alternative)
   }
   if (!is.na(es_param)) args[[es_param]] <- ctx$effect_size_std
 

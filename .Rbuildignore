@@ -20,3 +20,7 @@
 ^\.zzcollab$
 ^.*/\.zzcollab$
 ^\.zzcollab_manifest\.json$
+^\.zzcollab-state$
+^tooling\.lock$
+^zzcollab\.yaml$
+^CONTRIBUTING\.md$
