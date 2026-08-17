@@ -166,8 +166,13 @@
 <div class="section level2">
 <h2 id="supported-statistical-tests">Supported Statistical Tests<a class="anchor" aria-label="anchor" href="#supported-statistical-tests"></a>
 </h2>
-<p>The application includes 5 statistical tests via a scalable plugin architecture:</p>
+<p>The application includes 14 statistical tests via a scalable plugin architecture:</p>
 <table class="table">
+<colgroup>
+<col width="20%">
+<col width="34%">
+<col width="44%">
+</colgroup>
 <thead><tr>
 <th align="left">Test</th>
 <th align="left">Use Case</th>
@@ -198,6 +203,51 @@
 <td align="left">Correlation</td>
 <td align="left">Bivariate relationships</td>
 <td align="left">Correlation r</td>
+</tr>
+<tr>
+<td align="left">Log-rank</td>
+<td align="left">Survival comparisons</td>
+<td align="left">Hazard ratio</td>
+</tr>
+<tr>
+<td align="left">Fisher’s Exact</td>
+<td align="left">Small-sample binary outcomes</td>
+<td align="left">Odds ratio</td>
+</tr>
+<tr>
+<td align="left">Cochran-Armitage Trend</td>
+<td align="left">Ordered categorical exposure</td>
+<td align="left">Trend in proportions</td>
+</tr>
+<tr>
+<td align="left">One-Way ANOVA</td>
+<td align="left">Multi-group continuous outcomes</td>
+<td align="left">Cohen’s f</td>
+</tr>
+<tr>
+<td align="left">McNemar</td>
+<td align="left">Paired binary outcomes</td>
+<td align="left">Discordant-pair proportion</td>
+</tr>
+<tr>
+<td align="left">Mixed Model</td>
+<td align="left">Basic linear mixed-model power</td>
+<td align="left">Effect size, ICC</td>
+</tr>
+<tr>
+<td align="left">Cluster RCT</td>
+<td align="left">Cluster-randomized continuous outcomes</td>
+<td align="left">Effect size, ICC</td>
+</tr>
+<tr>
+<td align="left">Cluster Proportions</td>
+<td align="left">Cluster-randomized binary outcomes</td>
+<td align="left">Proportions, ICC</td>
+</tr>
+<tr>
+<td align="left">Cluster Log-rank</td>
+<td align="left">Cluster-randomized survival</td>
+<td align="left">Hazard ratio, ICC</td>
 </tr>
 </tbody>
 </table>
@@ -277,7 +327,7 @@
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer>

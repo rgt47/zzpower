@@ -8,7 +8,3 @@ parameter bounds, defaults, and computational settings.
 ``` r
 ZZPOWER_CONSTANTS
 ```
-
-## Format
-
-An object of class `list` of length 66.

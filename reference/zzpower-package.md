@@ -1,13 +1,14 @@
 # zzpower: Interactive Power Analysis Calculator for Clinical Trials
 
 The zzpower package provides an interactive 'Shiny' application covering
-eleven statistical tests via a registry/plugin architecture: two-group,
-paired, and one-sample t-tests; two-proportion comparisons; Pearson
-correlation; log-rank survival; Fisher's exact test; Cochran-Armitage
-trend; one-way ANOVA; McNemar's test for paired proportions; and a basic
-linear mixed-model power calculation. Each test supports multiple
-effect-size specifications, design parameters (alpha, allocation,
-dropout), and downloadable reports.
+fourteen statistical tests via a registry/plugin architecture:
+two-group, paired, and one-sample t-tests; two-proportion comparisons;
+Pearson correlation; log-rank survival; Fisher's exact test;
+Cochran-Armitage trend; one-way ANOVA; McNemar's test for paired
+proportions; a basic linear mixed-model power calculation; and
+cluster-randomized variants of the continuous, proportion, and log-rank
+tests. Each test supports multiple effect-size specifications, design
+parameters (alpha, allocation, dropout), and downloadable reports.
 
 ## Details
 
@@ -16,7 +17,7 @@ across a catalogue of statistical tests common in clinical trial design.
 
 ## Key Features
 
-- **Eleven statistical tests** via the
+- **Fourteen statistical tests** via the
   [`get_power_test_registry`](https://rgt47.github.io/zzpower/reference/get_power_test_registry.md)
   registry, each rendered through a generic UI/server factory pair
   ([`create_generic_test_ui`](https://rgt47.github.io/zzpower/reference/create_generic_test_ui.md),
