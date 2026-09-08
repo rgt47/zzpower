@@ -407,7 +407,7 @@ sensitivity table builder, and reproducibility script export
   power, the maximum power in the tested range, and the total
   sample size (in power-solve mode); or the smallest and largest
   required N and the target power (in sample-size-solve mode).
-* **Sidebar reorganised into accordion panels.** The sidebar now
+* **Sidebar reorganized into accordion panels.** The sidebar now
   uses `bslib::accordion` with three panels ('Sample Size & Design',
   'Effect Size', 'Advanced Settings'). The Advanced Settings panel
   is closed by default; the other two are open. Replaces a tall
