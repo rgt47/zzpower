@@ -1,3 +1,46 @@
+# zzpower 1.1.0
+
+## Correctness fixes
+
+* **A zero effect no longer returns `NA`.** `trend_power()`,
+  `mcnemar_power()` and `mixed_model_power()` guarded on
+  `d <= 0` and returned `NA`, so a grid of effect sizes that included
+  zero came back with a hole in it. The power of a level-alpha test at
+  the null is alpha, and it is computable; the guard discarded a known
+  answer. `n <= 0` still returns `NA`, which genuinely has no answer.
+
+* **The two-sided normal approximation now includes both rejection
+  tails.** `pnorm(|d| sqrt(n) - z)` is the usual textbook form and
+  omits the probability of rejecting in the direction opposite the
+  effect. That term is negligible for any effect worth powering
+  (4e-7 at `d = 0.2`, `n = 200`, invisible at six decimals) but not at
+  the null, where the one-tailed form gives `alpha/2`. Adding it makes
+  the function exact under its own approximation and continuous
+  through `d = 0`, rather than discontinuous at the point the guard
+  above was hiding. Reported power for realistic effects is unchanged;
+  it differs only for effects small enough that the calculation was
+  already reporting near-alpha power.
+
+## Tests
+
+* `test_basic.R` held a single `expect_true(TRUE)`. It now checks, for
+  each of the three z-based functions, that power equals alpha at the
+  null for three significance levels, rises with both sample size and
+  effect, stays a probability, is continuous through zero, and is `NA`
+  for a degenerate sample size; and that `logrank_power()` follows the
+  Schoenfeld formula, rises with the hazard ratio, and is `NA` with no
+  events.
+* Suite grows from 954 assertions to 980.
+
+## Verified unchanged
+
+* `logrank_power()` implements Schoenfeld (1981) correctly, taking
+  expected events rather than sample sizes as documented. Against
+  simulation with exponential survival and no censoring the formula
+  agrees to within 0.001 to 0.029 across hazard ratios of 1.5 to 2.5,
+  running slightly optimistic at low event counts, which is the known
+  behaviour of the normal approximation.
+
 # zzpower v1.0.0 (in development)
 
 ## CRAN-readiness pass

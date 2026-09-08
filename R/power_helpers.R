@@ -64,7 +64,11 @@ logrank_power <- function(h, n1, n2, sig.level, alternative = "two.sided") {
 #' @keywords internal
 trend_power <- function(n, d, sig.level, alternative = "two.sided") {
   ncp <- n * d^2
-  if (ncp <= 0) return(list(power = NA))
+  if (n <= 0 || is.na(ncp)) return(list(power = NA))
+  # A zero effect is a valid question with a known answer: the power of
+  # a level-alpha test at the null is alpha. The chi-square form below
+  # returns exactly that for ncp = 0, so no special case is needed and
+  # returning NA discarded a computable value.
 
   if (alternative == "two.sided") {
     crit <- stats::qchisq(1 - sig.level, df = 1)
@@ -101,7 +105,7 @@ trend_power <- function(n, d, sig.level, alternative = "two.sided") {
 #' @export
 #' @keywords internal
 mcnemar_power <- function(n, d, sig.level, alternative = "two.sided") {
-  if (n <= 0 || d <= 0) return(list(power = NA))
+  if (n <= 0 || d < 0) return(list(power = NA))
 
   z_alpha <- if (alternative == "two.sided") {
     stats::qnorm(1 - sig.level / 2)
@@ -109,8 +113,22 @@ mcnemar_power <- function(n, d, sig.level, alternative = "two.sided") {
     stats::qnorm(1 - sig.level)
   }
 
+  # Both rejection tails. The upper term alone is the usual textbook
+  # approximation, and it is what was used here; it omits the
+  # probability of rejecting in the direction opposite the effect.
+  # That term is negligible for any effect worth powering (4e-7 at
+  # d = 0.2, n = 200) but not at the null, where the one-tailed form
+  # gives alpha/2 rather than alpha. A zero effect used to return NA to
+  # sidestep this; it now returns the significance level, which is what
+  # the power of a level-alpha test at the null is, and the function is
+  # continuous through d = 0.
   z_power <- abs(d) * sqrt(n) - z_alpha
-  list(power = stats::pnorm(z_power))
+  power <- if (alternative == "two.sided") {
+    stats::pnorm(z_power) + stats::pnorm(-abs(d) * sqrt(n) - z_alpha)
+  } else {
+    stats::pnorm(z_power)
+  }
+  list(power = power)
 }
 
 #' Longitudinal Mixed Model Power (Diggle et al. 2002)
@@ -138,7 +156,7 @@ mcnemar_power <- function(n, d, sig.level, alternative = "two.sided") {
 #' @export
 #' @keywords internal
 mixed_model_power <- function(n, d, sig.level, alternative = "two.sided") {
-  if (n <= 0 || d <= 0) return(list(power = NA))
+  if (n <= 0 || d < 0) return(list(power = NA))
 
   z_alpha <- if (alternative == "two.sided") {
     stats::qnorm(1 - sig.level / 2)
@@ -146,6 +164,20 @@ mixed_model_power <- function(n, d, sig.level, alternative = "two.sided") {
     stats::qnorm(1 - sig.level)
   }
 
+  # Both rejection tails. The upper term alone is the usual textbook
+  # approximation, and it is what was used here; it omits the
+  # probability of rejecting in the direction opposite the effect.
+  # That term is negligible for any effect worth powering (4e-7 at
+  # d = 0.2, n = 200) but not at the null, where the one-tailed form
+  # gives alpha/2 rather than alpha. A zero effect used to return NA to
+  # sidestep this; it now returns the significance level, which is what
+  # the power of a level-alpha test at the null is, and the function is
+  # continuous through d = 0.
   z_power <- abs(d) * sqrt(n) - z_alpha
-  list(power = stats::pnorm(z_power))
+  power <- if (alternative == "two.sided") {
+    stats::pnorm(z_power) + stats::pnorm(-abs(d) * sqrt(n) - z_alpha)
+  } else {
+    stats::pnorm(z_power)
+  }
+  list(power = power)
 }
