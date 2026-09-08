@@ -17,7 +17,7 @@
 - [`multi_aim_markdown()`](https://rgt47.github.io/zzpower/reference/multi_aim_markdown.md)
   : Render a multi-aim study as Markdown
 - [`multi_aim_study()`](https://rgt47.github.io/zzpower/reference/multi_aim_study.md)
-  : Initialise an empty multi-aim study
+  : Initialize an empty multi-aim study
 - [`power_calc()`](https://rgt47.github.io/zzpower/reference/power_calc.md)
   : Programmatic power calculation
 - [`power_table()`](https://rgt47.github.io/zzpower/reference/power_table.md)

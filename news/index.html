@@ -61,7 +61,7 @@
 <div class="section level4">
 <h4 id="new-programmatic-api-1-0-0">New programmatic API<a class="anchor" aria-label="anchor" href="#new-programmatic-api-1-0-0"></a></h4>
 <ul><li>
-<code>multi_aim_study(study_name)</code> — initialise an empty study object. Returns a <code>multi_aim_study</code> (S3) carrying optional metadata and an aims list.</li>
+<code>multi_aim_study(study_name)</code> — initialize an empty study object. Returns a <code>multi_aim_study</code> (S3) carrying optional metadata and an aims list.</li>
 <li>
 <code>add_aim(study, ctx, name, outcome)</code> — append one <code>calc_context</code> (from <code><a href="../reference/power_calc.html">power_calc()</a></code>) per call. Accumulates aims for the study.</li>
 <li>
@@ -173,7 +173,7 @@
 <h4 id="three-layer-n-contract-gap-0-5-0">Three-layer N contract (Gap 4)<a class="anchor" aria-label="anchor" href="#three-layer-n-contract-gap-0-5-0"></a></h4>
 <ul><li>All eleven <code>sample_size_calc()</code> returns now share the canonical shape <code>n_per_arm_evaluable / n_per_arm_enrolled / n_total_evaluable / n_total_enrolled / n_arms / arm_labels / dropout</code>, plus the legacy <code>n / n1 / n2 / k / n1_itt / n2_itt</code> shims that existing consumers (the server module, report builders, headline value-boxes) read. A new <code><a href="../reference/dot-canonicalize_sample_sizes.html">.canonicalize_sample_sizes()</a></code> helper centralises the enrolled-to-evaluable conversion.</li>
 <li>
-<strong>Behaviour change:</strong> the ten specs that previously had no <code>dropout</code> parameter now expose a Dropout Rate slider with default 0.10. Power curves on those tests are now ~10% lower than before unless the user dials dropout to 0. This aligns every test with the existing <code>ttest_2groups</code> convention and matches the NIH-realistic default of 10% loss to follow-up.</li>
+<strong>Behavior change:</strong> the ten specs that previously had no <code>dropout</code> parameter now expose a Dropout Rate slider with default 0.10. Power curves on those tests are now ~10% lower than before unless the user dials dropout to 0. This aligns every test with the existing <code>ttest_2groups</code> convention and matches the NIH-realistic default of 10% loss to follow-up.</li>
 <li>Logrank’s back-compat <code>n1</code>/<code>n2</code> continue to report <strong>expected events</strong> (the value the Schoenfeld formula consumes); the canonical <code>n_per_arm_*</code> fields report <strong>participants</strong> for the first time.</li>
 </ul></div>
 <div class="section level4">
@@ -210,13 +210,13 @@
 </ul></div>
 <div class="section level3">
 <h3 id="plot-polish-0-4-1">Plot polish<a class="anchor" aria-label="anchor" href="#plot-polish-0-4-1"></a></h3>
-<ul><li>Power-curve plots now annotate both the 80 percent and the 90 percent power thresholds. The 80 percent line is gold dashed (primary); the 90 percent line is grey dotted (secondary), with a smaller marker and label. The y-axis renders as percent (50 percent / 80 percent / …) rather than 0.5 / 0.8.</li>
+<ul><li>Power-curve plots now annotate both the 80 percent and the 90 percent power thresholds. The 80 percent line is gold dashed (primary); the 90 percent line is gray dotted (secondary), with a smaller marker and label. The y-axis renders as percent (50 percent / 80 percent / …) rather than 0.5 / 0.8.</li>
 <li>Sample-size plots gain a “min N = …” annotation at the smallest required-N point.</li>
 <li>The plotly experiment introduced mid-cycle was rolled back; the geom_label refactor it produced is retained because it is strictly cleaner than the original <code>annotate("label", ...)</code> pattern.</li>
 </ul></div>
 <div class="section level3">
 <h3 id="app-shell-0-4-1">App shell<a class="anchor" aria-label="anchor" href="#app-shell-0-4-1"></a></h3>
-<ul><li>Page footer added: version, source link, issue tracker, “How to cite” modal trigger, and licence.</li>
+<ul><li>Page footer added: version, source link, issue tracker, “How to cite” modal trigger, and license.</li>
 <li>Hero category grids on the landing page use breakpoint-aware column widths so single-card categories no longer leave 75 percent of the row empty on small screens.</li>
 </ul></div>
 <div class="section level3">

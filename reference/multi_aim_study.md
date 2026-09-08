@@ -1,4 +1,4 @@
-# Initialise an empty multi-aim study
+# Initialize an empty multi-aim study
 
 A multi-aim study is a list of \`calc_context\` objects (one per
 Specific Aim), plus optional metadata (study name, target agency). Use

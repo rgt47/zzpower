@@ -13,7 +13,7 @@ parameters (alpha, allocation, dropout), and downloadable reports.
 ## Details
 
 A 'Shiny' application for power analysis and sample size calculations
-across a catalogue of statistical tests common in clinical trial design.
+across a catalog of statistical tests common in clinical trial design.
 
 ## Key Features
 
@@ -32,7 +32,7 @@ across a catalogue of statistical tests common in clinical trial design.
 - **Interactive power curves** with reference lines and formatted result
   tables (`DT`)
 
-- **Downloadable reports** (text and HTML) summarising study design and
+- **Downloadable reports** (text and HTML) summarizing study design and
   power calculation
 
 - **Design considerations:** dropout, drop-in, allocation ratio,
