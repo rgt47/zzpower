@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">zzpower</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">1.0.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">1.1.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -36,6 +36,25 @@
       <small>Source: <a href="https://github.com/rgt47/zzpower/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="1.1.0" id="zzpower-110">zzpower 1.1.0<a class="anchor" aria-label="anchor" href="#zzpower-110"></a></h2>
+<div class="section level3">
+<h3 id="correctness-fixes-1-1-0">Correctness fixes<a class="anchor" aria-label="anchor" href="#correctness-fixes-1-1-0"></a></h3>
+<ul><li><p><strong>A zero effect no longer returns <code>NA</code>.</strong> <code><a href="../reference/trend_power.html">trend_power()</a></code>, <code><a href="../reference/mcnemar_power.html">mcnemar_power()</a></code> and <code><a href="../reference/mixed_model_power.html">mixed_model_power()</a></code> guarded on <code>d &lt;= 0</code> and returned <code>NA</code>, so a grid of effect sizes that included zero came back with a hole in it. The power of a level-alpha test at the null is alpha, and it is computable; the guard discarded a known answer. <code>n &lt;= 0</code> still returns <code>NA</code>, which genuinely has no answer.</p></li>
+<li><p><strong>The two-sided normal approximation now includes both rejection tails.</strong> <code>pnorm(|d| sqrt(n) - z)</code> is the usual textbook form and omits the probability of rejecting in the direction opposite the effect. That term is negligible for any effect worth powering (4e-7 at <code>d = 0.2</code>, <code>n = 200</code>, invisible at six decimals) but not at the null, where the one-tailed form gives <code>alpha/2</code>. Adding it makes the function exact under its own approximation and continuous through <code>d = 0</code>, rather than discontinuous at the point the guard above was hiding. Reported power for realistic effects is unchanged; it differs only for effects small enough that the calculation was already reporting near-alpha power.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="tests-1-1-0">Tests<a class="anchor" aria-label="anchor" href="#tests-1-1-0"></a></h3>
+<ul><li>
+<code>test_basic.R</code> held a single <code>expect_true(TRUE)</code>. It now checks, for each of the three z-based functions, that power equals alpha at the null for three significance levels, rises with both sample size and effect, stays a probability, is continuous through zero, and is <code>NA</code> for a degenerate sample size; and that <code><a href="../reference/logrank_power.html">logrank_power()</a></code> follows the Schoenfeld formula, rises with the hazard ratio, and is <code>NA</code> with no events.</li>
+<li>Suite grows from 954 assertions to 980.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="verified-unchanged-1-1-0">Verified unchanged<a class="anchor" aria-label="anchor" href="#verified-unchanged-1-1-0"></a></h3>
+<ul><li>
+<code><a href="../reference/logrank_power.html">logrank_power()</a></code> implements Schoenfeld (1981) correctly, taking expected events rather than sample sizes as documented. Against simulation with exponential survival and no censoring the formula agrees to within 0.001 to 0.029 across hazard ratios of 1.5 to 2.5, running slightly optimistic at low event counts, which is the known behaviour of the normal approximation.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.0.0" id="zzpower-v100-in-development">zzpower v1.0.0 (in development)<a class="anchor" aria-label="anchor" href="#zzpower-v100-in-development"></a></h2>
 <div class="section level3">
