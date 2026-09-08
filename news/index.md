@@ -402,7 +402,7 @@ Wave 3) build on top of these foundations.
   the tested range, and the total sample size (in power-solve mode); or
   the smallest and largest required N and the target power (in
   sample-size-solve mode).
-- **Sidebar reorganised into accordion panels.** The sidebar now uses
+- **Sidebar reorganized into accordion panels.** The sidebar now uses
   [`bslib::accordion`](https://rstudio.github.io/bslib/reference/accordion.html)
   with three panels (‘Sample Size & Design’, ‘Effect Size’, ‘Advanced
   Settings’). The Advanced Settings panel is closed by default; the
