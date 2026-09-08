@@ -15,7 +15,6 @@ Glueck
 Heagerty
 Humanise
 ICH
-Initialise
 JS
 Klar
 Liang
@@ -45,7 +44,6 @@ bslib
 calc
 canonicalize
 canonicalized
-catalogue
 centralises
 cohens
 compat
@@ -61,7 +59,6 @@ formatter
 ggplot
 gsheets
 humanised
-initialise
 inlined
 intracluster
 itt
@@ -96,7 +93,6 @@ scalable
 sd
 sliderInput
 ss
-summarising
 tagList
 theming
 tinytest

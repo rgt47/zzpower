@@ -509,7 +509,7 @@ create_generic_test_server <- function(id, test_spec,
 
     # Augment the sensitivity-table data frame with a
     # "Power @ proposed N" column, evaluating each row's
-    # standardised effect against the slider's current N.
+    # standardized effect against the slider's current N.
     sensitivity_table_with_power <- shiny::reactive({
       df <- sensitivity_table_df()
       shiny::req(df)
@@ -536,7 +536,7 @@ create_generic_test_server <- function(id, test_spec,
 
       display <- data.frame(
         `Effect size`        = df$effect_size,
-        `Standardised`       = round(df$effect_size_std, 3),
+        `Standardized`       = round(df$effect_size_std, 3),
         `Power @ proposed N` = df$power_at_n,
         `N evaluable @ 80%`  = round(df$n_total_evaluable_p80),
         `N enrolled @ 80%`   = round(df$n_total_enrolled_p80),
@@ -572,7 +572,7 @@ create_generic_test_server <- function(id, test_spec,
       # Visual cue: row tint based on achieved power -- amber when
       # below 80%, green when at or above. The user spots which
       # assumed effects the proposed N actually supports at a
-      # glance, which mirrors the gold/grey threshold annotations
+      # glance, which mirrors the gold/gray threshold annotations
       # on the power curve.
       dt <- DT::formatStyle(
         dt, "Power @ proposed N",
@@ -706,7 +706,7 @@ create_generic_test_server <- function(id, test_spec,
           # Linear interpolation gives the effect size where the
           # curve crosses the threshold exactly; the headline
           # value box reports this number, and the plot's gold/
-          # grey dots use the same value so the two agree.
+          # gray dots use the same value so the two agree.
           es_at_80 = .threshold_crossing(ok, 0.80),
           es_at_90 = .threshold_crossing(ok, 0.90),
           n_total          = ss$n_total_evaluable %||%
@@ -844,7 +844,7 @@ create_generic_test_server <- function(id, test_spec,
         shiny::req(nrow(results) > 0, cancelOutput = TRUE)
 
         # Linearly interpolate the actual curve-threshold crossing
-        # so the gold/grey dots sit on both the curve and the
+        # so the gold/gray dots sit on both the curve and the
         # threshold line, not at the next grid point above.
         x80 <- .threshold_crossing(results, 0.80)
         x90 <- .threshold_crossing(results, 0.90)

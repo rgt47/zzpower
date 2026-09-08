@@ -59,7 +59,7 @@ the Shiny nav-panel + URL-bookmarking UI is deferred to v1.1.x
 
 ### New programmatic API
 
-* `multi_aim_study(study_name)` — initialise an empty study
+* `multi_aim_study(study_name)` — initialize an empty study
   object. Returns a `multi_aim_study` (S3) carrying optional
   metadata and an aims list.
 * `add_aim(study, ctx, name, outcome)` — append one
@@ -277,7 +277,7 @@ sensitivity table builder, and reproducibility script export
   builders, headline value-boxes) read. A new
   `.canonicalize_sample_sizes()` helper centralises the
   enrolled-to-evaluable conversion.
-* **Behaviour change:** the ten specs that previously had no
+* **Behavior change:** the ten specs that previously had no
   `dropout` parameter now expose a Dropout Rate slider with
   default 0.10. Power curves on those tests are now ~10% lower
   than before unless the user dials dropout to 0. This aligns
@@ -360,7 +360,7 @@ sensitivity table builder, and reproducibility script export
 
 * Power-curve plots now annotate both the 80 percent and the 90
   percent power thresholds. The 80 percent line is gold dashed
-  (primary); the 90 percent line is grey dotted (secondary), with
+  (primary); the 90 percent line is gray dotted (secondary), with
   a smaller marker and label. The y-axis renders as percent
   (50 percent / 80 percent / ...) rather than 0.5 / 0.8.
 * Sample-size plots gain a "min N = ..." annotation at the
@@ -373,7 +373,7 @@ sensitivity table builder, and reproducibility script export
 ## App shell
 
 * Page footer added: version, source link, issue tracker, "How to
-  cite" modal trigger, and licence.
+  cite" modal trigger, and license.
 * Hero category grids on the landing page use breakpoint-aware
   column widths so single-card categories no longer leave 75
   percent of the row empty on small screens.

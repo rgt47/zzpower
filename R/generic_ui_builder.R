@@ -215,7 +215,7 @@ create_generic_test_ui <- function(test_id) {
               " - the assumed effect on the native scale ",
               "(e.g. Cohen's d, hazard ratio).",
               shiny::tags$br(),
-              shiny::tags$code("Standardised"),
+              shiny::tags$code("Standardized"),
               " - the same effect on the universal scale the ",
               "power formula consumes.",
               shiny::tags$br(),

@@ -622,7 +622,7 @@ power_table <- function(test, effect_grid = NULL,
       !isTRUE(all.equal(ctx$effect_size_std, ctx$effect_size))) {
     s2 <- sprintf(
       paste0("Based on prior data %s, we assume %s = %s ",
-             "(standardised: %s)."),
+             "(standardized: %s)."),
       citation_clause, effect_label,
       num3(ctx$effect_size),
       num2(ctx$effect_size_std)
@@ -682,13 +682,13 @@ power_table <- function(test, effect_grid = NULL,
   s4 <- if (!is.null(ss$dropout) && ss$dropout > 0) {
     if (ss$n_arms == 1L) {
       sprintf(
-        paste0("Accounting for %s dropout, total enrolment will be ",
+        paste0("Accounting for %s dropout, total enrollment will be ",
                "%s."),
         pct(ss$dropout), num0(ss$n_total_enrolled)
       )
     } else {
       sprintf(
-        paste0("Accounting for %s dropout, total enrolment will be ",
+        paste0("Accounting for %s dropout, total enrollment will be ",
                "%s (%s per arm)."),
         pct(ss$dropout),
         num0(ss$n_total_enrolled),
@@ -914,7 +914,7 @@ power_table <- function(test, effect_grid = NULL,
   }
 }
 
-#' Initialise an empty multi-aim study
+#' Initialize an empty multi-aim study
 #'
 #' A multi-aim study is a list of `calc_context` objects (one per
 #' Specific Aim), plus optional metadata (study name, target
@@ -1243,8 +1243,8 @@ create_ttest_2groups_spec <- function() {
     standardize = function(effect_sizes, method, params) {
       # Gap 8: non-inferiority. The slider in NI mode reports the
       # assumed true effect under the alternative (often 0 for
-      # exact equivalence). The standardised effect for power adds
-      # the NI margin: standardised = (true_effect + margin) / sd.
+      # exact equivalence). The standardized effect for power adds
+      # the NI margin: standardized = (true_effect + margin) / sd.
       # Margin is in the same units as the slider for the chosen
       # method (Cohen's d for cohens_d; raw scale for difference /
       # percent_reduction / active_change).
@@ -1509,7 +1509,7 @@ create_prop_2groups_spec <- function() {
       # Gap 8: non-inferiority (difference method only). The slider
       # represents the assumed true proportion difference under the
       # alternative (often 0 -- treatments equivalent on the
-      # proportion scale); the standardised effect for power adds
+      # proportion scale); the standardized effect for power adds
       # the NI margin and converts to Cohen's h via the same
       # `diff_to_cohens_h` pipeline as superiority. NI for the
       # multiplicative methods (odds_ratio, relative_risk) requires

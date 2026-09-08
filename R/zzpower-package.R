@@ -1,7 +1,7 @@
 #' zzpower: Interactive Power Analysis Calculator for Clinical Trials
 #'
 #' A 'Shiny' application for power analysis and sample size calculations
-#' across a catalogue of statistical tests common in clinical trial design.
+#' across a catalog of statistical tests common in clinical trial design.
 #'
 #' @description
 #' The \pkg{zzpower} package provides an interactive 'Shiny' application
@@ -28,7 +28,7 @@
 #'     given N or N required for target power
 #'   \item \strong{Interactive power curves} with reference lines and
 #'     formatted result tables (\code{DT})
-#'   \item \strong{Downloadable reports} (text and HTML) summarising study
+#'   \item \strong{Downloadable reports} (text and HTML) summarizing study
 #'     design and power calculation
 #'   \item \strong{Design considerations:} dropout, drop-in, allocation
 #'     ratio, one-sided vs two-sided testing

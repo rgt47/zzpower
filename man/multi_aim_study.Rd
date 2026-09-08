@@ -2,7 +2,7 @@
 % Please edit documentation in R/power_test_registry.R
 \name{multi_aim_study}
 \alias{multi_aim_study}
-\title{Initialise an empty multi-aim study}
+\title{Initialize an empty multi-aim study}
 \usage{
 multi_aim_study(study_name = NULL)
 }
