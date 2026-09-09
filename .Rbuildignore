@@ -24,3 +24,4 @@
 ^tooling\.lock$
 ^zzcollab\.yaml$
 ^CONTRIBUTING\.md$
+^cran-comments\.md$
