@@ -25,3 +25,4 @@
 ^zzcollab\.yaml$
 ^CONTRIBUTING\.md$
 ^cran-comments\.md$
+^data-raw$
