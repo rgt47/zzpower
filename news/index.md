@@ -2,6 +2,31 @@
 
 ## zzpower (development version)
 
+### Bug fixes
+
+- [`power_table()`](https://rgt47.github.io/zzpower/reference/power_table.md)
+  no longer silently returns a constant N when given a fixed sample
+  size. `power_table("ttest_2groups", sample_size = 128)` forwarded
+  `sample_size` through `...` to
+  [`power_calc()`](https://rgt47.github.io/zzpower/reference/power_calc.md),
+  where it overrode the solved N, so every row reported 128 for every
+  power threshold.
+  [`power_table()`](https://rgt47.github.io/zzpower/reference/power_table.md)
+  now errors on `sample_size`, `target_power` or `effect_size` in `...`
+  (including partial names such as `sample`, which R would otherwise
+  match), and on unnamed extra arguments, which landed positionally on
+  `sample_size`. Use
+  [`power_calc()`](https://rgt47.github.io/zzpower/reference/power_calc.md)
+  for power at a fixed N. Named design parameters (e.g. `allocation`,
+  `ratio`) are unaffected. Misspelled design parameters (e.g. `dropuot`)
+  are still accepted silently; that is a separate open item.
+- The Shiny home page and test panels now fall back to the default
+  accent color for a test id missing from the color palette. The
+  previous `card_colors[id] %||% default` idiom never fell back, because
+  `[` returns `NA` rather than `NULL`, and produced an `NA` CSS color.
+  All registered tests currently have palette entries, so no released
+  configuration was affected.
+
 ### Documentation and output
 
 - **The default 10% dropout adjustment is now documented and visible in

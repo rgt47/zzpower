@@ -105,10 +105,11 @@ the table columns. Defaults to `c(0.80, 0.90)`.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Additional design parameters passed through to the
-spec's `sample_size_calc()` (e.g. `allocation`,
-`ratio`, `event_prob`, `n_groups`) and `standardize()`
-(e.g. `sd0`, `p2`, `baseline`, `sigma`, `correlation`).</p></dd>
+<dd><p>Named design parameters passed through to [power_calc()]
+(e.g. `allocation`, `ratio`, `event_prob`, `sd0`). The table
+solves for the required N, so `sample_size`, `target_power`,
+`effect_size` and unnamed arguments are rejected with an error;
+use [power_calc()] for power at a fixed sample size.</p></dd>
 
 </dl></div>
     <div class="section level2">
