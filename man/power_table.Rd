@@ -38,10 +38,11 @@ the table columns. Defaults to `c(0.80, 0.90)`.}
 `dropout = 0` to disable the adjustment. See the section
 'Dropout adjustment'.}
 
-\item{...}{Additional design parameters passed through to the
-spec's `sample_size_calc()` (e.g. `allocation`,
-`ratio`, `event_prob`, `n_groups`) and `standardize()`
-(e.g. `sd0`, `p2`, `baseline`, `sigma`, `correlation`).}
+\item{...}{Named design parameters passed through to [power_calc()]
+(e.g. `allocation`, `ratio`, `event_prob`, `sd0`). The table
+solves for the required N, so `sample_size`, `target_power`,
+`effect_size` and unnamed arguments are rejected with an error;
+use [power_calc()] for power at a fixed sample size.}
 }
 \value{
 Tidy `data.frame` with columns `effect_size`,
