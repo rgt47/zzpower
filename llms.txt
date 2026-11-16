@@ -1,19 +1,27 @@
 # zzpower
 
 The `zzpower` package provides a Shiny application for conducting power
-analysis and sample size calculations for two-group parallel clinical
-trial designs.
+analysis and sample size calculations across 14 statistical tests used
+in clinical trial designs (see [Supported Statistical
+Tests](#supported-statistical-tests)). The same calculations are
+available programmatically through
+[`power_calc()`](https://rgt47.github.io/zzpower/reference/power_calc.md)
+and
+[`power_table()`](https://rgt47.github.io/zzpower/reference/power_table.md).
 
 ## Features
 
-- **Multiple Effect Size Methods**: Support for Cohen’s d, percentage
-  reductions, difference in change scores, and treatment group changes
-- **Design Considerations**: Accounts for dropout rates, drop-in rates,
-  and unequal group allocation ratios  
+- **Multiple Effect Size Methods**: Several effect-size specifications
+  per test where applicable; for example, the two-sample t-test accepts
+  Cohen’s d, percentage reductions, difference in change scores, and
+  treatment group changes
+- **Design Considerations**: Accounts for dropout rates (10% by default;
+  see below) and, for two-group designs, unequal group allocation ratios
 - **Interactive Visualizations**: Real-time power curves and detailed
   results tables
-- **Report Generation**: Downloadable reports in PDF, HTML, or Word
-  formats
+- **Report Generation**: Downloadable reports in text, HTML, PDF, or
+  Word format (PDF and Word require the suggested `rmarkdown` package,
+  and PDF also requires a LaTeX installation)
 - **Advanced Settings**: Configurable Type I error rates and one-sided
   vs two-sided testing
 
@@ -53,8 +61,9 @@ interactive interface for:
 
 ## Effect Size Methods
 
-The application supports four different approaches to specifying effect
-sizes:
+For the two-sample t-test, the application supports four different
+approaches to specifying effect sizes (other tests use the effect sizes
+listed in the table below):
 
 - **Standard Deviation Units (Cohen’s d)**: Direct specification of
   standardized effect sizes
@@ -99,7 +108,9 @@ This package builds on several the following R packages:
 - `pwr` - Power analysis calculations
 - `ggplot2` - Data visualization
 - `DT` - Interactive tables
-- `rmarkdown` - Report generation
+- `htmltools` - HTML report construction
+- `rlang` - Internal utilities
+- `rmarkdown` (suggested, optional) - PDF and Word report generation
 
 ## Supported Statistical Tests
 
@@ -118,7 +129,7 @@ architecture:
 | Cochran-Armitage Trend | Ordered categorical exposure | Trend in proportions |
 | One-Way ANOVA | Multi-group continuous outcomes | Cohen’s f |
 | McNemar | Paired binary outcomes | Discordant-pair proportion |
-| Mixed Model | Basic linear mixed-model power | Effect size, ICC |
+| Mixed Model (Slopes) | Longitudinal difference in slopes | Slope difference, within-subject correlation |
 | Cluster RCT | Cluster-randomized continuous outcomes | Effect size, ICC |
 | Cluster Proportions | Cluster-randomized binary outcomes | Proportions, ICC |
 | Cluster Log-rank | Cluster-randomized survival | Hazard ratio, ICC |
@@ -141,7 +152,7 @@ make r  # Enter Docker container with all dependencies
 
 ## License
 
-GPL-3
+GPL (\>= 3)
 
 ## Author
 

@@ -63,20 +63,19 @@
 </div>
 <!-- badges: start -->
 
-<p>The <code>zzpower</code> package provides a Shiny application for conducting power analysis and sample size calculations for two-group parallel clinical trial designs.</p>
+<p>The <code>zzpower</code> package provides a Shiny application for conducting power analysis and sample size calculations across 14 statistical tests used in clinical trial designs (see <a href="#supported-statistical-tests">Supported Statistical Tests</a>). The same calculations are available programmatically through <code><a href="reference/power_calc.html">power_calc()</a></code> and <code><a href="reference/power_table.html">power_table()</a></code>.</p>
 <div class="section level2">
 <h2 id="features">Features<a class="anchor" aria-label="anchor" href="#features"></a>
 </h2>
 <ul>
 <li>
-<strong>Multiple Effect Size Methods</strong>: Support for Cohen’s d, percentage reductions, difference in change scores, and treatment group changes</li>
+<strong>Multiple Effect Size Methods</strong>: Several effect-size specifications per test where applicable; for example, the two-sample t-test accepts Cohen’s d, percentage reductions, difference in change scores, and treatment group changes</li>
 <li>
-<strong>Design Considerations</strong>: Accounts for dropout rates, drop-in rates, and unequal group allocation ratios<br>
-</li>
+<strong>Design Considerations</strong>: Accounts for dropout rates (10% by default; see below) and, for two-group designs, unequal group allocation ratios</li>
 <li>
 <strong>Interactive Visualizations</strong>: Real-time power curves and detailed results tables</li>
 <li>
-<strong>Report Generation</strong>: Downloadable reports in PDF, HTML, or Word formats</li>
+<strong>Report Generation</strong>: Downloadable reports in text, HTML, PDF, or Word format (PDF and Word require the suggested <code>rmarkdown</code> package, and PDF also requires a LaTeX installation)</li>
 <li>
 <strong>Advanced Settings</strong>: Configurable Type I error rates and one-sided vs two-sided testing</li>
 </ul>
@@ -113,7 +112,7 @@
 <div class="section level2">
 <h2 id="effect-size-methods">Effect Size Methods<a class="anchor" aria-label="anchor" href="#effect-size-methods"></a>
 </h2>
-<p>The application supports four different approaches to specifying effect sizes:</p>
+<p>For the two-sample t-test, the application supports four different approaches to specifying effect sizes (other tests use the effect sizes listed in the table below):</p>
 <ul>
 <li>
 <strong>Standard Deviation Units (Cohen’s d)</strong>: Direct specification of standardized effect sizes</li>
@@ -160,7 +159,11 @@
 <li>
 <code>DT</code> - Interactive tables</li>
 <li>
-<code>rmarkdown</code> - Report generation</li>
+<code>htmltools</code> - HTML report construction</li>
+<li>
+<code>rlang</code> - Internal utilities</li>
+<li>
+<code>rmarkdown</code> (suggested, optional) - PDF and Word report generation</li>
 </ul>
 </div>
 <div class="section level2">
@@ -230,9 +233,9 @@
 <td align="left">Discordant-pair proportion</td>
 </tr>
 <tr>
-<td align="left">Mixed Model</td>
-<td align="left">Basic linear mixed-model power</td>
-<td align="left">Effect size, ICC</td>
+<td align="left">Mixed Model (Slopes)</td>
+<td align="left">Longitudinal difference in slopes</td>
+<td align="left">Slope difference, within-subject correlation</td>
 </tr>
 <tr>
 <td align="left">Cluster RCT</td>
@@ -271,7 +274,7 @@
 <div class="section level2">
 <h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>
 </h2>
-<p>GPL-3</p>
+<p>GPL (&gt;= 3)</p>
 </div>
 <div class="section level2">
 <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a>

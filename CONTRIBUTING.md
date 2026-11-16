@@ -29,13 +29,17 @@ points; a brief design discussion saves rework.
 zzpower’s registry pattern makes adding tests straightforward:
 
 1.  Create a test specification function (see `R/power_test_registry.R`)
-    that returns a list with `id`, `name`, `pwr_function`, effect-size
-    methods, and a `standardize()` callback.
+    that returns a list with `id`, `name`, `power_function`, effect-size
+    methods, and the `standardize()`, `sample_size_calc()`, and
+    `validation()` callbacks.
 2.  Register the spec in
     [`get_power_test_registry()`](https://rgt47.github.io/zzpower/reference/get_power_test_registry.md).
-3.  Add specification tests to `tests/testthat/test-framework.R`
-    exercising your effect-size methods and edge cases.
-4.  The framework auto-generates the UI tab, server logic, and reports.
+3.  Add the test id to `test_categories` and `card_colors` in
+    `R/launch_zzpower.R` so that it appears on the home page.
+4.  Add specification tests to `inst/tinytest/test_framework.R`
+    exercising your effect-size methods and edge cases, and update the
+    registry-length assertion there.
+5.  The framework generates the test’s tab, server logic, and reports.
 
 ## Pull request workflow
 
@@ -52,7 +56,7 @@ zzpower’s registry pattern makes adding tests straightforward:
 3.  Make your changes. Keep commits focused; prefer many small commits
     over one large one.
 
-4.  Add or update tests in `tests/testthat/`. New exported functions
+4.  Add or update tests in `inst/tinytest/`. New exported functions
     require tests.
 
 5.  Run `devtools::document()` to regenerate `man/` and `NAMESPACE`.
@@ -86,11 +90,12 @@ zzpower’s registry pattern makes adding tests straightforward:
 
 ## Tests
 
-Tests use `testthat` 3rd edition. Run with:
+Tests use `tinytest`, with test files in `inst/tinytest/`. Run with:
 
 ``` r
 
-devtools::test()
+pkgload::load_all()
+tinytest::run_test_dir('inst/tinytest')
 ```
 
 For coverage reports:

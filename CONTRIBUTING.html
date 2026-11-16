@@ -54,10 +54,11 @@
 <div class="section level2">
 <h2 id="adding-a-new-statistical-test">Adding a new statistical test<a class="anchor" aria-label="anchor" href="#adding-a-new-statistical-test"></a></h2>
 <p>zzpower’s registry pattern makes adding tests straightforward:</p>
-<ol style="list-style-type: decimal"><li>Create a test specification function (see <code>R/power_test_registry.R</code>) that returns a list with <code>id</code>, <code>name</code>, <code>pwr_function</code>, effect-size methods, and a <code>standardize()</code> callback.</li>
+<ol style="list-style-type: decimal"><li>Create a test specification function (see <code>R/power_test_registry.R</code>) that returns a list with <code>id</code>, <code>name</code>, <code>power_function</code>, effect-size methods, and the <code>standardize()</code>, <code>sample_size_calc()</code>, and <code>validation()</code> callbacks.</li>
 <li>Register the spec in <code><a href="reference/get_power_test_registry.html">get_power_test_registry()</a></code>.</li>
-<li>Add specification tests to <code>tests/testthat/test-framework.R</code> exercising your effect-size methods and edge cases.</li>
-<li>The framework auto-generates the UI tab, server logic, and reports.</li>
+<li>Add the test id to <code>test_categories</code> and <code>card_colors</code> in <code>R/launch_zzpower.R</code> so that it appears on the home page.</li>
+<li>Add specification tests to <code>inst/tinytest/test_framework.R</code> exercising your effect-size methods and edge cases, and update the registry-length assertion there.</li>
+<li>The framework generates the test’s tab, server logic, and reports.</li>
 </ol></div>
 <div class="section level2">
 <h2 id="pull-request-workflow">Pull request workflow<a class="anchor" aria-label="anchor" href="#pull-request-workflow"></a></h2>
@@ -68,7 +69,7 @@
 <code class="sourceCode R"><span><span class="fu">renv</span><span class="fu">::</span><span class="fu">restore</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 </li>
 <li><p>Make your changes. Keep commits focused; prefer many small commits over one large one.</p></li>
-<li><p>Add or update tests in <code>tests/testthat/</code>. New exported functions require tests.</p></li>
+<li><p>Add or update tests in <code>inst/tinytest/</code>. New exported functions require tests.</p></li>
 <li><p>Run <code>devtools::document()</code> to regenerate <code>man/</code> and <code>NAMESPACE</code>.</p></li>
 <li>
 <p>Run the full check locally:</p>
@@ -91,9 +92,10 @@
 </ul></div>
 <div class="section level2">
 <h2 id="tests">Tests<a class="anchor" aria-label="anchor" href="#tests"></a></h2>
-<p>Tests use <code>testthat</code> 3rd edition. Run with:</p>
+<p>Tests use <code>tinytest</code>, with test files in <code>inst/tinytest/</code>. Run with:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">test</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">pkgload</span><span class="fu">::</span><span class="fu">load_all</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="fu">tinytest</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/tinytest/man/run_test_dir.html" class="external-link">run_test_dir</a></span><span class="op">(</span><span class="st">'inst/tinytest'</span><span class="op">)</span></span></code></pre></div>
 <p>For coverage reports:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">covr</span><span class="fu">::</span><span class="fu">package_coverage</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
