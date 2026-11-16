@@ -60,7 +60,9 @@ conservative-effect sentence in the methods paragraph (Gap 6).}
 paragraph is appended (Gap 12).}
 }
 \value{
-Named list with the calc_context shape.
+Named list with the calc_context shape, including the
+  top-level fields `dropout`, `n_effective` (total evaluable N)
+  and `n_enrolled` (total enrolled N).
 }
 \description{
 Bundles inputs, outputs, provenance, and metadata for one

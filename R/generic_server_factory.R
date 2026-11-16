@@ -4,6 +4,17 @@
 #' single test tab via moduleServer(). Input IDs are automatically
 #' scoped by the module namespace.
 #'
+#' Every registered test exposes a Dropout Rate slider whose
+#' default is 10% (`dropout = 0.1`). The server computes power at
+#' the evaluable sample size, `n_enrolled * (1 - dropout)`, and
+#' reports enrolled N inflated for dropout. The rate in effect is
+#' stated in the downloadable text, HTML, PDF and Word reports,
+#' the sensitivity-table caption, the methods paragraph (when
+#' nonzero) and the reproducibility script. Move the slider to 0 to
+#' disable the adjustment.
+#'
+#' @inheritSection power_calc Dropout adjustment
+#'
 #' @param id Module ID (must match the test_id used in the UI)
 #' @param test_spec Test specification from registry
 #' @param registry_func Function returning the full test registry
@@ -659,14 +670,18 @@ create_generic_test_server <- function(id, test_spec,
         } else {
           "two-sided"
         }
+        dropout_rate <- df$dropout[1] %||% input$dropout %||% 0
         cap <- sprintf(
           paste0("Sample sizes required to achieve 80%% and 90%% ",
                  "power across plausible effect sizes (%s). ",
-                 "Calculations assume a %s test, alpha = %s. ",
+                 "Calculations assume a %s test, alpha = %s, and ",
+                 "%.0f%% dropout (N evaluable = N enrolled x ",
+                 "(1 - dropout)). ",
                  "Computed using zzpower (Thomas, R.G. 2026); ",
                  "method follows %s."),
           method, alt_str,
           format(input$type1 %||% 0.05),
+          dropout_rate * 100,
           test_spec$formula_citation %||% "--"
         )
         md <- .df_to_markdown(df, caption = cap)
@@ -1197,9 +1212,13 @@ create_generic_test_server <- function(id, test_spec,
         if (mode == "power") {
           results <- shiny::req(power_results())
           params <- study_parameters()
+          dropout_used <- params$dropout
         } else {
           results <- shiny::req(sample_size_results())
           params <- NULL
+          # Sample-size mode reads its own `ss_`-prefixed design
+          # inputs, so its dropout can differ from the power-mode one.
+          dropout_used <- .collect_design_params()$dropout
         }
 
         es_range <- effect_size_range()
@@ -1212,6 +1231,7 @@ create_generic_test_server <- function(id, test_spec,
           timestamp = Sys.time(),
           r_version = paste(R.version$major, R.version$minor, sep = "."),
           parameters = .collect_params(),
+          dropout = dropout_used,
           sample_sizes = params,
           effect_size_range = es_range,
           power_results = results,
@@ -1313,6 +1333,9 @@ create_generic_test_server <- function(id, test_spec,
       reg <- get_power_test_registry()
       spec <- reg[[report_data$test_id]]
       design <- report_data$parameters %||% list()
+      if (!is.null(report_data$dropout)) {
+        design$dropout <- report_data$dropout
+      }
       ss <- spec$sample_size_calc(c(
         list(sample_size = pr$required_n[j]),
         design[setdiff(names(design), "sample_size")]
@@ -1335,6 +1358,41 @@ create_generic_test_server <- function(id, test_spec,
     achieved_power  = achieved,
     target_power    = report_data$target_power
   )
+}
+
+#' Dropout statement lines for the downloadable reports
+#'
+#' Resolves the dropout rate in effect for a report (explicit
+#' `report_data$dropout`, else the canonical sample-size record,
+#' else the power-mode parameters, else the 10% spec default) and
+#' returns plain-text lines describing it, so no report omits the
+#' dropout assumption.
+#'
+#' @param report_data Report data list built by the download handler.
+#'
+#' @return A list with `rate` (numeric) and `lines` (character).
+#'
+#' @keywords internal
+.report_dropout_info <- function(report_data) {
+  ss <- report_data$sample_sizes
+  rate <- report_data$dropout %||%
+    ss$dropout %||%
+    report_data$parameters$dropout %||%
+    ZZPOWER_CONSTANTS$DROPOUT_DEFAULT
+  rate_line <- sprintf(
+    "Dropout rate: %.0f%% (N evaluable = N enrolled x (1 - %s))",
+    rate * 100, format(rate)
+  )
+  n_lines <- if (!is.null(ss$n_total_enrolled) &&
+                 !is.null(ss$n_total_evaluable)) {
+    c(sprintf("Total enrolled: %.0f", ss$n_total_enrolled),
+      sprintf("Total evaluable: %.1f (power computed at this N)",
+              ss$n_total_evaluable))
+  } else if ("required_n" %in% names(report_data$power_results)) {
+    paste0("Required N below is total enrolled, inflated for ",
+           "dropout; power is computed at the evaluable N.")
+  }
+  list(rate = rate, lines = c(rate_line, n_lines))
 }
 
 .format_generic_md_report <- function(report_data, test_spec) {
@@ -1372,24 +1430,25 @@ create_generic_test_server <- function(id, test_spec,
   if (!is.null(report_data$sample_sizes$n1) &&
       !is.null(report_data$sample_sizes$n2)) {
     parts <- c(parts,
-      sprintf("- **Group 1 (n1):** %.0f",
+      sprintf("- **Group 1 (n1, evaluable):** %.0f",
                report_data$sample_sizes$n1),
-      sprintf("- **Group 2 (n2):** %.0f",
+      sprintf("- **Group 2 (n2, evaluable):** %.0f",
                report_data$sample_sizes$n2),
-      sprintf("- **Total (N):** %.0f",
+      sprintf("- **Total evaluable (N):** %.0f",
                report_data$sample_sizes$n1 +
-                 report_data$sample_sizes$n2),
-      ""
+                 report_data$sample_sizes$n2)
     )
   } else if (!is.null(report_data$sample_sizes$n)) {
     parts <- c(parts,
-      sprintf("- **Sample size (n):** %.0f",
-               report_data$sample_sizes$n),
-      ""
+      sprintf("- **Sample size (n, evaluable):** %.0f",
+               report_data$sample_sizes$n)
     )
   } else {
-    parts <- c(parts, "_(Sample-size search results below.)_", "")
+    parts <- c(parts, "_(Sample-size search results below.)_")
   }
+  parts <- c(parts,
+             paste0("- ", .report_dropout_info(report_data)$lines),
+             "")
 
   parts <- c(parts,
     "## Statistical parameters",
@@ -1559,17 +1618,21 @@ create_generic_test_server <- function(id, test_spec,
   if (!is.null(report_data$sample_sizes$n1) &&
       !is.null(report_data$sample_sizes$n2)) {
     lines <- c(lines,
-      paste("Group 1 (n1):", sprintf("%.0f", report_data$sample_sizes$n1)),
-      paste("Group 2 (n2):", sprintf("%.0f", report_data$sample_sizes$n2)),
-      paste("Total (N):",
+      paste("Group 1 (n1, evaluable):",
+            sprintf("%.0f", report_data$sample_sizes$n1)),
+      paste("Group 2 (n2, evaluable):",
+            sprintf("%.0f", report_data$sample_sizes$n2)),
+      paste("Total evaluable (N):",
         sprintf("%.0f",
           report_data$sample_sizes$n1 + report_data$sample_sizes$n2))
     )
   } else if (!is.null(report_data$sample_sizes$n)) {
     lines <- c(lines,
-      paste("Sample Size (n):", sprintf("%.0f", report_data$sample_sizes$n))
+      paste("Sample Size (n, evaluable):",
+            sprintf("%.0f", report_data$sample_sizes$n))
     )
   }
+  lines <- c(lines, .report_dropout_info(report_data)$lines)
 
   lines <- c(lines,
     "",
@@ -1760,17 +1823,17 @@ create_generic_test_server <- function(id, test_spec,
       !is.null(report_data$sample_sizes$n2)) {
     html <- paste0(html, '
       <div class="parameter-row">
-        <span class="parameter-label">Group 1 (n1):</span>
+        <span class="parameter-label">Group 1 (n1, evaluable):</span>
         <span class="parameter-value">',
         sprintf("%.0f", report_data$sample_sizes$n1), '</span>
       </div>
       <div class="parameter-row">
-        <span class="parameter-label">Group 2 (n2):</span>
+        <span class="parameter-label">Group 2 (n2, evaluable):</span>
         <span class="parameter-value">',
         sprintf("%.0f", report_data$sample_sizes$n2), '</span>
       </div>
       <div class="parameter-row">
-        <span class="parameter-label">Total (N):</span>
+        <span class="parameter-label">Total evaluable (N):</span>
         <span class="parameter-value">',
         sprintf("%.0f",
           report_data$sample_sizes$n1 + report_data$sample_sizes$n2),
@@ -1779,9 +1842,16 @@ create_generic_test_server <- function(id, test_spec,
   } else if (!is.null(report_data$sample_sizes$n)) {
     html <- paste0(html, '
       <div class="parameter-row">
-        <span class="parameter-label">Sample Size (n):</span>
+        <span class="parameter-label">Sample Size (n, evaluable):</span>
         <span class="parameter-value">',
         sprintf("%.0f", report_data$sample_sizes$n), '</span>
+      </div>')
+  }
+  for (dropout_line in .report_dropout_info(report_data)$lines) {
+    html <- paste0(html, '
+      <div class="parameter-row">
+        <span class="parameter-value">',
+        htmltools::htmlEscape(dropout_line), '</span>
       </div>')
   }
 

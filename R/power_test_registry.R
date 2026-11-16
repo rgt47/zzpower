@@ -94,7 +94,9 @@
 #' @param include_sex_paragraph Logical; whether the sex-as-bio
 #'   paragraph is appended (Gap 12).
 #'
-#' @return Named list with the calc_context shape.
+#' @return Named list with the calc_context shape, including the
+#'   top-level fields `dropout`, `n_effective` (total evaluable N)
+#'   and `n_enrolled` (total enrolled N).
 #'
 #' @keywords internal
 .build_calc_context <- function(test_spec,
@@ -136,6 +138,13 @@
     # Outputs
     sample_sizes   = sample_sizes,
     achieved_power = achieved_power,
+
+    # Dropout assumption surfaced at the top level so it is never
+    # hidden inside `sample_sizes` (power is computed at the
+    # evaluable n, not the enrolled n).
+    dropout     = sample_sizes$dropout %||% 0,
+    n_effective = sample_sizes$n_total_evaluable %||% NA_real_,
+    n_enrolled  = sample_sizes$n_total_enrolled %||% NA_real_,
 
     # Metadata for downstream artifacts
     formula_citation     = test_spec$formula_citation %||% "",
@@ -287,19 +296,59 @@
 #'   power at `sample_size`.
 #' @param alpha Type I error rate.
 #' @param alternative `"two.sided"` or `"one.sided"`.
+#' @param dropout Expected dropout rate in `[0, 1)`. Defaults to
+#'   `0.1` (10%), which reduces the analyzed sample size; set
+#'   `dropout = 0` to disable the adjustment. See the section
+#'   'Dropout adjustment'.
 #' @param ... Additional design parameters passed through to the
-#'   spec's `sample_size_calc()` (e.g. `dropout`, `allocation`,
+#'   spec's `sample_size_calc()` (e.g. `allocation`,
 #'   `ratio`, `event_prob`, `n_groups`) and `standardize()`
 #'   (e.g. `sd0`, `p2`, `baseline`, `sigma`, `correlation`).
 #'
-#' @return A `calc_context` named list (see `.build_calc_context`).
+#' @section Dropout adjustment:
+#' Every registered test applies an expected dropout rate, which
+#' defaults to 10% (`dropout = 0.1`). Sample sizes are treated as
+#' enrolled counts, and power is computed at the evaluable (analyzed)
+#' sample size, `n_evaluable = n_enrolled * (1 - dropout)`, applied
+#' per arm.
+#'
+#' * Power mode (`sample_size` supplied): the achieved power is the
+#'   power at `sample_size * (1 - dropout)` evaluable participants,
+#'   so it is lower than the power that `pwr` reports for the same
+#'   nominal N. For example, a two-sample t-test with 128 enrolled
+#'   participants and d = 0.5 has power 0.758 under the default and
+#'   0.801 with `dropout = 0` (the `pwr::pwr.t2n.test()` value for
+#'   64 per arm).
+#' * Sample-size mode (`target_power` supplied): the solved N is the
+#'   enrolled N, inflated so that the evaluable N reaches the target
+#'   power.
+#'
+#' Set `dropout = 0` to reproduce unadjusted textbook or `pwr`
+#' results. The rate actually applied is recorded in the returned
+#' object (`dropout`, `n_effective`, `n_enrolled`) and is stated in
+#' its print method, the methods paragraph, the reproducibility
+#' script and the downloadable reports. The exported engine helpers
+#' (`logrank_power()`, `mcnemar_power()`, `mixed_model_power()`,
+#' `trend_power()`) take the analyzed sample size directly and do
+#' not apply any dropout adjustment.
+#'
+#' @return A `calc_context` object: a named list of class
+#'   `c("calc_context", "list")` (see `.build_calc_context`). Its
+#'   top-level `dropout` field is the dropout rate applied,
+#'   `n_effective` is the total evaluable (post-dropout) N at which
+#'   power was computed, and `n_enrolled` is the total enrolled N.
 #'
 #' @examples
 #' \dontrun{
-#' # Power at fixed N
+#' # Power at fixed N (default 10% dropout: 115.2 evaluable of 128)
 #' power_calc("ttest_2groups",
-#'            sample_size = 100, effect_size = 0.5,
+#'            sample_size = 128, effect_size = 0.5,
 #'            effect_method = "cohens_d")
+#'
+#' # Same design without the dropout adjustment (matches pwr)
+#' power_calc("ttest_2groups",
+#'            sample_size = 128, effect_size = 0.5,
+#'            effect_method = "cohens_d", dropout = 0)
 #'
 #' # Required N at target power
 #' power_calc("ttest_2groups",
@@ -313,6 +362,7 @@ power_calc <- function(test, sample_size = NULL, effect_size,
                        target_power  = NULL,
                        alpha         = 0.05,
                        alternative   = "two.sided",
+                       dropout       = 0.1,
                        ...) {
 
   reg <- get_power_test_registry()
@@ -327,7 +377,11 @@ power_calc <- function(test, sample_size = NULL, effect_size,
                  effect_method, test_spec$id), call. = FALSE)
   }
 
+  dropout_is_default <- missing(dropout)
   extra <- list(...)
+  # The Shiny server forwards `dropout = NULL` before the slider
+  # initializes; leave it unset so the spec's own default applies.
+  if (!is.null(dropout)) extra$dropout <- dropout
   effect_std <- as.numeric(
     test_spec$standardize(effect_size, effect_method, extra)
   )
@@ -374,7 +428,71 @@ power_calc <- function(test, sample_size = NULL, effect_size,
   # Surface the adjusted alpha so the methods paragraph and the
   # reproducibility script use the right number.
   ctx$alpha_effective <- alpha_eff
+  ctx$dropout_is_default <- dropout_is_default
+  class(ctx) <- c("calc_context", "list")
   ctx
+}
+
+#' Print a power calculation result
+#'
+#' Compact console summary of a `calc_context` returned by
+#' [power_calc()]. Always states the dropout rate that was applied
+#' and the enrolled versus evaluable sample size, so the default
+#' 10% dropout adjustment is never hidden. Use `unclass(x)` to see
+#' every stored field.
+#'
+#' @param x A `calc_context` from [power_calc()].
+#' @param ... Ignored.
+#'
+#' @inheritSection power_calc Dropout adjustment
+#'
+#' @return `x`, invisibly.
+#'
+#' @examples
+#' \dontrun{
+#' print(power_calc("ttest_2groups", sample_size = 128,
+#'                  effect_size = 0.5, effect_method = "cohens_d"))
+#' }
+#'
+#' @export
+print.calc_context <- function(x, ...) {
+  fmt_n <- function(v) {
+    if (is.null(v) || is.na(v)) "NA" else format(round(v, 1), nsmall = 0)
+  }
+  alpha_eff <- x$alpha_effective %||% x$alpha
+  dropout <- x$dropout %||% x$sample_sizes$dropout %||% 0
+  dropout_note <- if (isTRUE(x$dropout_is_default)) {
+    " (package default; set dropout = 0 to disable)"
+  } else {
+    ""
+  }
+
+  lines <- c(
+    sprintf("<calc_context> %s", x$test_name %||% x$test_id),
+    sprintf("  Effect size:   %s = %s (standardized %s)",
+            x$effect_method %||% "effect",
+            format(signif(x$effect_size, 4)),
+            format(signif(x$effect_size_std, 4))),
+    sprintf("  Alpha:         %s (%s)", format(signif(alpha_eff, 4)),
+            x$alternative %||% "two.sided"),
+    if (!is.null(x$target_power)) {
+      sprintf("  Target power:  %s", format(x$target_power))
+    },
+    sprintf("  Dropout:       %.0f%%%s", dropout * 100, dropout_note),
+    sprintf("  N enrolled:    %s", fmt_n(x$n_enrolled %||%
+                                         x$sample_sizes$n_total_enrolled)),
+    sprintf("  N evaluable:   %s = N enrolled x (1 - %s)",
+            fmt_n(x$n_effective %||% x$sample_sizes$n_total_evaluable),
+            format(dropout)),
+    sprintf("  Power:         %s (computed at N evaluable)",
+            if (is.na(x$achieved_power %||% NA_real_)) {
+              "NA"
+            } else {
+              sprintf("%.4f", x$achieved_power)
+            })
+  )
+  cat(lines, sep = "\n")
+  invisible(x)
 }
 
 #' Sample-size sensitivity table for a test
@@ -391,16 +509,27 @@ power_calc <- function(test, sample_size = NULL, effect_size,
 #' @param power_thresholds Numeric vector of power thresholds for
 #'   the table columns. Defaults to `c(0.80, 0.90)`.
 #'
+#' @inheritSection power_calc Dropout adjustment
+#'
 #' @return Tidy `data.frame` with columns `effect_size`,
-#'   `effect_size_std`, and one `n_total_enrolled_at_<power>`
-#'   column per power threshold (plus `n_total_evaluable_at_*`).
+#'   `effect_size_std`, `dropout` (the dropout rate applied), and
+#'   one `n_total_enrolled_at_<power>` column per power threshold
+#'   (plus `n_total_evaluable_at_*`). Enrolled N is inflated for
+#'   dropout; evaluable N equals enrolled N times `(1 - dropout)`.
 #'
 #' @examples
 #' \dontrun{
+#' # Default 10% dropout: enrolled N is inflated above evaluable N
 #' power_table("ttest_2groups",
 #'             effect_grid = c(0.20, 0.50, 0.80),
 #'             effect_method = "cohens_d",
 #'             power_thresholds = c(0.80, 0.90))
+#'
+#' # No dropout adjustment
+#' power_table("ttest_2groups",
+#'             effect_grid = c(0.20, 0.50, 0.80),
+#'             effect_method = "cohens_d",
+#'             dropout = 0)
 #' }
 #'
 #' @export
@@ -409,6 +538,7 @@ power_table <- function(test, effect_grid = NULL,
                         effect_method = NULL,
                         alpha       = 0.05,
                         alternative = "two.sided",
+                        dropout     = 0.1,
                         ...) {
 
   reg <- get_power_test_registry()
@@ -433,10 +563,12 @@ power_table <- function(test, effect_grid = NULL,
                       target_power  = power_thresholds[1L],
                       alpha         = alpha,
                       alternative   = alternative,
+                      dropout       = dropout,
                       ...)
     out <- list(
       effect_size      = eff,
-      effect_size_std  = ctx$effect_size_std
+      effect_size_std  = ctx$effect_size_std,
+      dropout          = ctx$dropout
     )
     for (p in power_thresholds) {
       ctx_p <- power_calc(test_spec,
@@ -445,6 +577,7 @@ power_table <- function(test, effect_grid = NULL,
                           target_power  = p,
                           alpha         = alpha,
                           alternative   = alternative,
+                          dropout       = dropout,
                           ...)
       ss <- ctx_p$sample_sizes
       pname <- formatC(p * 100, format = "d")
@@ -888,6 +1021,14 @@ power_table <- function(test, effect_grid = NULL,
     enrolled_str,
     (ss$dropout %||% 0) * 100
   )
+  dropout_comment <- sprintf(
+    paste0("# Dropout assumption: %.0f%%. The sample-size arguments ",
+           "below are evaluable\n# counts, n = n_enrolled * (1 - %s); ",
+           "use dropout = 0 in zzpower::power_calc()\n# to omit ",
+           "the adjustment."),
+    (ss$dropout %||% 0) * 100,
+    format(ss$dropout %||% 0)
+  )
 
   body <- c(
     sprintf("# Reproducibility script for %s", test_spec$name),
@@ -898,6 +1039,7 @@ power_table <- function(test, effect_grid = NULL,
     "",
     sprintf("library(%s)", pkg),
     "",
+    dropout_comment,
     sprintf("result <- %s(", call_name),
     arg_lines,
     ")",
@@ -923,8 +1065,15 @@ power_table <- function(test, effect_grid = NULL,
 #' `multi_aim_csv()` to render the Sec.2.5 Layout 4 study-level
 #' table for an NIH proposal.
 #'
+#' Each aim's sample size reflects the dropout rate used in its
+#' `power_calc()` call (10% unless `dropout` is supplied; see
+#' [power_calc()]). The rendered table reports that rate in a
+#' `Dropout` column alongside N evaluable and N enrolled.
+#'
 #' @param study_name Optional study identifier for the table
 #'   caption (e.g. "TEST-001: Reducing Chemotherapy Toxicity").
+#'
+#' @inheritSection power_calc Dropout adjustment
 #'
 #' @return A `multi_aim_study` object (a list with class).
 #'
@@ -985,10 +1134,11 @@ add_aim <- function(study, ctx, name = NULL, outcome = NULL) {
 #' Format a multi-aim study as a tidy data frame
 #'
 #' Produces the Sec.2.5 Layout 4 study-level table: one row per aim
-#' with Outcome, Test, Effect size, Alpha, Power, N evaluable,
-#' N enrolled, and a `binding` flag identifying the row with the
-#' largest enrolled N (the aim that drives the overall study
-#' size).
+#' with Outcome, Test, Effect size, Alpha, Power, Dropout (the
+#' dropout rate applied to that aim, as a proportion), N evaluable
+#' (N enrolled x (1 - Dropout)), N enrolled, and a `binding` flag
+#' identifying the row with the largest enrolled N (the aim that
+#' drives the overall study size).
 #'
 #' @param study A `multi_aim_study`.
 #'
@@ -1005,6 +1155,7 @@ format_multi_aim_df <- function(study) {
       Test = character(),
       `Effect size` = character(),
       Alpha = numeric(), Power = numeric(),
+      Dropout = numeric(),
       `N evaluable` = numeric(), `N enrolled` = numeric(),
       Binding = logical(),
       check.names = FALSE,
@@ -1032,6 +1183,9 @@ format_multi_aim_df <- function(study) {
   alpha_vals <- vapply(study$aims, function(ctx) {
     ctx$alpha_effective %||% ctx$alpha
   }, numeric(1))
+  dropout_vals <- vapply(study$aims, function(ctx) {
+    ctx$dropout %||% ctx$sample_sizes$dropout %||% 0
+  }, numeric(1))
   n_eval <- vapply(study$aims, function(ctx) {
     ctx$sample_sizes$n_total_evaluable
   }, numeric(1))
@@ -1049,6 +1203,7 @@ format_multi_aim_df <- function(study) {
   df[["Effect size"]]  <- effect_str
   df[["Alpha"]]        <- alpha_vals
   df[["Power"]]        <- power_vals
+  df[["Dropout"]]      <- dropout_vals
   df[["N evaluable"]]  <- n_eval
   df[["N enrolled"]]   <- n_enr
   df[["Binding"]]      <- n_enr == max(n_enr, na.rm = TRUE)
@@ -1079,6 +1234,7 @@ multi_aim_markdown <- function(study) {
   display <- df
   display$Alpha <- formatC(display$Alpha, digits = 4, format = "g")
   display$Power <- sprintf("%.0f%%", display$Power * 100)
+  display$Dropout <- sprintf("%.0f%%", display$Dropout * 100)
   display[["N evaluable"]] <- format(round(display[["N evaluable"]]),
                                       big.mark = ",", trim = TRUE)
   display[["N enrolled"]]  <- format(round(display[["N enrolled"]]),
@@ -1096,6 +1252,7 @@ multi_aim_markdown <- function(study) {
   paste(body,
         "",
         "*Aim marked with `*` is the binding aim (drives the overall study sample size).*",
+        "*N evaluable = N enrolled x (1 - Dropout); power is computed at N evaluable.*",
         sep = "\n")
 }
 
