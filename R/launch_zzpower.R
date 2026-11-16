@@ -171,7 +171,7 @@ launch_zzpower <- function(..., launch.browser = TRUE,
             ),
             !!!lapply(cat_ids, function(tid) {
               spec <- registry[[tid]]
-              clr <- card_colors[tid] %||% "#334155"
+              clr <- .card_color(card_colors, tid, "#334155")
               bslib::card(
                 style = paste0(
                   "cursor: pointer; ",
@@ -276,7 +276,7 @@ launch_zzpower <- function(..., launch.browser = TRUE,
 
   test_panels <- lapply(test_ids, function(test_id) {
     test_spec <- registry[[test_id]]
-    clr <- card_colors[test_id] %||% "#2c3e50"
+    clr <- .card_color(card_colors, test_id, "#2c3e50")
     bslib::nav_panel(
       value = test_spec$name,
       title = NULL,
@@ -538,4 +538,26 @@ launch_zzpower <- function(..., launch.browser = TRUE,
       ...
     )
   )
+}
+
+#' Look up a test's accent color with a fallback
+#'
+#' `colors[id] %||% default` never falls back, because `[` returns
+#' `NA` (not `NULL`) for a missing name. This helper checks
+#' membership explicitly so a test id absent from the palette gets
+#' `default` instead of an `NA` color in the generated CSS.
+#'
+#' @param colors Named character vector of colors keyed by test id.
+#' @param id Character scalar test id.
+#' @param default Color returned when `id` is not in `names(colors)`
+#'   or its entry is `NA`.
+#'
+#' @return A single unnamed character color.
+#'
+#' @keywords internal
+.card_color <- function(colors, id, default) {
+  if (!id %in% names(colors) || is.na(colors[[id]])) {
+    return(default)
+  }
+  colors[[id]]
 }

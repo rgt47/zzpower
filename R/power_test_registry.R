@@ -508,6 +508,11 @@ print.calc_context <- function(x, ...) {
 #'   chosen `effect_method`.
 #' @param power_thresholds Numeric vector of power thresholds for
 #'   the table columns. Defaults to `c(0.80, 0.90)`.
+#' @param ... Named design parameters passed through to [power_calc()]
+#'   (e.g. `allocation`, `ratio`, `event_prob`, `sd0`). The table
+#'   solves for the required N, so `sample_size`, `target_power`,
+#'   `effect_size` and unnamed arguments are rejected with an error;
+#'   use [power_calc()] for power at a fixed sample size.
 #'
 #' @inheritSection power_calc Dropout adjustment
 #'
@@ -546,6 +551,8 @@ power_table <- function(test, effect_grid = NULL,
   if (is.null(test_spec)) {
     stop("unknown test: ", test, call. = FALSE)
   }
+
+  .check_power_table_dots(...)
 
   effect_method <- effect_method %||% test_spec$effect_size_methods[1]
   if (is.null(effect_grid)) {
@@ -588,6 +595,51 @@ power_table <- function(test, effect_grid = NULL,
   })
 
   do.call(rbind.data.frame, c(rows, list(stringsAsFactors = FALSE)))
+}
+
+#' Validate the `...` of power_table()
+#'
+#' `power_table()` forwards `...` to `power_calc()` as design
+#' parameters. A `sample_size`, `target_power` or `effect_size`
+#' supplied there (or an unnamed value, which lands positionally on
+#' `sample_size`) would override the quantity the table solves for,
+#' so every row would silently report the same N. Such arguments are
+#' rejected with an informative error. Names are compared as
+#' prefixes because R partially matches them to `power_calc()`
+#' formals.
+#'
+#' @param ... The `...` of `power_table()`.
+#'
+#' @return `NULL`, invisibly; called for its error side effect.
+#'
+#' @keywords internal
+.check_power_table_dots <- function(...) {
+  dots <- list(...)
+  if (length(dots) == 0L) return(invisible(NULL))
+  nms <- names(dots) %||% rep('', length(dots))
+  if (any(!nzchar(nms))) {
+    stop('power_table() does not accept unnamed arguments in `...`; ',
+         'design parameters must be named (e.g. `allocation = ',
+         '"unequal"`).', call. = FALSE)
+  }
+  reserved <- c(
+    sample_size  = paste0('power_table() solves for the required N; ',
+                          'use power_calc() for power at a fixed ',
+                          '`sample_size`.'),
+    target_power = 'supply the target power(s) via `power_thresholds`.',
+    effect_size  = 'supply effect sizes via `effect_grid`.'
+  )
+  hit <- vapply(nms, function(nm) {
+    idx <- which(startsWith(names(reserved), nm))
+    if (length(idx) == 1L) names(reserved)[idx] else NA_character_
+  }, character(1))
+  hit <- hit[!is.na(hit)]
+  if (length(hit) > 0L) {
+    stop(sprintf('power_table() does not accept `%s` (matched `%s`): %s',
+                 names(hit)[1], hit[[1]], reserved[[hit[[1]]]]),
+         call. = FALSE)
+  }
+  invisible(NULL)
 }
 
 #' Format a data frame as a markdown table
