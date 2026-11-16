@@ -57,6 +57,7 @@ tabular sweeps.</p>
 <span>  target_power <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  alpha <span class="op">=</span> <span class="fl">0.05</span>,</span>
 <span>  alternative <span class="op">=</span> <span class="st">"two.sided"</span>,</span>
+<span>  dropout <span class="op">=</span> <span class="fl">0.1</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -101,25 +102,69 @@ power at `sample_size`.</p></dd>
 <dd><p>`"two.sided"` or `"one.sided"`.</p></dd>
 
 
+<dt id="arg-dropout">dropout<a class="anchor" aria-label="anchor" href="#arg-dropout"></a></dt>
+<dd><p>Expected dropout rate in `[0, 1)`. Defaults to
+`0.1` (10<!-- %), which reduces the analyzed sample size; set -->
+`dropout = 0` to disable the adjustment. See the section
+'Dropout adjustment'.</p></dd>
+
+
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Additional design parameters passed through to the
-spec's `sample_size_calc()` (e.g. `dropout`, `allocation`,
+spec's `sample_size_calc()` (e.g. `allocation`,
 `ratio`, `event_prob`, `n_groups`) and `standardize()`
 (e.g. `sd0`, `p2`, `baseline`, `sigma`, `correlation`).</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A `calc_context` named list (see `.build_calc_context`).</p>
+    <p>A `calc_context` object: a named list of class
+  `c("calc_context", "list")` (see `.build_calc_context`). Its
+  top-level `dropout` field is the dropout rate applied,
+  `n_effective` is the total evaluable (post-dropout) N at which
+  power was computed, and `n_enrolled` is the total enrolled N.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="dropout-adjustment">Dropout adjustment<a class="anchor" aria-label="anchor" href="#dropout-adjustment"></a></h2>
+
+
+<p>Every registered test applies an expected dropout rate, which
+defaults to 10<!-- % (`dropout = 0.1`). Sample sizes are treated as -->
+enrolled counts, and power is computed at the evaluable (analyzed)
+sample size, `n_evaluable = n_enrolled * (1 - dropout)`, applied
+per arm.</p>
+<p>* Power mode (`sample_size` supplied): the achieved power is the
+  power at `sample_size * (1 - dropout)` evaluable participants,
+  so it is lower than the power that `pwr` reports for the same
+  nominal N. For example, a two-sample t-test with 128 enrolled
+  participants and d = 0.5 has power 0.758 under the default and
+  0.801 with `dropout = 0` (the `pwr::pwr.t2n.test()` value for
+  64 per arm).
+* Sample-size mode (`target_power` supplied): the solved N is the
+  enrolled N, inflated so that the evaluable N reaches the target
+  power.</p>
+<p>Set `dropout = 0` to reproduce unadjusted textbook or `pwr`
+results. The rate actually applied is recorded in the returned
+object (`dropout`, `n_effective`, `n_enrolled`) and is stated in
+its print method, the methods paragraph, the reproducibility
+script and the downloadable reports. The exported engine helpers
+(`logrank_power()`, `mcnemar_power()`, `mixed_model_power()`,
+`trend_power()`) take the analyzed sample size directly and do
+not apply any dropout adjustment.</p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
-<span class="r-in"><span><span class="co"># Power at fixed N</span></span></span>
+<span class="r-in"><span><span class="co"># Power at fixed N (default 10% dropout: 115.2 evaluable of 128)</span></span></span>
 <span class="r-in"><span><span class="fu">power_calc</span><span class="op">(</span><span class="st">"ttest_2groups"</span>,</span></span>
-<span class="r-in"><span>           sample_size <span class="op">=</span> <span class="fl">100</span>, effect_size <span class="op">=</span> <span class="fl">0.5</span>,</span></span>
+<span class="r-in"><span>           sample_size <span class="op">=</span> <span class="fl">128</span>, effect_size <span class="op">=</span> <span class="fl">0.5</span>,</span></span>
 <span class="r-in"><span>           effect_method <span class="op">=</span> <span class="st">"cohens_d"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Same design without the dropout adjustment (matches pwr)</span></span></span>
+<span class="r-in"><span><span class="fu">power_calc</span><span class="op">(</span><span class="st">"ttest_2groups"</span>,</span></span>
+<span class="r-in"><span>           sample_size <span class="op">=</span> <span class="fl">128</span>, effect_size <span class="op">=</span> <span class="fl">0.5</span>,</span></span>
+<span class="r-in"><span>           effect_method <span class="op">=</span> <span class="st">"cohens_d"</span>, dropout <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Required N at target power</span></span></span>
 <span class="r-in"><span><span class="fu">power_calc</span><span class="op">(</span><span class="st">"ttest_2groups"</span>,</span></span>

@@ -37,6 +37,24 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="development version" id="zzpower-development-version">zzpower (development version)<a class="anchor" aria-label="anchor" href="#zzpower-development-version"></a></h2>
+<div class="section level3">
+<h3 id="documentation-and-output-development-version">Documentation and output<a class="anchor" aria-label="anchor" href="#documentation-and-output-development-version"></a></h3>
+<ul><li>
+<strong>The default 10% dropout adjustment is now documented and visible in every output.</strong> Every test has always applied <code>dropout = 0.1</code> unless told otherwise, computing power at the evaluable N, <code>n_enrolled * (1 - dropout)</code>. The help pages did not say so, and a result such as <code>power_calc("ttest_2groups", sample_size = 128, effect_size = 0.5, effect_method = "cohens_d")</code> reported power 0.758 where <code>pwr</code> gives 0.801, with no indication why. The default is unchanged, so numerical results are identical. Changes:
+<ul><li>
+<code><a href="../reference/power_calc.html">power_calc()</a></code> and <code><a href="../reference/power_table.html">power_table()</a></code> gain an explicit <code>dropout = 0.1</code> argument (previously accepted only through <code>...</code>), and a shared help section, ‘Dropout adjustment’, explains how it is applied and that <code>dropout = 0</code> disables it. The section is also inherited by <code><a href="../reference/multi_aim_study.html">multi_aim_study()</a></code>, <code><a href="../reference/create_generic_test_server.html">create_generic_test_server()</a></code> and the new print method.</li>
+<li>
+<code><a href="../reference/power_calc.html">power_calc()</a></code> now returns an object of class <code>c("calc_context", "list")</code> with top-level <code>dropout</code>, <code>n_effective</code> (total evaluable N), <code>n_enrolled</code> and <code>dropout_is_default</code> fields, and a compact <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> method that states the dropout rate and the enrolled and evaluable N. Use <code><a href="https://rdrr.io/r/base/class.html" class="external-link">unclass()</a></code> to see every field.</li>
+<li>
+<code><a href="../reference/power_table.html">power_table()</a></code> gains a <code>dropout</code> column; <code><a href="../reference/format_multi_aim_df.html">format_multi_aim_df()</a></code> gains a <code>Dropout</code> column, rendered as a percent by <code><a href="../reference/multi_aim_markdown.html">multi_aim_markdown()</a></code> with a footnote defining N evaluable.</li>
+<li>The text, HTML and Markdown (PDF/Word) reports state the dropout rate and label per-arm counts as evaluable; the reproducibility script states the dropout assumption and how to omit it; the sensitivity-table Markdown caption states the dropout rate.</li>
+<li>In sample-size mode, reports now use the sample-size-mode dropout input rather than the power-mode one.</li>
+<li>No warning or message is emitted when the default is used.</li>
+</ul></li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="1.1.0" id="zzpower-110">zzpower 1.1.0<a class="anchor" aria-label="anchor" href="#zzpower-110"></a></h2>
 <div class="section level3">
 <h3 id="correctness-fixes-1-1-0">Correctness fixes<a class="anchor" aria-label="anchor" href="#correctness-fixes-1-1-0"></a></h3>

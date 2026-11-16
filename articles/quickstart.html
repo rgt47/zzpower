@@ -59,7 +59,7 @@
                         <h4 data-toc-skip class="author">Ronald (Ryy) G.
 Thomas</h4>
             
-            <h4 data-toc-skip class="date">2026-11-13</h4>
+            <h4 data-toc-skip class="date">2026-11-16</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/rgt47/zzpower/blob/main/vignettes/quickstart.Rmd" class="external-link"><code>vignettes/quickstart.Rmd</code></a></small>
       <div class="d-none name"><code>quickstart.Rmd</code></div>
@@ -191,6 +191,15 @@ outcome units</li>
 <li>Alpha level (0.05, 0.01, etc.)</li>
 <li>One-sided vs two-sided testing</li>
 </ul>
+<p>The dropout rate defaults to 10% in every test, both in the app and
+in <code><a href="../reference/power_calc.html">power_calc()</a></code>/<code><a href="../reference/power_table.html">power_table()</a></code>. The sample size
+you set is treated as the enrolled N, and power is computed at the
+evaluable N, <code>N enrolled x (1 - dropout)</code>. Reported power is
+therefore lower than <code>pwr</code> gives for the same nominal N (for
+example, 0.758 instead of 0.801 for a two-sample t-test with 128
+participants and d = 0.5). Set the dropout rate to 0 to reproduce
+unadjusted results. The rate in effect is stated in the reports and the
+reproducibility script.</p>
 </div>
 <div class="section level3">
 <h3 id="review-results">6. Review Results<a class="anchor" aria-label="anchor" href="#review-results"></a>
@@ -201,6 +210,8 @@ outcome units</li>
 <li>Results table with exact values</li>
 <li>Study design summary</li>
 </ul>
+<p>All power values shown are computed at the evaluable (post-dropout)
+sample size under the dropout rate set in step 5 (10% by default).</p>
 </div>
 <div class="section level3">
 <h3 id="download-report">7. Download Report<a class="anchor" aria-label="anchor" href="#download-report"></a>

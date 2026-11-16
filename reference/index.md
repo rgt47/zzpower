@@ -22,6 +22,8 @@
   : Programmatic power calculation
 - [`power_table()`](https://rgt47.github.io/zzpower/reference/power_table.md)
   : Sample-size sensitivity table for a test
+- [`print(`*`<calc_context>`*`)`](https://rgt47.github.io/zzpower/reference/print.calc_context.md)
+  : Print a power calculation result
 - [`zzpower-package`](https://rgt47.github.io/zzpower/reference/zzpower-package.md)
   [`zzpower`](https://rgt47.github.io/zzpower/reference/zzpower-package.md)
   : zzpower: Interactive Power Analysis Calculator for Clinical Trials

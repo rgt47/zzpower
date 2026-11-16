@@ -1,5 +1,48 @@
 # Changelog
 
+## zzpower (development version)
+
+### Documentation and output
+
+- **The default 10% dropout adjustment is now documented and visible in
+  every output.** Every test has always applied `dropout = 0.1` unless
+  told otherwise, computing power at the evaluable N,
+  `n_enrolled * (1 - dropout)`. The help pages did not say so, and a
+  result such as
+  `power_calc("ttest_2groups", sample_size = 128, effect_size = 0.5, effect_method = "cohens_d")`
+  reported power 0.758 where `pwr` gives 0.801, with no indication why.
+  The default is unchanged, so numerical results are identical. Changes:
+  - [`power_calc()`](https://rgt47.github.io/zzpower/reference/power_calc.md)
+    and
+    [`power_table()`](https://rgt47.github.io/zzpower/reference/power_table.md)
+    gain an explicit `dropout = 0.1` argument (previously accepted only
+    through `...`), and a shared help section, ‘Dropout adjustment’,
+    explains how it is applied and that `dropout = 0` disables it. The
+    section is also inherited by
+    [`multi_aim_study()`](https://rgt47.github.io/zzpower/reference/multi_aim_study.md),
+    [`create_generic_test_server()`](https://rgt47.github.io/zzpower/reference/create_generic_test_server.md)
+    and the new print method.
+  - [`power_calc()`](https://rgt47.github.io/zzpower/reference/power_calc.md)
+    now returns an object of class `c("calc_context", "list")` with
+    top-level `dropout`, `n_effective` (total evaluable N), `n_enrolled`
+    and `dropout_is_default` fields, and a compact
+    [`print()`](https://rdrr.io/r/base/print.html) method that states
+    the dropout rate and the enrolled and evaluable N. Use
+    [`unclass()`](https://rdrr.io/r/base/class.html) to see every field.
+  - [`power_table()`](https://rgt47.github.io/zzpower/reference/power_table.md)
+    gains a `dropout` column;
+    [`format_multi_aim_df()`](https://rgt47.github.io/zzpower/reference/format_multi_aim_df.md)
+    gains a `Dropout` column, rendered as a percent by
+    [`multi_aim_markdown()`](https://rgt47.github.io/zzpower/reference/multi_aim_markdown.md)
+    with a footnote defining N evaluable.
+  - The text, HTML and Markdown (PDF/Word) reports state the dropout
+    rate and label per-arm counts as evaluable; the reproducibility
+    script states the dropout assumption and how to omit it; the
+    sensitivity-table Markdown caption states the dropout rate.
+  - In sample-size mode, reports now use the sample-size-mode dropout
+    input rather than the power-mode one.
+  - No warning or message is emitted when the default is used.
+
 ## zzpower 1.1.0
 
 ### Correctness fixes

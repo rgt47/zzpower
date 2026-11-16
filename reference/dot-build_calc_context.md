@@ -93,7 +93,9 @@ specs x five output-paste sites.
 
 ## Value
 
-Named list with the calc_context shape.
+Named list with the calc_context shape, including the top-level fields
+\`dropout\`, \`n_effective\` (total evaluable N) and \`n_enrolled\`
+(total enrolled N).
 
 ## Details
 

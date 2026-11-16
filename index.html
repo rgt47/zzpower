@@ -139,6 +139,7 @@
 <li>Review the power curve and identify the detectable effect size at 80% power</li>
 <li>Download a report documenting your power analysis</li>
 </ol>
+<p><strong>Dropout default.</strong> Every test applies a 10% expected dropout rate unless it is changed, in the app and in the programmatic functions <code><a href="reference/power_calc.html">power_calc()</a></code> and <code><a href="reference/power_table.html">power_table()</a></code>. The planned sample size is treated as enrolled, and power is computed at the evaluable N, <code>N enrolled x (1 - dropout)</code>, so it is lower than <code>pwr</code> reports for the same nominal N (0.758 rather than 0.801 for a two-sample t-test with N = 128 and d = 0.5). Set the dropout rate to 0 (<code>dropout = 0</code>) to obtain unadjusted results; the rate in effect is printed with every result and stated in the downloaded reports.</p>
 </div>
 <div class="section level2">
 <h2 id="dependencies">Dependencies<a class="anchor" aria-label="anchor" href="#dependencies"></a>

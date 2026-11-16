@@ -77,6 +77,18 @@ sizes:
     80% power
 7.  Download a report documenting your power analysis
 
+**Dropout default.** Every test applies a 10% expected dropout rate
+unless it is changed, in the app and in the programmatic functions
+[`power_calc()`](https://rgt47.github.io/zzpower/reference/power_calc.md)
+and
+[`power_table()`](https://rgt47.github.io/zzpower/reference/power_table.md).
+The planned sample size is treated as enrolled, and power is computed at
+the evaluable N, `N enrolled x (1 - dropout)`, so it is lower than `pwr`
+reports for the same nominal N (0.758 rather than 0.801 for a two-sample
+t-test with N = 128 and d = 0.5). Set the dropout rate to 0
+(`dropout = 0`) to obtain unadjusted results; the rate in effect is
+printed with every result and stated in the downloaded reports.
+
 ## Dependencies
 
 This package builds on several the following R packages:

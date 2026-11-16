@@ -76,6 +76,45 @@ scoped by the module namespace.</p>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>The return value of moduleServer() (called for side effects)</p>
     </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Every registered test exposes a Dropout Rate slider whose
+default is 10<!-- % (`dropout = 0.1`). The server computes power at -->
+the evaluable sample size, `n_enrolled * (1 - dropout)`, and
+reports enrolled N inflated for dropout. The rate in effect is
+stated in the downloadable text, HTML, PDF and Word reports,
+the sensitivity-table caption, the methods paragraph (when
+nonzero) and the reproducibility script. Move the slider to 0 to
+disable the adjustment.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="dropout-adjustment">Dropout adjustment<a class="anchor" aria-label="anchor" href="#dropout-adjustment"></a></h2>
+
+
+<p>Every registered test applies an expected dropout rate, which
+defaults to 10<!-- % (`dropout = 0.1`). Sample sizes are treated as -->
+enrolled counts, and power is computed at the evaluable (analyzed)
+sample size, `n_evaluable = n_enrolled * (1 - dropout)`, applied
+per arm.</p>
+<p>* Power mode (`sample_size` supplied): the achieved power is the
+  power at `sample_size * (1 - dropout)` evaluable participants,
+  so it is lower than the power that `pwr` reports for the same
+  nominal N. For example, a two-sample t-test with 128 enrolled
+  participants and d = 0.5 has power 0.758 under the default and
+  0.801 with `dropout = 0` (the `pwr::pwr.t2n.test()` value for
+  64 per arm).
+* Sample-size mode (`target_power` supplied): the solved N is the
+  enrolled N, inflated so that the evaluable N reaches the target
+  power.</p>
+<p>Set `dropout = 0` to reproduce unadjusted textbook or `pwr`
+results. The rate actually applied is recorded in the returned
+object (`dropout`, `n_effective`, `n_enrolled`) and is stated in
+its print method, the methods paragraph, the reproducibility
+script and the downloadable reports. The exported engine helpers
+(`logrank_power()`, `mcnemar_power()`, `mixed_model_power()`,
+`trend_power()`) take the analyzed sample size directly and do
+not apply any dropout adjustment.</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
