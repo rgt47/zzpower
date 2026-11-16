@@ -1,3 +1,39 @@
+# zzpower (development version)
+
+## Documentation and output
+
+* **The default 10% dropout adjustment is now documented and visible
+  in every output.** Every test has always applied
+  `dropout = 0.1` unless told otherwise, computing power at the
+  evaluable N, `n_enrolled * (1 - dropout)`. The help pages did not
+  say so, and a result such as `power_calc("ttest_2groups",
+  sample_size = 128, effect_size = 0.5, effect_method = "cohens_d")`
+  reported power 0.758 where `pwr` gives 0.801, with no indication
+  why. The default is unchanged, so numerical results are identical.
+  Changes:
+  - `power_calc()` and `power_table()` gain an explicit
+    `dropout = 0.1` argument (previously accepted only through
+    `...`), and a shared help section, 'Dropout adjustment', explains
+    how it is applied and that `dropout = 0` disables it. The section
+    is also inherited by `multi_aim_study()`,
+    `create_generic_test_server()` and the new print method.
+  - `power_calc()` now returns an object of class
+    `c("calc_context", "list")` with top-level `dropout`,
+    `n_effective` (total evaluable N), `n_enrolled` and
+    `dropout_is_default` fields, and a compact `print()` method that
+    states the dropout rate and the enrolled and evaluable N. Use
+    `unclass()` to see every field.
+  - `power_table()` gains a `dropout` column; `format_multi_aim_df()`
+    gains a `Dropout` column, rendered as a percent by
+    `multi_aim_markdown()` with a footnote defining N evaluable.
+  - The text, HTML and Markdown (PDF/Word) reports state the dropout
+    rate and label per-arm counts as evaluable; the reproducibility
+    script states the dropout assumption and how to omit it; the
+    sensitivity-table Markdown caption states the dropout rate.
+  - In sample-size mode, reports now use the sample-size-mode dropout
+    input rather than the power-mode one.
+  - No warning or message is emitted when the default is used.
+
 # zzpower 1.1.0
 
 ## Correctness fixes

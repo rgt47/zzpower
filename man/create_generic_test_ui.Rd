@@ -17,3 +17,10 @@ Module UI function. Uses NS(id) for all input/output IDs. Inputs
 are generated statically from the registry spec (no renderUI) to
 prevent reactive invalidation loops.
 }
+\details{
+The design-parameter controls include a Dropout Rate slider
+(default 10%, range 0 to 50%). Power is computed at the
+evaluable sample size, `n_enrolled * (1 - dropout)`; set the
+slider to 0 to disable the adjustment. See [power_calc()],
+section 'Dropout adjustment'.
+}

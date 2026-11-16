@@ -116,6 +116,15 @@ Adjust advanced settings:
 - Alpha level (0.05, 0.01, etc.)
 - One-sided vs two-sided testing
 
+The dropout rate defaults to 10% in every test, both in the app and in
+`power_calc()`/`power_table()`. The sample size you set is treated as
+the enrolled N, and power is computed at the evaluable N,
+`N enrolled x (1 - dropout)`. Reported power is therefore lower than
+`pwr` gives for the same nominal N (for example, 0.758 instead of 0.801
+for a two-sample t-test with 128 participants and d = 0.5). Set the
+dropout rate to 0 to reproduce unadjusted results. The rate in effect
+is stated in the reports and the reproducibility script.
+
 ### 6. Review Results
 
 Examine the interactive outputs:
@@ -123,6 +132,9 @@ Examine the interactive outputs:
 - Power curve showing power vs effect size
 - Results table with exact values
 - Study design summary
+
+All power values shown are computed at the evaluable (post-dropout)
+sample size under the dropout rate set in step 5 (10% by default).
 
 ### 7. Download Report
 
